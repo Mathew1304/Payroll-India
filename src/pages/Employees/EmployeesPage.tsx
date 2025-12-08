@@ -1,0 +1,598 @@
+import { useEffect, useState } from 'react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, Users, Briefcase, Mail, Phone, Calendar, Sparkles, Send, UserPlus, Upload, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { AddEmployeeModal } from '../../components/Employees/AddEmployeeModal';
+import { QuickInviteModal } from '../../components/Employees/QuickInviteModal';
+import { BulkInviteModal } from '../../components/Employees/BulkInviteModal';
+import { BulkImportEmployeesModal } from '../../components/Employees/BulkImportEmployeesModal';
+import { ImportHistoryModal } from '../../components/Employees/ImportHistoryModal';
+import { ViewEmployeeModal } from '../../components/Employees/ViewEmployeeModal';
+import { EditEmployeeModal } from '../../components/Employees/EditEmployeeModal';
+import { DeleteConfirmationModal } from '../../components/Employees/DeleteConfirmationModal';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+
+interface Employee {
+  id: string;
+  employee_code: string;
+  first_name: string;
+  last_name: string;
+  company_email: string;
+  mobile_number: string;
+  employment_status: string;
+  employment_type: string;
+  date_of_joining: string;
+  departments: { name: string } | null;
+  designations: { title: string } | null;
+}
+
+export function EmployeesPage() {
+  const { organization } = useAuth();
+  const { t } = useTranslation();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [designations, setDesignations] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState<'active' | 'all'>('active');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showQuickInviteModal, setShowQuickInviteModal] = useState(false);
+  const [showBulkInviteModal, setShowBulkInviteModal] = useState(false);
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [showImportHistoryModal, setShowImportHistoryModal] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null);
+  const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    if (organization?.id) {
+      loadEmployees();
+      loadMasterData();
+    }
+  }, [organization, statusFilter, activeFilter]);
+
+  const loadEmployees = async () => {
+    if (!organization?.id) {
+      console.warn('No organization ID available');
+      return;
+    }
+
+    setLoading(true);
+    console.log('Loading employees for organization:', organization.id, organization.name);
+
+    try {
+      let query = supabase
+        .from('employees')
+        .select(`
+          id,
+          employee_code,
+          first_name,
+          last_name,
+          company_email,
+          mobile_number,
+          employment_status,
+          employment_type,
+          date_of_joining,
+          is_active,
+          departments!department_id (name),
+          designations!designation_id (title)
+        `)
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false });
+
+      if (activeFilter === 'active') {
+        query = query.eq('is_active', true);
+      }
+
+      if (statusFilter !== 'all') {
+        query = query.eq('employment_status', statusFilter);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error loading employees:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        alert(`Failed to load employees: ${error.message}`);
+        throw error;
+      }
+
+      console.log(`Successfully loaded ${data?.length || 0} employees`);
+      if (data && data.length > 0) {
+        console.log('Sample employee:', data[0]);
+      } else {
+        console.warn('No employees found for this organization. Check if employees are imported and active.');
+      }
+
+      setEmployees(data || []);
+    } catch (error: any) {
+      console.error('Exception while loading employees:', error);
+      setEmployees([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMasterData = async () => {
+    if (!organization?.id) return;
+
+    try {
+      const [deptData, desigData, branchData] = await Promise.all([
+        supabase.from('departments').select('*').eq('organization_id', organization.id).eq('is_active', true),
+        supabase.from('designations').select('*').eq('organization_id', organization.id).eq('is_active', true),
+        supabase.from('branches').select('*').eq('organization_id', organization.id).eq('is_active', true)
+      ]);
+
+      setDepartments(deptData.data || []);
+      setDesignations(desigData.data || []);
+      setBranches(branchData.data || []);
+    } catch (error) {
+      console.error('Error loading master data:', error);
+    }
+  };
+
+  const filteredEmployees = employees.filter(emp =>
+    emp.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.employee_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.company_email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, activeFilter]);
+
+  const getStatusBadge = (status: string) => {
+    const styles = {
+      active: 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-200',
+      inactive: 'bg-slate-100 text-slate-700 ring-2 ring-slate-200',
+      terminated: 'bg-red-100 text-red-700 ring-2 ring-red-200',
+      on_leave: 'bg-amber-100 text-amber-700 ring-2 ring-amber-200',
+    };
+    return styles[status as keyof typeof styles] || styles.active;
+  };
+
+  const getTypeBadge = (type: string) => {
+    const styles = {
+      full_time: 'bg-blue-100 text-blue-700',
+      part_time: 'bg-violet-100 text-violet-700',
+      contract: 'bg-amber-100 text-amber-700',
+      intern: 'bg-pink-100 text-pink-700',
+    };
+    return styles[type as keyof typeof styles] || styles.full_time;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+          <Users className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-blue-600" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent flex items-center gap-3">
+            <Users className="h-8 w-8 text-blue-600" />
+            Employees
+          </h1>
+          <p className="text-slate-600 mt-2 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-blue-500" />
+            Manage your team members
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowImportHistoryModal(true)}
+            className="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-xl hover:from-slate-700 hover:to-slate-800 transition-all shadow-lg hover:shadow-xl"
+          >
+            <FileText className="h-5 w-5" />
+            Import History
+          </button>
+          <button
+            onClick={() => setShowBulkImportModal(true)}
+            className="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-xl hover:from-orange-700 hover:to-orange-800 transition-all shadow-lg hover:shadow-xl"
+          >
+            <Upload className="h-5 w-5" />
+            Bulk Import
+          </button>
+          <button
+            onClick={() => setShowQuickInviteModal(true)}
+            className="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-lg hover:shadow-xl"
+          >
+            <Send className="h-5 w-5" />
+            Quick Invite
+          </button>
+          <button
+            onClick={() => setShowBulkInviteModal(true)}
+            className="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-xl hover:from-violet-700 hover:to-violet-800 transition-all shadow-lg hover:shadow-xl"
+          >
+            <Users className="h-5 w-5" />
+            Bulk Invite
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl hover:scale-105"
+          >
+            <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
+            Add Employee
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatsCard
+          title="Total Employees"
+          value={employees.length}
+          gradient="from-blue-500 to-blue-600"
+          icon={Users}
+        />
+        <StatsCard
+          title="Active"
+          value={employees.filter(e => e.employment_status === 'active').length}
+          gradient="from-emerald-500 to-emerald-600"
+          icon={Briefcase}
+        />
+        <StatsCard
+          title="On Leave"
+          value={employees.filter(e => e.employment_status === 'on_leave').length}
+          gradient="from-amber-500 to-amber-600"
+          icon={Calendar}
+        />
+        <StatsCard
+          title="Departments"
+          value={departments.length}
+          gradient="from-violet-500 to-violet-600"
+          icon={Briefcase}
+        />
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+          <div className="flex-1 min-w-[300px] relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 h-5 w-5 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search employees by name, email, or code..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm hover:border-slate-300"
+            />
+          </div>
+          <div className="flex gap-3">
+            <div className="relative">
+              <select
+                value={activeFilter}
+                onChange={(e) => setActiveFilter(e.target.value as 'active' | 'all')}
+                className="appearance-none pl-4 pr-10 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm font-medium text-slate-700 cursor-pointer hover:border-slate-300"
+              >
+                <option value="active">Active Only</option>
+                <option value="all">All Employees</option>
+              </select>
+              <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4 pointer-events-none" />
+            </div>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none pl-4 pr-10 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm font-medium text-slate-700 cursor-pointer hover:border-slate-300"
+              >
+                <option value="all">All Status</option>
+                <option value="probation">Probation</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="on_leave">On Leave</option>
+                <option value="terminated">Terminated</option>
+              </select>
+              <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        {filteredEmployees.length === 0 ? (
+          <div className="text-center py-16">
+            <Users className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+            <p className="text-slate-500 font-medium text-lg">No employees found</p>
+            <p className="text-sm text-slate-400 mt-2">
+              {searchTerm ? 'Try adjusting your search' : 'Add your first employee to get started'}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-slate-50 border-b-2 border-slate-200">
+                  <th className="text-left p-4 font-bold text-slate-700">Employee</th>
+                  <th className="text-left p-4 font-bold text-slate-700">Department</th>
+                  <th className="text-left p-4 font-bold text-slate-700">Designation</th>
+                  <th className="text-left p-4 font-bold text-slate-700">Contact</th>
+                  <th className="text-left p-4 font-bold text-slate-700">Join Date</th>
+                  <th className="text-left p-4 font-bold text-slate-700">Status</th>
+                  <th className="text-left p-4 font-bold text-slate-700">Type</th>
+                  <th className="text-center p-4 font-bold text-slate-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedEmployees.map((employee, index) => (
+                  <tr
+                    key={employee.id}
+                    className="border-b border-slate-200 hover:bg-slate-50 transition-colors"
+                    style={{ animationDelay: `${index * 30}ms` }}
+                  >
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md flex-shrink-0">
+                          {employee.first_name[0]}{employee.last_name[0]}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900">{employee.first_name} {employee.last_name}</p>
+                          <p className="text-xs text-slate-500">{employee.employee_code}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className="text-sm text-slate-700">{employee.departments?.name || 'N/A'}</span>
+                    </td>
+                    <td className="p-4">
+                      <span className="text-sm text-slate-700">{employee.designations?.title || 'N/A'}</span>
+                    </td>
+                    <td className="p-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Mail className="h-3 w-3 text-slate-400" />
+                          <span className="truncate max-w-[200px]">{employee.company_email || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Phone className="h-3 w-3 text-slate-400" />
+                          <span>{employee.mobile_number || 'N/A'}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className="text-sm text-slate-700">
+                        {new Date(employee.date_of_joining).toLocaleDateString('en-US', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 text-xs font-bold rounded-full ${getStatusBadge(employee.employment_status)}`}>
+                        {employee.employment_status.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getTypeBadge(employee.employment_type)}`}>
+                        {employee.employment_type.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setSelectedEmployeeId(employee.id)}
+                          className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setEditEmployeeId(employee.id)}
+                          className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+                          title="Edit Employee"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteEmployee(employee)}
+                          className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                          title="Remove Employee"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {filteredEmployees.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-slate-200">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600">{t('employees.show')}</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-sm text-slate-600">
+                {t('employees.entriesPerPage')}
+              </span>
+            </div>
+
+            <div className="text-sm text-slate-600">
+              {t('employees.showing')} {startIndex + 1} {t('employees.to')} {Math.min(endIndex, filteredEmployees.length)} {t('employees.of')} {filteredEmployees.length} {t('employees.employees')}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                          currentPage === page
+                            ? 'bg-blue-600 text-white font-semibold'
+                            : 'border border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  } else if (
+                    page === currentPage - 2 ||
+                    page === currentPage + 2
+                  ) {
+                    return <span key={page} className="px-2 text-slate-400">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showAddModal && (
+        <AddEmployeeModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false);
+            loadEmployees();
+          }}
+          departments={departments}
+          designations={designations}
+          branches={branches}
+        />
+      )}
+
+      {showQuickInviteModal && (
+        <QuickInviteModal
+          onClose={() => setShowQuickInviteModal(false)}
+          onSuccess={() => {
+            setShowQuickInviteModal(false);
+            loadEmployees();
+          }}
+        />
+      )}
+
+      {showBulkInviteModal && (
+        <BulkInviteModal
+          onClose={() => setShowBulkInviteModal(false)}
+          onSuccess={() => {
+            setShowBulkInviteModal(false);
+            loadEmployees();
+          }}
+        />
+      )}
+
+      {showBulkImportModal && (
+        <BulkImportEmployeesModal
+          onClose={() => setShowBulkImportModal(false)}
+          onSuccess={() => {
+            setShowBulkImportModal(false);
+            loadEmployees();
+          }}
+        />
+      )}
+
+      {showImportHistoryModal && (
+        <ImportHistoryModal
+          onClose={() => setShowImportHistoryModal(false)}
+        />
+      )}
+
+      {selectedEmployeeId && (
+        <ViewEmployeeModal
+          employeeId={selectedEmployeeId}
+          onClose={() => setSelectedEmployeeId(null)}
+        />
+      )}
+
+      {editEmployeeId && (
+        <EditEmployeeModal
+          employeeId={editEmployeeId}
+          onClose={() => setEditEmployeeId(null)}
+          onSuccess={() => {
+            setEditEmployeeId(null);
+            loadEmployees();
+          }}
+          departments={departments}
+          designations={designations}
+          branches={branches}
+        />
+      )}
+
+      {deleteEmployee && (
+        <DeleteConfirmationModal
+          employee={deleteEmployee}
+          onClose={() => setDeleteEmployee(null)}
+          onSuccess={() => {
+            setDeleteEmployee(null);
+            loadEmployees();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function StatsCard({ title, value, gradient, icon: Icon }: { title: string; value: number; gradient: string; icon: any }) {
+  return (
+    <div className="group relative bg-white rounded-xl shadow-md border border-slate-200 p-5 hover:shadow-xl transition-all duration-300 hover:scale-105 overflow-hidden">
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
+      <div className="relative z-10 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-600 mb-1">{title}</p>
+          <p className="text-3xl font-bold text-slate-900">{value}</p>
+        </div>
+        <div className={`p-3 rounded-xl bg-gradient-to-br ${gradient} shadow-lg`}>
+          <Icon className="h-6 w-6 text-white" />
+        </div>
+      </div>
+    </div>
+  );
+}

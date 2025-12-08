@@ -1,0 +1,317 @@
+{
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "view": "عرض",
+    "add": "إضافة",
+    "close": "إغلاق",
+    "search": "بحث",
+    "filter": "تصفية",
+    "export": "تصدير",
+    "import": "استيراد",
+    "submit": "إرسال",
+    "confirm": "تأكيد",
+    "loading": "جاري التحميل...",
+    "success": "نجح",
+    "error": "خطأ",
+    "welcome": "مرحباً",
+    "logout": "تسجيل الخروج",
+    "profile": "الملف الشخصي",
+    "settings": "الإعدادات",
+    "notifications": "الإشعارات",
+    "actions": "الإجراءات",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "name": "الاسم",
+    "description": "الوصف",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "refresh": "تحديث",
+    "menu": "القائمة"
+  },
+  "menu": {
+    "dashboard": "لوحة التحكم",
+    "payroll": "الرواتب",
+    "reports": "التقارير",
+    "tasks": "المهام",
+    "workReports": "تقارير العمل",
+    "employees": "الموظفين",
+    "attendance": "الحضور",
+    "leave": "الإجازات",
+    "expenses": "المصروفات",
+    "performance": "الأداء",
+    "training": "التدريب",
+    "helpdesk": "المساعدة",
+    "announcements": "الإعلانات",
+    "help": "المساعدة والدليل",
+    "settings": "الإعدادات"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "overview": "نظرة عامة",
+    "quickStats": "إحصائيات سريعة",
+    "recentActivity": "النشاط الأخير",
+    "upcomingEvents": "الأحداث القادمة"
+  },
+  "employees": {
+    "title": "الموظفين",
+    "addEmployee": "إضافة موظف",
+    "editEmployee": "تعديل موظف",
+    "viewEmployee": "عرض الموظف",
+    "employeeName": "اسم الموظف",
+    "employeeId": "رقم الموظف",
+    "department": "القسم",
+    "position": "المنصب",
+    "joiningDate": "تاريخ الانضمام",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "status": "الحالة",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "bulkImport": "استيراد جماعي",
+    "bulkInvite": "دعوة جماعية",
+    "totalEmployees": "إجمالي الموظفين",
+    "show": "عرض",
+    "entriesPerPage": "موظف في الصفحة",
+    "showing": "عرض",
+    "to": "إلى",
+    "of": "من",
+    "employees": "موظف"
+  },
+  "payroll": {
+    "title": "الرواتب",
+    "processPayroll": "معالجة الرواتب",
+    "month": "الشهر",
+    "year": "السنة",
+    "basicSalary": "الراتب الأساسي",
+    "allowances": "البدلات",
+    "deductions": "الخصومات",
+    "netSalary": "صافي الراتب",
+    "grossSalary": "إجمالي الراتب",
+    "wps": "نظام حماية الأجور",
+    "generateWPS": "إنشاء ملف WPS",
+    "payslips": "قسائم الرواتب",
+    "generatePayslips": "إنشاء قسائم الرواتب",
+    "salaryComponent": "مكون الراتب",
+    "amount": "المبلغ",
+    "percentage": "النسبة المئوية",
+    "validation": {
+      "title": "التحقق قبل معالجة الرواتب",
+      "runValidation": "تشغيل التحقق",
+      "validating": "جاري التحقق...",
+      "status": "الحالة",
+      "passed": "نجح",
+      "failed": "فشل",
+      "validEmployees": "الموظفين الصحيحين",
+      "errors": "الأخطاء",
+      "warnings": "التحذيرات",
+      "downloadReport": "تحميل التقرير",
+      "fixEmployeeData": "إصلاح بيانات الموظف",
+      "blockedMessage": "معالجة الرواتب محظورة. يجب إصلاح جميع الأخطاء قبل المتابعة.",
+      "missingDataSummary": "ملخص البيانات المفقودة",
+      "updateProfilesMessage": "تحديث ملفات تعريف الموظفين بالمعلومات المفقودة قبل إنشاء ملف WPS:",
+      "employeesMissingQID": "موظف(ون) ليس لديهم رقم قطري (QID)",
+      "employeesMissingIBAN": "موظف(ون) ليس لديهم رقم IBAN",
+      "invalidIBANLength": "موظف(ون) لديهم رقم IBAN غير صحيح (يجب أن يكون 29 حرفاً)",
+      "allClear": "كل شيء على ما يرام!",
+      "allClearMessage": "لم يتم العثور على أخطاء أو تحذيرات. يمكنك المتابعة بمعالجة الرواتب.",
+      "clickToRun": "انقر فوق \"تشغيل التحقق\" للتحقق من الأخطاء قبل معالجة الرواتب",
+      "runValidationNow": "تشغيل التحقق الآن",
+      "validatingData": "جاري التحقق من بيانات الموظفين..."
+    },
+    "payment": {
+      "readyToPay": "جاهز لدفع الموظفين",
+      "allPaid": "تم دفع جميع الموظفين",
+      "readyForPayment": "موظف(ون) جاهز للدفع",
+      "beenPaid": "موظف(ون) تم دفعهم لشهر",
+      "markAsPaid": "وضع علامة كمدفوع",
+      "processing": "جاري المعالجة...",
+      "paidOn": "تم الدفع في",
+      "bankRef": "مرجع البنك",
+      "enterBankReference": "أدخل رقم مرجع البنك (من بوابة البنك الخاصة بك):",
+      "enterPaymentDate": "أدخل تاريخ الدفع (YYYY-MM-DD):",
+      "successMessage": "تم وضع علامة على {count} موظف(ين) كمدفوع بنجاح!",
+      "paymentStatus": {
+        "draft": "مسودة",
+        "pendingPayment": "في انتظار الدفع",
+        "submittedToBank": "تم إرساله إلى البنك",
+        "paid": "مدفوع",
+        "confirmed": "مؤكد"
+      }
+    },
+    "wpsTab": {
+      "title": "نظام حماية الأجور (WPS)",
+      "description": "WPS هو نظام إلزامي للإبلاغ عن الرواتب صادر عن وزارة العمل القطرية. يجب على كل شركة تقديم ملف معلومات الراتب (SIF) كل شهر لإثبات أن جميع الموظفين تم دفع رواتبهم بشكل صحيح.",
+      "ministryCompliance": "امتثال الوزارة",
+      "bankSubmissionRequired": "مطلوب تقديم البنك",
+      "monthlyDeadline": "الموعد النهائي الشهري",
+      "totalEmployees": "إجمالي الموظفين",
+      "basicSalary": "الراتب الأساسي",
+      "allowances": "البدلات",
+      "netSalary": "صافي الراتب",
+      "quickValidationCheck": "فحص التحقق السريع",
+      "noPayrollRecords": "لا توجد سجلات رواتب",
+      "processPayrollFirst": "قم بمعالجة الرواتب لهذه الفترة قبل إنشاء ملف WPS",
+      "establishmentId": "رقم المنشأة (رقم صاحب العمل)",
+      "enterEstablishmentId": "أدخل رقم المنشأة الخاص بوزارة العمل",
+      "generateSIF": "إنشاء ملف SIF",
+      "generateTXT": "إنشاء ملف TXT",
+      "generateCSV": "إنشاء ملف CSV",
+      "downloading": "جاري التنزيل...",
+      "filePreview": "معاينة الملف"
+    }
+  },
+  "attendance": {
+    "title": "الحضور",
+    "markAttendance": "تسجيل الحضور",
+    "present": "حاضر",
+    "absent": "غائب",
+    "halfDay": "نصف يوم",
+    "checkIn": "تسجيل الدخول",
+    "checkOut": "تسجيل الخروج",
+    "workingHours": "ساعات العمل",
+    "overtime": "العمل الإضافي",
+    "lateArrival": "تأخير في الحضور",
+    "earlyDeparture": "مغادرة مبكرة"
+  },
+  "leave": {
+    "title": "الإجازات",
+    "applyLeave": "طلب إجازة",
+    "leaveType": "نوع الإجازة",
+    "startDate": "تاريخ البداية",
+    "endDate": "تاريخ النهاية",
+    "reason": "السبب",
+    "approved": "موافق عليه",
+    "rejected": "مرفوض",
+    "pending": "قيد الانتظار",
+    "leaveBalance": "رصيد الإجازات",
+    "annualLeave": "إجازة سنوية",
+    "sickLeave": "إجازة مرضية",
+    "casualLeave": "إجازة عارضة"
+  },
+  "expenses": {
+    "title": "المصروفات",
+    "addExpense": "إضافة مصروف",
+    "expenseType": "نوع المصروف",
+    "expenseDate": "تاريخ المصروف",
+    "expenseAmount": "مبلغ المصروف",
+    "receipt": "الإيصال",
+    "approvalStatus": "حالة الموافقة"
+  },
+  "tasks": {
+    "title": "المهام",
+    "createTask": "إنشاء مهمة",
+    "assignTask": "تعيين مهمة",
+    "taskTitle": "عنوان المهمة",
+    "taskDescription": "وصف المهمة",
+    "dueDate": "تاريخ الاستحقاق",
+    "priority": "الأولوية",
+    "assignedTo": "مسند إلى",
+    "completed": "مكتمل",
+    "inProgress": "قيد التنفيذ"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "register": "تسجيل",
+    "signIn": "تسجيل الدخول",
+    "signUp": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "rememberMe": "تذكرني",
+    "welcomeBack": "مرحباً بعودتك",
+    "createAccount": "إنشاء حساب",
+    "organizationName": "اسم المؤسسة"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "general": "عام",
+    "profile": "الملف الشخصي",
+    "security": "الأمان",
+    "language": "اللغة",
+    "theme": "المظهر",
+    "notifications": "الإشعارات",
+    "preferences": "التفضيلات"
+  },
+  "reports": {
+    "title": "التقارير",
+    "generateReport": "إنشاء تقرير",
+    "reportType": "نوع التقرير",
+    "dateRange": "نطاق التاريخ",
+    "exportPDF": "تصدير PDF",
+    "exportExcel": "تصدير Excel",
+    "attendanceReport": "تقرير الحضور",
+    "payrollReport": "تقرير الرواتب",
+    "leaveReport": "تقرير الإجازات"
+  },
+  "help": {
+    "title": "المساعدة والوثائق",
+    "subtitle": "دليل شامل لاستخدام نظام الموارد البشرية والرواتب في قطر",
+    "faqTitle": "الأسئلة الشائعة",
+    "quickLinks": {
+      "gettingStarted": {
+        "title": "البدء",
+        "description": "إعداد منظمتك وإضافة الموظفين"
+      },
+      "processPayroll": {
+        "title": "معالجة الرواتب",
+        "description": "تعلم سير عمل الرواتب الكامل"
+      },
+      "wpsCompliance": {
+        "title": "الامتثال لنظام حماية الأجور",
+        "description": "إنشاء وتقديم ملفات WPS"
+      }
+    },
+    "sections": {
+      "gettingStarted": {
+        "title": "البدء",
+        "step1": {
+          "title": "الخطوة 1: إعداد المنظمة",
+          "description": "تم إنشاء منظمتك أثناء التسجيل. تأكد من اكتمال ملف منظمتك"
+        },
+        "step2": {
+          "title": "الخطوة 2: إضافة الموظفين",
+          "description": "انتقل إلى صفحة الموظفين وأضف فريقك"
+        },
+        "step3": {
+          "title": "الخطوة 3: تكوين مكونات الراتب",
+          "description": "انتقل إلى الرواتب ← علامة تبويب مكونات الراتب"
+        }
+      },
+      "payrollProcess": {
+        "title": "عملية الرواتب الكاملة (خطوة بخطوة)",
+        "workflowTitle": "سير عمل الرواتب الشهرية",
+        "steps": {
+          "step1": "اختر فترة الدفع",
+          "step2": "معالجة الرواتب",
+          "step3": "مراجعة السجلات",
+          "step4": "إنشاء ملف WPS",
+          "step5": "تقديم للبنك",
+          "step6": "وضع علامة كمدفوع"
+        }
+      },
+      "wpsGuide": {
+        "title": "نظام حماية الأجور (WPS) - دليل شامل",
+        "whatIsWPS": "ما هو نظام WPS؟",
+        "whyImportant": "لماذا نظام WPS مهم؟",
+        "generating": "إنشاء ملفات WPS",
+        "formats": "تنسيقات الملفات"
+      },
+      "commonIssues": {
+        "title": "المشاكل الشائعة والحلول"
+      },
+      "bestPractices": {
+        "title": "أفضل الممارسات والنصائح"
+      },
+      "support": {
+        "title": "الحصول على الدعم",
+        "needHelp": "هل تحتاج إلى مزيد من المساعدة؟",
+        "contactSupport": "إذا كان لديك أسئلة غير مغطاة في هذه الوثائق، يرجى الاتصال بفريق الدعم لدينا."
+      }
+    }
+  }
+}

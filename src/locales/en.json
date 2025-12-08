@@ -1,0 +1,317 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "view": "View",
+    "add": "Add",
+    "close": "Close",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "success": "Success",
+    "error": "Error",
+    "welcome": "Welcome",
+    "logout": "Logout",
+    "profile": "Profile",
+    "settings": "Settings",
+    "notifications": "Notifications",
+    "actions": "Actions",
+    "status": "Status",
+    "date": "Date",
+    "name": "Name",
+    "description": "Description",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "refresh": "Refresh",
+    "menu": "MENU"
+  },
+  "menu": {
+    "dashboard": "Dashboard",
+    "payroll": "Payroll",
+    "reports": "Reports",
+    "tasks": "Tasks",
+    "workReports": "Work Reports",
+    "employees": "Employees",
+    "attendance": "Attendance",
+    "leave": "Leave",
+    "expenses": "Expenses",
+    "performance": "Performance",
+    "training": "Training",
+    "helpdesk": "Helpdesk",
+    "announcements": "Announcements",
+    "help": "Help & Guide",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "quickStats": "Quick Statistics",
+    "recentActivity": "Recent Activity",
+    "upcomingEvents": "Upcoming Events"
+  },
+  "employees": {
+    "title": "Employees",
+    "addEmployee": "Add Employee",
+    "editEmployee": "Edit Employee",
+    "viewEmployee": "View Employee",
+    "employeeName": "Employee Name",
+    "employeeId": "Employee ID",
+    "department": "Department",
+    "position": "Position",
+    "joiningDate": "Joining Date",
+    "email": "Email",
+    "phone": "Phone",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "bulkImport": "Bulk Import",
+    "bulkInvite": "Bulk Invite",
+    "totalEmployees": "Total Employees",
+    "show": "Show",
+    "entriesPerPage": "entries per page",
+    "showing": "Showing",
+    "to": "to",
+    "of": "of",
+    "employees": "employees"
+  },
+  "payroll": {
+    "title": "Payroll",
+    "processPayroll": "Process Payroll",
+    "month": "Month",
+    "year": "Year",
+    "basicSalary": "Basic Salary",
+    "allowances": "Allowances",
+    "deductions": "Deductions",
+    "netSalary": "Net Salary",
+    "grossSalary": "Gross Salary",
+    "wps": "WPS",
+    "generateWPS": "Generate WPS File",
+    "payslips": "Payslips",
+    "generatePayslips": "Generate Payslips",
+    "salaryComponent": "Salary Component",
+    "amount": "Amount",
+    "percentage": "Percentage",
+    "validation": {
+      "title": "Pre-Payroll Validation",
+      "runValidation": "Run Validation",
+      "validating": "Validating...",
+      "status": "Status",
+      "passed": "PASSED",
+      "failed": "FAILED",
+      "validEmployees": "Valid Employees",
+      "errors": "Errors",
+      "warnings": "Warnings",
+      "downloadReport": "Download Report",
+      "fixEmployeeData": "Fix Employee Data",
+      "blockedMessage": "Payroll processing is blocked. You must fix all errors before proceeding.",
+      "missingDataSummary": "Missing Data Summary",
+      "updateProfilesMessage": "Update employee profiles with missing information before generating WPS file:",
+      "employeesMissingQID": "employee(s) missing Qatar ID (QID)",
+      "employeesMissingIBAN": "employee(s) missing IBAN",
+      "invalidIBANLength": "employee(s) has invalid IBAN length (must be 29 characters)",
+      "allClear": "All Clear!",
+      "allClearMessage": "No errors or warnings found. You can proceed with payroll processing.",
+      "clickToRun": "Click \"Run Validation\" to check for errors before processing payroll",
+      "runValidationNow": "Run Validation Now",
+      "validatingData": "Validating employee data..."
+    },
+    "payment": {
+      "readyToPay": "Ready to Pay Employees",
+      "allPaid": "All Employees Paid",
+      "readyForPayment": "employee(s) ready for payment",
+      "beenPaid": "employee(s) have been paid for",
+      "markAsPaid": "Mark as Paid",
+      "processing": "Processing...",
+      "paidOn": "Paid on",
+      "bankRef": "Bank Ref",
+      "enterBankReference": "Enter Bank Reference Number (from your bank portal):",
+      "enterPaymentDate": "Enter Payment Date (YYYY-MM-DD):",
+      "successMessage": "Successfully marked {count} employee(s) as PAID!",
+      "paymentStatus": {
+        "draft": "DRAFT",
+        "pendingPayment": "PENDING PAYMENT",
+        "submittedToBank": "SUBMITTED TO BANK",
+        "paid": "PAID",
+        "confirmed": "CONFIRMED"
+      }
+    },
+    "wpsTab": {
+      "title": "Wage Protection System (WPS)",
+      "description": "WPS is a mandatory payroll reporting system issued by the Qatar Ministry of Labour (MoL). Every company must submit a Salary Information File (SIF) each month to prove all employees were paid correctly.",
+      "ministryCompliance": "Ministry Compliance",
+      "bankSubmissionRequired": "Bank Submission Required",
+      "monthlyDeadline": "Monthly Deadline",
+      "totalEmployees": "Total Employees",
+      "basicSalary": "Basic Salary",
+      "allowances": "Allowances",
+      "netSalary": "Net Salary",
+      "quickValidationCheck": "Quick Validation Check",
+      "noPayrollRecords": "No Payroll Records",
+      "processPayrollFirst": "Process payroll for this period before generating WPS file",
+      "establishmentId": "Establishment ID (Employer ID)",
+      "enterEstablishmentId": "Enter your MOL Establishment ID",
+      "generateSIF": "Generate SIF File",
+      "generateTXT": "Generate TXT File",
+      "generateCSV": "Generate CSV File",
+      "downloading": "Downloading...",
+      "filePreview": "File Preview"
+    }
+  },
+  "attendance": {
+    "title": "Attendance",
+    "markAttendance": "Mark Attendance",
+    "present": "Present",
+    "absent": "Absent",
+    "halfDay": "Half Day",
+    "checkIn": "Check In",
+    "checkOut": "Check Out",
+    "workingHours": "Working Hours",
+    "overtime": "Overtime",
+    "lateArrival": "Late Arrival",
+    "earlyDeparture": "Early Departure"
+  },
+  "leave": {
+    "title": "Leave",
+    "applyLeave": "Apply Leave",
+    "leaveType": "Leave Type",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "reason": "Reason",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "pending": "Pending",
+    "leaveBalance": "Leave Balance",
+    "annualLeave": "Annual Leave",
+    "sickLeave": "Sick Leave",
+    "casualLeave": "Casual Leave"
+  },
+  "expenses": {
+    "title": "Expenses",
+    "addExpense": "Add Expense",
+    "expenseType": "Expense Type",
+    "expenseDate": "Expense Date",
+    "expenseAmount": "Expense Amount",
+    "receipt": "Receipt",
+    "approvalStatus": "Approval Status"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "createTask": "Create Task",
+    "assignTask": "Assign Task",
+    "taskTitle": "Task Title",
+    "taskDescription": "Task Description",
+    "dueDate": "Due Date",
+    "priority": "Priority",
+    "assignedTo": "Assigned To",
+    "completed": "Completed",
+    "inProgress": "In Progress"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "rememberMe": "Remember Me",
+    "welcomeBack": "Welcome Back",
+    "createAccount": "Create Account",
+    "organizationName": "Organization Name"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "profile": "Profile",
+    "security": "Security",
+    "language": "Language",
+    "theme": "Theme",
+    "notifications": "Notifications",
+    "preferences": "Preferences"
+  },
+  "reports": {
+    "title": "Reports",
+    "generateReport": "Generate Report",
+    "reportType": "Report Type",
+    "dateRange": "Date Range",
+    "exportPDF": "Export PDF",
+    "exportExcel": "Export Excel",
+    "attendanceReport": "Attendance Report",
+    "payrollReport": "Payroll Report",
+    "leaveReport": "Leave Report"
+  },
+  "help": {
+    "title": "Help & Documentation",
+    "subtitle": "Complete guide to using the Qatar HRMS & Payroll System",
+    "faqTitle": "Frequently Asked Questions",
+    "quickLinks": {
+      "gettingStarted": {
+        "title": "Getting Started",
+        "description": "Setup your organization and add employees"
+      },
+      "processPayroll": {
+        "title": "Process Payroll",
+        "description": "Learn the complete payroll workflow"
+      },
+      "wpsCompliance": {
+        "title": "WPS Compliance",
+        "description": "Generate and submit WPS files"
+      }
+    },
+    "sections": {
+      "gettingStarted": {
+        "title": "Getting Started",
+        "step1": {
+          "title": "Step 1: Organization Setup",
+          "description": "Your organization was created during registration. Make sure your organization profile is complete"
+        },
+        "step2": {
+          "title": "Step 2: Add Employees",
+          "description": "Navigate to Employees page and add your team"
+        },
+        "step3": {
+          "title": "Step 3: Configure Salary Components",
+          "description": "Go to Payroll → Salary Components tab"
+        }
+      },
+      "payrollProcess": {
+        "title": "Complete Payroll Process (Step-by-Step)",
+        "workflowTitle": "Monthly Payroll Workflow",
+        "steps": {
+          "step1": "Select Pay Period",
+          "step2": "Process Payroll",
+          "step3": "Review Records",
+          "step4": "Generate WPS File",
+          "step5": "Submit to Bank",
+          "step6": "Mark as Paid"
+        }
+      },
+      "wpsGuide": {
+        "title": "WPS (Wage Protection System) - Complete Guide",
+        "whatIsWPS": "What is WPS?",
+        "whyImportant": "Why is WPS Important?",
+        "generating": "Generating WPS Files",
+        "formats": "File Formats"
+      },
+      "commonIssues": {
+        "title": "Common Issues & Solutions"
+      },
+      "bestPractices": {
+        "title": "Best Practices & Tips"
+      },
+      "support": {
+        "title": "Getting Support",
+        "needHelp": "Need More Help?",
+        "contactSupport": "If you have questions not covered in this documentation, please contact our support team."
+      }
+    }
+  }
+}

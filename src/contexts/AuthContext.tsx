@@ -1,0 +1,245 @@
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
+import type { User } from '@supabase/supabase-js';
+import type { UserRole } from '../lib/database.types';
+
+interface UserProfile {
+  id: string;
+  user_id: string | null;
+  current_organization_id: string | null;
+  is_active: boolean;
+}
+
+interface OrganizationMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: UserRole;
+  employee_id: string | null;
+  is_active: boolean;
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  owner_id: string;
+  country?: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  profile: UserProfile | null;
+  organization: Organization | null;
+  membership: OrganizationMember | null;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, organizationName: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  switchOrganization: (organizationId: string) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [membership, setMembership] = useState<OrganizationMember | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        loadUserProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      (async () => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await loadUserProfile(session.user.id);
+        } else {
+          setProfile(null);
+          setOrganization(null);
+          setMembership(null);
+        }
+      })();
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+      setProfile(profileData);
+
+      if (profileData?.current_organization_id) {
+        await loadOrganizationData(profileData.current_organization_id, userId);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadOrganizationData = async (organizationId: string, userId: string) => {
+    try {
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', organizationId)
+        .maybeSingle();
+
+      if (orgError) throw orgError;
+      setOrganization(orgData);
+
+      const { data: memberData, error: memberError } = await supabase
+        .from('organization_members')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (memberError) throw memberError;
+      setMembership(memberData);
+    } catch (error) {
+      console.error('Error loading organization:', error);
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  };
+
+  const signUp = async (email: string, password: string, organizationName: string, country: string = 'India') => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+
+    if (data.user) {
+      const slug = organizationName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const subdomain = slug + '-' + Math.random().toString(36).substring(7);
+
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .insert({
+          name: organizationName,
+          slug: subdomain,
+          subdomain,
+          country: country,
+          owner_id: data.user.id,
+          trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+        })
+        .select()
+        .single();
+
+      if (orgError) throw orgError;
+
+      const { error: memberError } = await supabase
+        .from('organization_members')
+        .insert({
+          organization_id: orgData.id,
+          user_id: data.user.id,
+          role: 'admin',
+          is_active: true
+        });
+
+      if (memberError) throw memberError;
+
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          user_id: data.user.id,
+          current_organization_id: orgData.id,
+          is_active: true
+        });
+
+      if (profileError) throw profileError;
+
+      const starterPlan = await supabase
+        .from('subscription_plans')
+        .select('id')
+        .eq('name', 'Starter')
+        .maybeSingle();
+
+      if (starterPlan.data) {
+        const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+        await supabase
+          .from('organization_subscriptions')
+          .insert({
+            organization_id: orgData.id,
+            plan_id: starterPlan.data.id,
+            status: 'trial',
+            interval: 'monthly',
+            amount: 999,
+            current_period_start: new Date().toISOString(),
+            current_period_end: trialEnd.toISOString(),
+            trial_start: new Date().toISOString(),
+            trial_end: trialEnd.toISOString()
+          });
+      }
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      setProfile(null);
+      setOrganization(null);
+      setMembership(null);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      throw error;
+    }
+  };
+
+  const switchOrganization = async (organizationId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ current_organization_id: organizationId })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      await loadOrganizationData(organizationId, user.id);
+      setProfile(prev => prev ? { ...prev, current_organization_id: organizationId } : null);
+    } catch (error) {
+      console.error('Error switching organization:', error);
+      throw error;
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, profile, organization, membership, loading, signIn, signUp, signOut, switchOrganization }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
