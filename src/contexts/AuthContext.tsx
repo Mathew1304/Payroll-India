@@ -26,6 +26,7 @@ interface Organization {
   logo_url: string | null;
   owner_id: string;
   country?: string;
+  features?: Record<string, boolean>;
 }
 
 interface AuthContextType {
@@ -105,7 +106,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (orgError) throw orgError;
-      setOrganization(orgData);
+
+      // Load organization features
+      const { data: featureData } = await supabase
+        .from('organization_features')
+        .select('feature_key, is_enabled')
+        .eq('organization_id', organizationId);
+
+      const features: Record<string, boolean> = {};
+      if (featureData) {
+        featureData.forEach(f => {
+          features[f.feature_key] = f.is_enabled;
+        });
+      }
+
+      setOrganization({ ...orgData, features });
 
       const { data: memberData, error: memberError } = await supabase
         .from('organization_members')
@@ -166,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .insert({
           user_id: data.user.id,
           current_organization_id: orgData.id,
+          role: 'admin',
           is_active: true
         });
 

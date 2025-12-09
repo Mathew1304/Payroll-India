@@ -21,13 +21,15 @@ export function PayrollPage() {
       </div>
     );
   }
-
   // Route to country-specific payroll
-  if (organization?.country === 'Qatar') {
+  console.log('Current Organization:', organization);
+  const country = organization?.country?.toLowerCase();
+
+  if (country === 'qatar') {
     return <QatarPayrollPage />;
   }
 
-  if (organization?.country === 'Saudi Arabia') {
+  if (country === 'saudi arabia') {
     return <SaudiPayrollPage />;
   }
 

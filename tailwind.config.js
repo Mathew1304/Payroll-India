@@ -10,6 +10,7 @@ export default {
         'theme-text-secondary': 'rgb(var(--text-secondary) / <alpha-value>)',
         'theme-border': 'rgb(var(--border-color) / <alpha-value>)',
         'theme-card': 'rgb(var(--card-bg) / <alpha-value>)',
+        'theme-primary': 'rgb(var(--primary-color) / <alpha-value>)',
       },
     },
   },

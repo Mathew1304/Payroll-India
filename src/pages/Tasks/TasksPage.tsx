@@ -345,13 +345,12 @@ export function TasksPage() {
   return (
     <>
       {alertModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-scaleIn">
-            <div className={`p-6 rounded-t-2xl ${
-              alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
-              alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
-              'bg-gradient-to-r from-blue-500 to-blue-600'
-            }`}>
+            <div className={`p-6 rounded-t-2xl ${alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
+                alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                  'bg-gradient-to-r from-blue-500 to-blue-600'
+              }`}>
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold text-white">{alertModal.title}</h3>
                 <button onClick={() => setAlertModal(null)} className="p-1 hover:bg-white/20 rounded-lg">
@@ -363,11 +362,10 @@ export function TasksPage() {
               <p className="text-slate-700 text-lg">{alertModal.message}</p>
               <button
                 onClick={() => setAlertModal(null)}
-                className={`mt-6 w-full py-3 rounded-xl font-semibold text-white ${
-                  alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
-                  alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
-                  'bg-blue-500 hover:bg-blue-600'
-                }`}>
+                className={`mt-6 w-full py-3 rounded-xl font-semibold text-white ${alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
+                    alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
+                      'bg-blue-500 hover:bg-blue-600'
+                  }`}>
                 OK
               </button>
             </div>
@@ -682,9 +680,8 @@ function TaskCard({ task, isAdmin, onStatusChange, getTaskTypeColor, getPriority
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
 
   return (
-    <div className={`p-5 border-2 rounded-xl transition-all hover:shadow-md ${
-      isOverdue ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-purple-300'
-    }`}>
+    <div className={`p-5 border-2 rounded-xl transition-all hover:shadow-md ${isOverdue ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-purple-300'
+      }`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">

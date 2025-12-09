@@ -153,8 +153,25 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        setParsedData(results.data as ImportRow[]);
-        validateData(results.data as ImportRow[]);
+        // Normalize data fields to snake_case
+        const normalizedData = (results.data as ImportRow[]).map(row => {
+          if (row.employment_type) {
+            row.employment_type = row.employment_type.toLowerCase().trim().replace(/[\s-]/g, '_');
+          }
+          if (row.employment_status) {
+            row.employment_status = row.employment_status.toLowerCase().trim().replace(/[\s-]/g, '_');
+          }
+          if (row.gender) {
+            row.gender = row.gender.toLowerCase().trim();
+          }
+          if (row.marital_status) {
+            row.marital_status = row.marital_status.toLowerCase().trim();
+          }
+          return row;
+        });
+
+        setParsedData(normalizedData);
+        validateData(normalizedData);
         setStep('preview');
       },
       error: (error) => {
@@ -300,7 +317,7 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
       }
 
       const numericFields = ['basic_salary', 'housing_allowance', 'food_allowance', 'transport_allowance',
-                            'mobile_allowance', 'utility_allowance', 'other_allowances', 'ctc_annual'];
+        'mobile_allowance', 'utility_allowance', 'other_allowances', 'ctc_annual'];
       numericFields.forEach(field => {
         if (row[field] && row[field].trim() !== '') {
           const value = parseFloat(row[field]);
@@ -319,8 +336,8 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
       });
 
       const dateFields = ['date_of_birth', 'date_of_joining', 'probation_end_date', 'qatar_id_expiry',
-                          'residence_permit_expiry', 'work_permit_expiry', 'health_card_expiry',
-                          'labor_card_expiry', 'contract_start_date', 'contract_end_date'];
+        'residence_permit_expiry', 'work_permit_expiry', 'health_card_expiry',
+        'labor_card_expiry', 'contract_start_date', 'contract_end_date'];
 
       dateFields.forEach(field => {
         if (row[field] && row[field].trim() !== '') {
@@ -516,7 +533,8 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
           successful_imports: successCount,
           failed_imports: failedCount,
           imported_employees: importedEmployees,
-          failed_rows: failedRows
+          failed_rows: failedRows,
+          country: organization.country
         });
     } catch (error) {
       console.error('Error saving import history:', error);
@@ -664,11 +682,10 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
                           <tr
                             key={index}
                             onClick={() => hasErrors && setSelectedRow(rowErrors.get(rowNum)!)}
-                            className={`border-b border-slate-100 transition-colors ${
-                              hasErrors
-                                ? 'hover:bg-red-50 cursor-pointer'
-                                : 'hover:bg-green-50'
-                            }`}
+                            className={`border-b border-slate-100 transition-colors ${hasErrors
+                              ? 'hover:bg-red-50 cursor-pointer'
+                              : 'hover:bg-green-50'
+                              }`}
                           >
                             <td className="px-4 py-2 text-slate-600">{rowNum}</td>
                             <td className="px-4 py-2">{row.first_name} {row.last_name}</td>

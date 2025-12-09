@@ -115,49 +115,46 @@ export function SettingsPage() {
     <div className="space-y-6 animate-fadeIn">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent flex items-center gap-3">
-            <SettingsIcon className="h-8 w-8 text-blue-600" />
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-theme-text-primary to-theme-text-secondary bg-clip-text text-transparent flex items-center gap-3">
+            <SettingsIcon className="h-8 w-8 text-theme-primary" />
             Settings
           </h1>
-          <p className="text-slate-600 mt-2 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-blue-500" />
+          <p className="text-theme-text-secondary mt-2 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-theme-primary" />
             Customize your experience and manage system settings
           </p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-        <div className="border-b border-slate-200">
+      <div className="bg-theme-bg-secondary rounded-2xl shadow-lg border border-theme-border overflow-hidden transition-colors duration-300">
+        <div className="border-b border-theme-border">
           <nav className="flex space-x-8 px-8" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('appearance')}
-              className={`${
-                activeTab === 'appearance'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-              } flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              className={`${activeTab === 'appearance'
+                  ? 'border-theme-primary text-theme-primary'
+                  : 'border-transparent text-theme-text-secondary hover:text-theme-text-primary hover:border-theme-border'
+                } flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
             >
               <Palette className="h-4 w-4" />
               Appearance
             </button>
             <button
               onClick={() => setActiveTab('general')}
-              className={`${
-                activeTab === 'general'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-              } flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              className={`${activeTab === 'general'
+                  ? 'border-theme-primary text-theme-primary'
+                  : 'border-transparent text-theme-text-secondary hover:text-theme-text-primary hover:border-theme-border'
+                } flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
             >
               <Globe className="h-4 w-4" />
               General
             </button>
             <button
               onClick={() => setActiveTab('master-data')}
-              className={`${
-                activeTab === 'master-data'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-              } flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+              className={`${activeTab === 'master-data'
+                  ? 'border-theme-primary text-theme-primary'
+                  : 'border-transparent text-theme-text-secondary hover:text-theme-text-primary hover:border-theme-border'
+                } flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
             >
               <SettingsIcon className="h-4 w-4" />
               Master Data
@@ -169,8 +166,8 @@ export function SettingsPage() {
           {activeTab === 'appearance' && (
             <div className="space-y-8">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Choose Your Theme</h2>
-                <p className="text-slate-600">Select a theme that matches your style and workflow</p>
+                <h2 className="text-2xl font-bold text-theme-text-primary mb-2">Choose Your Theme</h2>
+                <p className="text-theme-text-secondary">Select a theme that matches your style and workflow</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -182,14 +179,13 @@ export function SettingsPage() {
                     <button
                       key={themeOption.id}
                       onClick={() => setTheme(themeOption.id)}
-                      className={`relative group text-left p-6 rounded-2xl border-2 transition-all duration-300 ${
-                        isSelected
-                          ? 'border-blue-500 shadow-xl shadow-blue-100'
-                          : 'border-slate-200 hover:border-slate-300 hover:shadow-lg'
-                      }`}
+                      className={`relative group text-left p-6 rounded-2xl border-2 transition-all duration-300 ${isSelected
+                          ? 'border-theme-primary shadow-xl shadow-theme-primary/10'
+                          : 'border-theme-border hover:border-theme-text-secondary hover:shadow-lg'
+                        }`}
                     >
                       {isSelected && (
-                        <div className="absolute top-4 right-4 h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                        <div className="absolute top-4 right-4 h-8 w-8 bg-theme-primary rounded-full flex items-center justify-center shadow-lg">
                           <Check className="h-5 w-5 text-white" />
                         </div>
                       )}
@@ -199,8 +195,8 @@ export function SettingsPage() {
                           <Icon className="h-6 w-6 text-white" />
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-900 text-lg">{themeOption.name}</h3>
-                          <p className="text-sm text-slate-500">{themeOption.description}</p>
+                          <h3 className="font-bold text-theme-text-primary text-lg">{themeOption.name}</h3>
+                          <p className="text-sm text-theme-text-secondary">{themeOption.description}</p>
                         </div>
                       </div>
 
@@ -214,17 +210,16 @@ export function SettingsPage() {
                         </div>
 
                         <div className="grid grid-cols-3 gap-2">
-                          <div className={`h-12 bg-gradient-to-br ${themeOption.preview.secondary} rounded-lg border border-slate-200`}></div>
+                          <div className={`h-12 bg-gradient-to-br ${themeOption.preview.secondary} rounded-lg border border-theme-border`}></div>
                           <div className={`h-12 ${themeOption.preview.accent} rounded-lg`}></div>
-                          <div className={`h-12 bg-gradient-to-br ${themeOption.preview.secondary} rounded-lg border border-slate-200`}></div>
+                          <div className={`h-12 bg-gradient-to-br ${themeOption.preview.secondary} rounded-lg border border-theme-border`}></div>
                         </div>
                       </div>
 
-                      <div className={`mt-4 py-2 px-4 rounded-lg text-center font-medium transition-colors ${
-                        isSelected
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
-                      }`}>
+                      <div className={`mt-4 py-2 px-4 rounded-lg text-center font-medium transition-colors ${isSelected
+                          ? 'bg-theme-primary text-white'
+                          : 'bg-theme-bg-primary text-theme-text-secondary group-hover:bg-theme-border'
+                        }`}>
                         {isSelected ? 'Active Theme' : 'Select Theme'}
                       </div>
                     </button>
@@ -232,49 +227,49 @@ export function SettingsPage() {
                 })}
               </div>
 
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-2xl p-6">
+              <div className="bg-gradient-to-br from-theme-bg-primary to-theme-bg-secondary border-2 border-theme-border rounded-2xl p-6">
                 <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <div className="h-12 w-12 bg-theme-primary rounded-xl flex items-center justify-center flex-shrink-0">
                     <Sparkles className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-blue-900 text-lg mb-2">Premium Themes Coming Soon</h3>
-                    <p className="text-blue-800 text-sm mb-4">
+                    <h3 className="font-bold text-theme-text-primary text-lg mb-2">Premium Themes Coming Soon</h3>
+                    <p className="text-theme-text-secondary text-sm mb-4">
                       Get access to exclusive themes with advanced customization options, including custom color palettes,
                       glassmorphism effects, and animated backgrounds.
                     </p>
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+                    <button className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-opacity-90 transition-colors font-medium text-sm">
                       Learn More
                     </button>
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-slate-200 pt-6">
-                <h3 className="font-bold text-slate-900 mb-4">Theme Settings</h3>
+              <div className="border-t border-theme-border pt-6">
+                <h3 className="font-bold text-theme-text-primary mb-4">Theme Settings</h3>
                 <div className="space-y-4">
-                  <label className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer">
+                  <label className="flex items-center justify-between p-4 bg-theme-bg-primary rounded-xl hover:bg-theme-border transition-colors cursor-pointer">
                     <div>
-                      <p className="font-medium text-slate-900">Auto Dark Mode</p>
-                      <p className="text-sm text-slate-600">Automatically switch based on system preferences</p>
+                      <p className="font-medium text-theme-text-primary">Auto Dark Mode</p>
+                      <p className="text-sm text-theme-text-secondary">Automatically switch based on system preferences</p>
                     </div>
-                    <input type="checkbox" className="h-5 w-5 text-blue-600 rounded" />
+                    <input type="checkbox" className="h-5 w-5 text-theme-primary rounded border-theme-border focus:ring-theme-primary" />
                   </label>
 
-                  <label className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer">
+                  <label className="flex items-center justify-between p-4 bg-theme-bg-primary rounded-xl hover:bg-theme-border transition-colors cursor-pointer">
                     <div>
-                      <p className="font-medium text-slate-900">Reduced Motion</p>
-                      <p className="text-sm text-slate-600">Minimize animations and transitions</p>
+                      <p className="font-medium text-theme-text-primary">Reduced Motion</p>
+                      <p className="text-sm text-theme-text-secondary">Minimize animations and transitions</p>
                     </div>
-                    <input type="checkbox" className="h-5 w-5 text-blue-600 rounded" />
+                    <input type="checkbox" className="h-5 w-5 text-theme-primary rounded border-theme-border focus:ring-theme-primary" />
                   </label>
 
-                  <label className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer">
+                  <label className="flex items-center justify-between p-4 bg-theme-bg-primary rounded-xl hover:bg-theme-border transition-colors cursor-pointer">
                     <div>
-                      <p className="font-medium text-slate-900">High Contrast</p>
-                      <p className="text-sm text-slate-600">Increase contrast for better readability</p>
+                      <p className="font-medium text-theme-text-primary">High Contrast</p>
+                      <p className="text-sm text-theme-text-secondary">Increase contrast for better readability</p>
                     </div>
-                    <input type="checkbox" className="h-5 w-5 text-blue-600 rounded" />
+                    <input type="checkbox" className="h-5 w-5 text-theme-primary rounded border-theme-border focus:ring-theme-primary" />
                   </label>
                 </div>
               </div>
@@ -285,8 +280,8 @@ export function SettingsPage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">General Settings</h2>
-                  <p className="text-slate-600">Configure basic system preferences</p>
+                  <h2 className="text-2xl font-bold text-theme-text-primary mb-2">General Settings</h2>
+                  <p className="text-theme-text-secondary">Configure basic system preferences</p>
                 </div>
                 {hasChanges && (
                   <button
@@ -312,14 +307,14 @@ export function SettingsPage() {
               )}
 
               <div className="space-y-4">
-                <div className="p-6 bg-white border-2 border-slate-200 rounded-xl">
+                <div className="p-6 bg-theme-bg-secondary border-2 border-theme-border rounded-xl">
                   <label className="block mb-2">
-                    <span className="text-sm font-semibold text-slate-700">Date Format</span>
+                    <span className="text-sm font-semibold text-theme-text-secondary">Date Format</span>
                   </label>
                   <select
                     value={dateFormat}
                     onChange={(e) => { setDateFormat(e.target.value); setHasChanges(true); }}
-                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 bg-theme-bg-primary text-theme-text-primary border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-theme-primary focus:border-theme-primary"
                   >
                     <option>DD/MM/YYYY</option>
                     <option>MM/DD/YYYY</option>
@@ -327,28 +322,28 @@ export function SettingsPage() {
                   </select>
                 </div>
 
-                <div className="p-6 bg-white border-2 border-slate-200 rounded-xl">
+                <div className="p-6 bg-theme-bg-secondary border-2 border-theme-border rounded-xl">
                   <label className="block mb-2">
-                    <span className="text-sm font-semibold text-slate-700">Time Format</span>
+                    <span className="text-sm font-semibold text-theme-text-secondary">Time Format</span>
                   </label>
                   <select
                     value={timeFormat}
                     onChange={(e) => { setTimeFormat(e.target.value); setHasChanges(true); }}
-                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 bg-theme-bg-primary text-theme-text-primary border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-theme-primary focus:border-theme-primary"
                   >
                     <option value="12-hour">12-hour (AM/PM)</option>
                     <option value="24-hour">24-hour</option>
                   </select>
                 </div>
 
-                <div className="p-6 bg-white border-2 border-slate-200 rounded-xl">
+                <div className="p-6 bg-theme-bg-secondary border-2 border-theme-border rounded-xl">
                   <label className="block mb-2">
-                    <span className="text-sm font-semibold text-slate-700">Currency</span>
+                    <span className="text-sm font-semibold text-theme-text-secondary">Currency</span>
                   </label>
                   <select
                     value={currency}
                     onChange={(e) => { setCurrency(e.target.value); setHasChanges(true); }}
-                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 bg-theme-bg-primary text-theme-text-primary border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-theme-primary focus:border-theme-primary"
                   >
                     <option value="QAR">QAR (Qatar Riyal)</option>
                     <option value="SAR">SAR (Saudi Riyal)</option>
@@ -357,9 +352,9 @@ export function SettingsPage() {
                   </select>
                 </div>
 
-                <div className="p-6 bg-white border-2 border-slate-200 rounded-xl">
+                <div className="p-6 bg-theme-bg-secondary border-2 border-theme-border rounded-xl">
                   <label className="block mb-2">
-                    <span className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                    <span className="text-sm font-semibold text-theme-text-secondary flex items-center gap-2">
                       <Type className="h-4 w-4" />
                       Font Family
                     </span>
@@ -367,7 +362,7 @@ export function SettingsPage() {
                   <select
                     value={selectedFont}
                     onChange={(e) => handleFontChange(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 bg-theme-bg-primary text-theme-text-primary border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-theme-primary focus:border-theme-primary"
                   >
                     <option value="inter" style={{ fontFamily: 'Inter, sans-serif' }}>Inter (Default)</option>
                     <option value="roboto" style={{ fontFamily: 'Roboto, sans-serif' }}>Roboto</option>
@@ -380,23 +375,23 @@ export function SettingsPage() {
                     <option value="work-sans" style={{ fontFamily: '"Work Sans", sans-serif' }}>Work Sans</option>
                     <option value="ubuntu" style={{ fontFamily: 'Ubuntu, sans-serif' }}>Ubuntu</option>
                   </select>
-                  <p className="mt-2 text-xs text-slate-500">Choose a font that matches your brand and enhances readability</p>
+                  <p className="mt-2 text-xs text-theme-text-secondary">Choose a font that matches your brand and enhances readability</p>
 
-                  <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-violet-50 border-2 border-blue-200 rounded-xl" style={{ fontFamily: selectedFont === 'inter' ? 'Inter, sans-serif' : selectedFont === 'roboto' ? 'Roboto, sans-serif' : selectedFont === 'poppins' ? 'Poppins, sans-serif' : selectedFont === 'lato' ? 'Lato, sans-serif' : selectedFont === 'open-sans' ? '"Open Sans", sans-serif' : selectedFont === 'montserrat' ? 'Montserrat, sans-serif' : selectedFont === 'raleway' ? 'Raleway, sans-serif' : selectedFont === 'nunito' ? 'Nunito, sans-serif' : selectedFont === 'work-sans' ? '"Work Sans", sans-serif' : selectedFont === 'ubuntu' ? 'Ubuntu, sans-serif' : 'Inter, sans-serif' }}>
-                    <p className="text-sm font-semibold text-blue-900 mb-2">Font Preview</p>
-                    <p className="text-lg text-slate-900 mb-1">The quick brown fox jumps over the lazy dog</p>
-                    <p className="text-sm text-slate-600">ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789</p>
+                  <div className="mt-4 p-4 bg-gradient-to-r from-theme-bg-primary to-theme-bg-secondary border-2 border-theme-border rounded-xl" style={{ fontFamily: selectedFont === 'inter' ? 'Inter, sans-serif' : selectedFont === 'roboto' ? 'Roboto, sans-serif' : selectedFont === 'poppins' ? 'Poppins, sans-serif' : selectedFont === 'lato' ? 'Lato, sans-serif' : selectedFont === 'open-sans' ? '"Open Sans", sans-serif' : selectedFont === 'montserrat' ? 'Montserrat, sans-serif' : selectedFont === 'raleway' ? 'Raleway, sans-serif' : selectedFont === 'nunito' ? 'Nunito, sans-serif' : selectedFont === 'work-sans' ? '"Work Sans", sans-serif' : selectedFont === 'ubuntu' ? 'Ubuntu, sans-serif' : 'Inter, sans-serif' }}>
+                    <p className="text-sm font-semibold text-theme-primary mb-2">Font Preview</p>
+                    <p className="text-lg text-theme-text-primary mb-1">The quick brown fox jumps over the lazy dog</p>
+                    <p className="text-sm text-theme-text-secondary">ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789</p>
                   </div>
                 </div>
 
-                <div className="p-6 bg-white border-2 border-slate-200 rounded-xl">
+                <div className="p-6 bg-theme-bg-secondary border-2 border-theme-border rounded-xl">
                   <label className="block mb-2">
-                    <span className="text-sm font-semibold text-slate-700">Language</span>
+                    <span className="text-sm font-semibold text-theme-text-secondary">Language</span>
                   </label>
                   <select
                     value={language}
                     onChange={(e) => { setLanguage(e.target.value); setHasChanges(true); }}
-                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 bg-theme-bg-primary text-theme-text-primary border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-theme-primary focus:border-theme-primary"
                   >
                     <option>English</option>
                     <option>Hindi</option>
@@ -410,8 +405,8 @@ export function SettingsPage() {
           {activeTab === 'master-data' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Master Data Management</h2>
-                <p className="text-slate-600">Configure departments, designations, and branches</p>
+                <h2 className="text-2xl font-bold text-theme-text-primary mb-2">Master Data Management</h2>
+                <p className="text-theme-text-secondary">Configure departments, designations, and branches</p>
               </div>
 
               <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">

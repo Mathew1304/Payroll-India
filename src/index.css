@@ -25,6 +25,7 @@ body {
   --text-secondary: 107 114 128;
   --border-color: 229 231 235;
   --card-bg: 255 255 255;
+  --primary-color: 37 99 235; /* blue-600 */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
@@ -35,27 +36,30 @@ body {
   --bg-primary: 15 23 42;
   --bg-secondary: 30 41 59;
   --text-primary: 248 250 252;
-  --text-secondary: 203 213 225;
+  --text-secondary: 148 163 184;
   --border-color: 51 65 85;
   --card-bg: 30 41 59;
+  --primary-color: 59 130 246; /* blue-500 */
 }
 
 [data-theme='midnight'] {
   --bg-primary: 0 0 0;
   --bg-secondary: 10 10 10;
   --text-primary: 255 255 255;
-  --text-secondary: 203 213 225;
+  --text-secondary: 163 163 163;
   --border-color: 38 38 38;
   --card-bg: 15 15 15;
+  --primary-color: 37 99 235; /* blue-600 */
 }
 
 [data-theme='neon'] {
-  --bg-primary: 15 23 42;
-  --bg-secondary: 30 41 59;
+  --bg-primary: 10 10 20;
+  --bg-secondary: 20 20 40;
   --text-primary: 248 250 252;
-  --text-secondary: 203 213 225;
+  --text-secondary: 167 139 250;
   --border-color: 139 92 246;
-  --card-bg: 30 41 59;
+  --card-bg: 20 20 40;
+  --primary-color: 167 139 250; /* violet-400 */
 }
 
 @layer utilities {

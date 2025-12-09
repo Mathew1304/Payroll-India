@@ -3,6 +3,7 @@ import { Menu, X, LogOut, Bell, User, LayoutDashboard, Users, Calendar, Clock, I
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
+import { getEnabledFeatures, clearFeatureCache } from '../services/featureService';
 
 interface LayoutProps {
   children: ReactNode;
@@ -18,10 +19,35 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const { t, i18n } = useTranslation();
 
+  // Feature toggle state
+  const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(new Set());
+  const [featuresLoaded, setFeaturesLoaded] = useState(false);
+
   useEffect(() => {
     document.documentElement.setAttribute('dir', i18n.language === 'ar' ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', i18n.language);
   }, [i18n.language]);
+
+  // Load features when organization changes
+  useEffect(() => {
+    async function loadFeatures() {
+      if (!organization?.id) return;
+
+      try {
+        const features = await getEnabledFeatures(organization.id);
+        setEnabledFeatures(features);
+      } catch (error) {
+        console.error('Error loading sidebar features:', error);
+      } finally {
+        setFeaturesLoaded(true);
+      }
+    }
+
+    // Reset loaded state when org changes to potentially show loading state or default
+    setFeaturesLoaded(false);
+    loadFeatures();
+  }, [organization?.id]);
+
 
   useEffect(() => {
     if (membership?.employee_id) {
@@ -87,9 +113,33 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'settings', labelKey: 'menu.settings', icon: Settings, color: 'from-slate-500 to-slate-600', roles: ['admin', 'hr'] },
   ];
 
-  const filteredMenuItems = menuItems.filter(item =>
-    membership && item.roles.includes(membership.role)
-  );
+  // Features explicitly managed by the Feature Service (toggleable)
+  // These keys MUST match the database keys in organization_features
+  const MANAGED_FEATURES = ['dashboard', 'employees', 'attendance', 'leave', 'payroll', 'reports', 'tasks', 'settings'];
+
+  const filteredMenuItems = menuItems.filter(item => {
+    const hasRole = membership && item.roles.includes(membership.role);
+
+    // Feature Check Logic:
+    // 1. If it's a managed feature, check if it's in the enabled set.
+    // 2. If features haven't loaded yet, loosely allow (or hide? defaulting to true for smoother UX)
+    // 3. If it's NOT a managed feature (like Help, Profile, etc.), always allow it.
+
+    let isFeatureVisible = true;
+
+    if (MANAGED_FEATURES.includes(item.id)) {
+      // If we have loaded features, check strictly.
+      // If not loaded yet, fallback to organization object context if available, or true
+      if (featuresLoaded) {
+        isFeatureVisible = enabledFeatures.has(item.id);
+      } else {
+        // Fallback to previous context logic during load to prevent flickering
+        isFeatureVisible = organization?.features?.[item.id] !== false;
+      }
+    }
+
+    return hasRole && isFeatureVisible;
+  });
 
   const handleSignOut = async () => {
     try {
@@ -100,26 +150,26 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50">
-      <nav className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 fixed w-full z-30 top-0 shadow-sm">
+    <div className="min-h-screen bg-theme-bg-primary text-theme-text-primary transition-colors duration-300">
+      <nav className="bg-theme-bg-secondary/80 backdrop-blur-xl border-b border-theme-border/50 fixed w-full z-30 top-0 shadow-sm transition-colors duration-300">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                className="p-2 rounded-xl text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-bg-primary focus:outline-none focus:ring-2 focus:ring-theme-primary transition-all"
               >
                 {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
               <div className="ml-4 flex items-center gap-2">
-                <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="h-10 w-10 bg-gradient-to-br from-theme-primary to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
                   <Sparkles className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
+                  <h1 className="text-lg font-bold bg-gradient-to-r from-theme-primary to-violet-600 bg-clip-text text-transparent">
                     {organization?.name || 'HRMS & Payroll'}
                   </h1>
-                  <p className="text-xs text-slate-500">Human Resource Management</p>
+                  <p className="text-xs text-theme-text-secondary">Human Resource Management</p>
                 </div>
               </div>
             </div>
@@ -127,7 +177,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleLanguage}
-                className="flex items-center gap-2 p-2 px-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all"
+                className="flex items-center gap-2 p-2 px-3 rounded-xl text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-bg-primary transition-all"
                 title={i18n.language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
               >
                 <Languages className="h-5 w-5" />
@@ -136,7 +186,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all"
+                className="relative p-2 rounded-xl text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-bg-primary transition-all"
               >
                 <Bell className="h-5 w-5" />
                 {notificationCount > 0 && (
@@ -146,17 +196,17 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 )}
               </button>
 
-              <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
+              <div className="flex items-center gap-3 border-l border-theme-border pl-4">
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-900">{user?.email}</p>
-                  <p className="text-xs text-slate-500 capitalize flex items-center justify-end gap-1">
+                  <p className="text-sm font-semibold text-theme-text-primary">{user?.email}</p>
+                  <p className="text-xs text-theme-text-secondary capitalize flex items-center justify-end gap-1">
                     <span className="h-1.5 w-1.5 bg-green-500 rounded-full"></span>
                     {membership?.role}
                   </p>
                 </div>
                 <button
                   onClick={() => onNavigate('profile')}
-                  className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center text-white shadow-lg ring-2 ring-blue-100 hover:ring-4 hover:ring-blue-200 transition-all"
+                  className="h-10 w-10 rounded-xl bg-gradient-to-br from-theme-primary to-violet-500 flex items-center justify-center text-white shadow-lg ring-2 ring-blue-100 hover:ring-4 hover:ring-blue-200 transition-all"
                   title="My Profile"
                 >
                   <User className="h-5 w-5" />
@@ -165,7 +215,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
               <button
                 onClick={handleSignOut}
-                className="p-2 rounded-xl text-slate-600 hover:text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
+                className="p-2 rounded-xl text-theme-text-secondary hover:text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
                 title="Logout"
               >
                 <LogOut className="h-5 w-5" />
@@ -176,8 +226,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       </nav>
 
       {showNotifications && (
-        <div className="fixed top-20 right-4 w-96 max-h-[32rem] bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
+        <div className="fixed top-20 right-4 w-96 max-h-[32rem] bg-theme-bg-secondary rounded-xl shadow-2xl border border-theme-border z-50 overflow-hidden">
+          <div className="bg-gradient-to-r from-theme-primary to-blue-700 text-white p-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold">Notifications</h3>
               <button
@@ -191,33 +241,33 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           <div className="max-h-[28rem] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-8 text-center">
-                <Bell className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-600 font-medium">No new notifications</p>
-                <p className="text-sm text-slate-400 mt-1">You're all caught up!</p>
+                <Bell className="h-12 w-12 text-theme-text-secondary mx-auto mb-3" />
+                <p className="text-theme-text-primary font-medium">No new notifications</p>
+                <p className="text-sm text-theme-text-secondary mt-1">You're all caught up!</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-theme-border">
                 {notifications.map((notif) => (
                   <div
                     key={notif.id}
-                    className="p-4 hover:bg-slate-50 transition-colors"
+                    className="p-4 hover:bg-theme-bg-primary transition-colors"
                   >
                     <div className="flex items-start gap-3">
                       <div className="p-2 bg-blue-50 rounded-lg">
-                        <Bell className="h-4 w-4 text-blue-600" />
+                        <Bell className="h-4 w-4 text-theme-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-slate-900 text-sm mb-1">
+                        <h4 className="font-semibold text-theme-text-primary text-sm mb-1">
                           {notif.title}
                         </h4>
-                        <p className="text-sm text-slate-600 mb-2">{notif.message}</p>
+                        <p className="text-sm text-theme-text-secondary mb-2">{notif.message}</p>
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs text-slate-400">
+                          <p className="text-xs text-theme-text-secondary">
                             {new Date(notif.created_at).toLocaleString()}
                           </p>
                           <button
                             onClick={() => markNotificationAsRead(notif.id)}
-                            className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                            className="text-xs text-theme-primary hover:text-blue-700 font-medium"
                           >
                             Mark as read
                           </button>
@@ -234,14 +284,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
       <div className="flex pt-16">
         <aside
-          className={`${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } fixed left-0 z-20 w-72 h-[calc(100vh-4rem)] bg-white/80 backdrop-blur-xl border-r border-slate-200/50 transition-transform duration-300 ease-in-out overflow-y-auto shadow-xl`}
+          className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            } fixed left-0 z-20 w-72 h-[calc(100vh-4rem)] bg-theme-bg-secondary/80 backdrop-blur-xl border-r border-theme-border/50 transition-transform duration-300 ease-in-out overflow-y-auto shadow-xl`}
         >
           <div className="p-4">
             <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 mb-6 shadow-md border border-slate-700/50">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <div className="h-10 w-10 bg-gradient-to-br from-theme-primary to-blue-600 rounded-lg flex items-center justify-center">
                   <Sparkles className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -252,7 +301,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             </div>
 
             <div className="mb-3 px-3">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('common.menu')}</p>
+              <p className="text-xs font-semibold text-theme-text-secondary uppercase tracking-wider">{t('common.menu')}</p>
             </div>
 
             <nav className="space-y-1.5">
@@ -263,18 +312,16 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                   <button
                     key={item.id}
                     onClick={() => onNavigate(item.id)}
-                    className={`group relative flex items-center w-full px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 ${
-                      isActive
-                        ? 'bg-gradient-to-r ' + item.color + ' text-white shadow-lg shadow-' + item.color.split('-')[1] + '-500/30'
-                        : 'text-slate-700 hover:bg-slate-100'
-                    }`}
+                    className={`group relative flex items-center w-full px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
+                      ? 'bg-gradient-to-r ' + item.color + ' text-white shadow-lg shadow-' + item.color.split('-')[1] + '-500/30'
+                      : 'text-theme-text-secondary hover:bg-theme-bg-primary'
+                      }`}
                   >
-                    <div className={`flex items-center justify-center h-9 w-9 rounded-lg ${i18n.language === 'ar' ? 'ml-3' : 'mr-3'} transition-all ${
-                      isActive
-                        ? 'bg-white/20 backdrop-blur-sm'
-                        : 'bg-slate-100 group-hover:bg-slate-200'
-                    }`}>
-                      <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-slate-600 group-hover:text-slate-900'}`} />
+                    <div className={`flex items-center justify-center h-9 w-9 rounded-lg ${i18n.language === 'ar' ? 'ml-3' : 'mr-3'} transition-all ${isActive
+                      ? 'bg-white/20 backdrop-blur-sm'
+                      : 'bg-theme-bg-primary group-hover:bg-theme-card'
+                      }`}>
+                      <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-theme-text-secondary group-hover:text-theme-text-primary'}`} />
                     </div>
                     <span className="flex-1">{t(item.labelKey)}</span>
                     {isActive && (
@@ -303,9 +350,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         </aside>
 
         <main
-          className={`${
-            sidebarOpen ? 'ml-72' : 'ml-0'
-          } flex-1 transition-all duration-300 ease-in-out p-6 w-full`}
+          className={`${sidebarOpen ? 'ml-72' : 'ml-0'
+            } flex-1 transition-all duration-300 ease-in-out p-6 w-full`}
         >
           {children}
         </main>
