@@ -302,6 +302,7 @@ export function QatarPayrollPage() {
               payrollRecords={payrollRecords}
               selectedMonth={selectedMonth}
               selectedYear={selectedYear}
+              showNotification={showNotification}
             />
           )}
         </div>
@@ -1089,7 +1090,7 @@ function EOSTab({ organizationId }: any) {
   );
 }
 
-function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear }: any) {
+function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear, showNotification }: any) {
   const { organization } = useAuth();
   const [showPreview, setShowPreview] = useState(false);
   const [establishmentId, setEstablishmentId] = useState('');

@@ -92,6 +92,9 @@ export function TasksPage() {
     github_pr_number: ''
   });
 
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [createTaskDepartment, setCreateTaskDepartment] = useState<string>('');
+
   const isAdmin = membership?.role && ['admin', 'hr', 'manager'].includes(membership.role);
 
   useEffect(() => {
@@ -103,6 +106,7 @@ export function TasksPage() {
       await Promise.all([
         loadTasks(),
         isAdmin && loadEmployees(),
+        isAdmin && loadDepartments(),
         isAdmin && loadGithubStats()
       ]);
     } catch (error) {
@@ -139,14 +143,27 @@ export function TasksPage() {
     try {
       const { data } = await supabase
         .from('employees')
-        .select('id, first_name, last_name, employee_code, company_email, is_active')
+        .select('id, first_name, last_name, employee_code, company_email, is_active, department_id')
         .eq('organization_id', organization.id)
         .eq('is_active', true)
-        .eq('employment_status', 'active')
         .order('first_name');
       setEmployees(data || []);
     } catch (error) {
       console.error('Error loading employees:', error);
+    }
+  };
+
+  const loadDepartments = async () => {
+    if (!organization?.id) return;
+    try {
+      const { data } = await supabase
+        .from('departments')
+        .select('id, name')
+        .eq('organization_id', organization.id)
+        .order('name');
+      setDepartments(data || []);
+    } catch (error) {
+      console.error('Error loading departments:', error);
     }
   };
 
@@ -348,8 +365,8 @@ export function TasksPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-scaleIn">
             <div className={`p-6 rounded-t-2xl ${alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
-                alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
-                  'bg-gradient-to-r from-blue-500 to-blue-600'
+              alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                'bg-gradient-to-r from-blue-500 to-blue-600'
               }`}>
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold text-white">{alertModal.title}</h3>
@@ -363,8 +380,8 @@ export function TasksPage() {
               <button
                 onClick={() => setAlertModal(null)}
                 className={`mt-6 w-full py-3 rounded-xl font-semibold text-white ${alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
-                    alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
-                      'bg-blue-500 hover:bg-blue-600'
+                  alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
+                    'bg-blue-500 hover:bg-blue-600'
                   }`}>
                 OK
               </button>
@@ -448,32 +465,50 @@ export function TasksPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Assign To <span className="text-red-500">*</span>
+                    Department
                   </label>
                   <select
-                    value={formData.assigned_to}
-                    onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+                    value={createTaskDepartment}
+                    onChange={(e) => setCreateTaskDepartment(e.target.value)}
                     className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500"
                   >
-                    <option value="">Select Employee</option>
-                    {employees.map(emp => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.first_name} {emp.last_name} ({emp.employee_code})
+                    <option value="">All Departments</option>
+                    {departments.map(dept => (
+                      <option key={dept.id} value={dept.id}>
+                        {dept.name}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date</label>
-                  <input
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500"
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Assign To <span className="text-red-500">*</span>
+                  </label>
+                  <CustomSelect
+                    value={formData.assigned_to}
+                    onChange={(value) => setFormData({ ...formData, assigned_to: value })}
+                    placeholder="Select Employee"
+                    options={employees
+                      .filter(emp => !createTaskDepartment || (emp as any).department_id === createTaskDepartment)
+                      .map(emp => ({
+                        value: emp.id,
+                        label: `${emp.first_name} ${emp.last_name}`,
+                        subLabel: emp.employee_code
+                      }))}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date</label>
+                <input
+                  type="date"
+                  value={formData.due_date}
+                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500"
+                />
               </div>
 
               <div>
@@ -758,6 +793,68 @@ function TaskCard({ task, isAdmin, onStatusChange, getTaskTypeColor, getPriority
             </button>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+interface CustomSelectProps {
+  options: { value: string; label: string; subLabel?: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+function CustomSelect({ options, value, onChange, placeholder = 'Select...' }: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find(opt => opt.value === value);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 bg-white text-left flex items-center justify-between"
+      >
+        <span className={selectedOption ? 'text-slate-900' : 'text-slate-500'}>
+          {selectedOption ? (
+            <span>
+              {selectedOption.label}
+              {selectedOption.subLabel && <span className="text-slate-500 ml-1">({selectedOption.subLabel})</span>}
+            </span>
+          ) : placeholder}
+        </span>
+        <div className="flex flex-col gap-0.5">
+          <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-slate-400"></div>
+          <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-slate-400"></div>
+        </div>
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)}></div>
+          <div className="absolute z-20 w-full mt-1 bg-white border-2 border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+            {options.length > 0 ? (
+              options.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full px-4 py-3 text-left hover:bg-purple-50 transition-colors flex flex-col ${option.value === value ? 'bg-purple-50' : ''
+                    }`}
+                >
+                  <span className="font-medium text-slate-900">{option.label}</span>
+                  {option.subLabel && <span className="text-xs text-slate-500">{option.subLabel}</span>}
+                </button>
+              ))
+            ) : (
+              <div className="px-4 py-3 text-slate-500 text-center">No options found</div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

@@ -26,9 +26,11 @@ import { AnnouncementsPage } from './pages/Announcements/AnnouncementsPage';
 import { OnboardingFormPage } from './pages/EmployeeOnboarding/OnboardingFormPage';
 import { WorkReportsPage } from './pages/WorkReports/WorkReportsPage';
 import { HelpPage } from './pages/Help/HelpPage';
+import { EmployeeDashboard } from './pages/EmployeeDashboard';
+import { ChangePasswordPage } from './pages/Auth/ChangePasswordPage';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, membership } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [authMode, setAuthMode] = useState<'landing' | 'login' | 'register' | 'employee-register' | 'onboarding'>('landing');
 
@@ -53,6 +55,25 @@ function AppContent() {
       }
     }
   }, [user, loading]);
+
+  // Handle Role-Based Redirects & Forced Password Change
+  useEffect(() => {
+    if (user && !loading && membership) {
+      const metadata = user.user_metadata;
+
+      if (metadata?.force_password_change) {
+        setCurrentPage('change-password');
+        return;
+      }
+
+      // If user is employee and tries to access restricted pages (or default dashboard), redirect to employee-dashboard
+      if (membership.role === 'employee') {
+        if (currentPage === 'dashboard' || currentPage === 'super-admin') {
+          setCurrentPage('employee-dashboard');
+        }
+      }
+    }
+  }, [user, loading, membership, currentPage]);
 
   if (loading) {
     return (
@@ -123,6 +144,10 @@ function AppContent() {
         return <HelpPage />;
       case 'super-admin':
         return <SuperAdminPage />;
+      case 'employee-dashboard':
+        return <EmployeeDashboard />;
+      case 'change-password':
+        return <ChangePasswordPage />;
       default:
         return <Dashboard />;
     }

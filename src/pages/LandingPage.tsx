@@ -108,11 +108,11 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Zap className="h-6 w-6 text-white" />
+              <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
+                <img src="/logo.png" alt="LogHr Logo" className="h-full w-full object-cover" />
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
-                LogHR
+                LogHr
               </span>
             </div>
             <div className="hidden md:flex items-center gap-8">
@@ -380,11 +380,10 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 </ul>
                 <button
                   onClick={onGetStarted}
-                  className={`w-full py-3 rounded-xl font-bold transition-all ${
-                    plan.popular
+                  className={`w-full py-3 rounded-xl font-bold transition-all ${plan.popular
                       ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white hover:shadow-xl'
                       : isDark ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
-                  }`}
+                    }`}
                 >
                   Get Started
                 </button>
@@ -418,10 +417,10 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-xl flex items-center justify-center">
-                  <Zap className="h-6 w-6 text-white" />
+                <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-xl flex items-center justify-center overflow-hidden">
+                  <img src="/logo.png" alt="LogHr Logo" className="h-full w-full object-cover" />
                 </div>
-                <span className="text-xl font-bold text-white">LogHR</span>
+                <span className="text-xl font-bold text-white">LogHr</span>
               </div>
               <p className="text-slate-400 text-sm">
                 Qatar's premier WPS-compliant HRMS platform for modern businesses.

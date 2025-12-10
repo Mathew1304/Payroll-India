@@ -78,8 +78,8 @@ export function EmployeesPage() {
           employment_type,
           date_of_joining,
           is_active,
-          departments!department_id (name),
-          designations!designation_id (title)
+          departments!employees_department_id_fkey (name),
+          designations!employees_designation_id_fkey (title)
         `)
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
@@ -465,11 +465,10 @@ export function EmployeesPage() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                          currentPage === page
+                        className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${currentPage === page
                             ? 'bg-blue-600 text-white font-semibold'
                             : 'border border-slate-300 hover:bg-slate-50'
-                        }`}
+                          }`}
                       >
                         {page}
                       </button>

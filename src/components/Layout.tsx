@@ -96,7 +96,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   };
 
   const menuItems = [
-    { id: 'dashboard', labelKey: 'menu.dashboard', icon: LayoutDashboard, color: 'from-blue-500 to-blue-600', roles: ['admin', 'hr', 'finance', 'manager', 'employee'] },
+    { id: 'dashboard', labelKey: 'menu.dashboard', icon: LayoutDashboard, color: 'from-blue-500 to-blue-600', roles: ['admin', 'hr', 'finance', 'manager'] },
+    { id: 'employee-dashboard', labelKey: 'menu.dashboard', icon: LayoutDashboard, color: 'from-blue-500 to-blue-600', roles: ['employee'] },
     { id: 'payroll', labelKey: 'menu.payroll', icon: Banknote, color: 'from-emerald-500 to-emerald-600', roles: ['admin', 'hr', 'finance'] },
     { id: 'reports', labelKey: 'menu.reports', icon: FileText, color: 'from-violet-500 to-violet-600', roles: ['admin', 'hr', 'finance'] },
     { id: 'tasks', labelKey: 'menu.tasks', icon: CheckSquare, color: 'from-purple-500 to-purple-600', roles: ['admin', 'hr', 'manager', 'employee'] },
@@ -162,12 +163,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
               <div className="ml-4 flex items-center gap-2">
-                <div className="h-10 w-10 bg-gradient-to-br from-theme-primary to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Sparkles className="h-5 w-5 text-white" />
+                <div className="h-10 w-10 bg-gradient-to-br from-theme-primary to-violet-600 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
+                  <img src="/logo.png" alt="LogHr Logo" className="h-full w-full object-cover" />
                 </div>
                 <div>
                   <h1 className="text-lg font-bold bg-gradient-to-r from-theme-primary to-violet-600 bg-clip-text text-transparent">
-                    {organization?.name || 'HRMS & Payroll'}
+                    LogHr
                   </h1>
                   <p className="text-xs text-theme-text-secondary">Human Resource Management</p>
                 </div>

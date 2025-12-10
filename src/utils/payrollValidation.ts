@@ -43,10 +43,9 @@ export async function validatePrePayroll(
       company_email,
       mobile_number,
       qatar_id,
-      saudi_national_id,
+      muqeem_id,
       bank_name,
       iban_number,
-      saudi_iban,
       employment_status,
       is_active,
       date_of_birth,
@@ -93,7 +92,7 @@ export async function validatePrePayroll(
     }
 
     if (country === 'Saudi Arabia') {
-      if (!emp.saudi_national_id) {
+      if (!emp.muqeem_id) {
         errors.push({
           validation_type: 'error',
           category: 'missing_data',
@@ -101,14 +100,14 @@ export async function validatePrePayroll(
           employee_name: empName,
           employee_code: emp.employee_code,
           error_code: 'MISSING_SAUDI_ID',
-          error_message: `Missing Saudi National ID / Iqama`,
-          field_name: 'saudi_national_id',
+          error_message: `Missing Muqeem ID / Iqama`,
+          field_name: 'muqeem_id',
           resolved: false
         });
       }
     }
 
-    const ibanField = country === 'Qatar' ? emp.iban_number : emp.saudi_iban;
+    const ibanField = emp.iban_number;
 
     if (!ibanField) {
       errors.push({
@@ -119,7 +118,7 @@ export async function validatePrePayroll(
         employee_code: emp.employee_code,
         error_code: 'MISSING_IBAN',
         error_message: `Missing IBAN`,
-        field_name: country === 'Qatar' ? 'iban_number' : 'saudi_iban',
+        field_name: 'iban_number',
         resolved: false
       });
     } else {
@@ -145,7 +144,7 @@ export async function validatePrePayroll(
           employee_code: emp.employee_code,
           error_code: 'INVALID_IBAN',
           error_message: `Invalid Saudi IBAN format (must start with SA and be 24 characters, current: ${ibanField.length} characters)`,
-          field_name: 'saudi_iban',
+          field_name: 'iban_number',
           resolved: false
         });
       }

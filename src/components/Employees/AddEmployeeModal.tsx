@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Save, User, Briefcase, Building, Banknote, FileText, Calendar, Mail, Send, CheckCircle, AlertCircle, Users as FamilyIcon, GraduationCap, Heart, Globe } from 'lucide-react';
+import { X, Save, User, Briefcase, Building, Banknote, FileText, Calendar, Mail, Send, CheckCircle, AlertCircle, Users as FamilyIcon, GraduationCap, Heart, Globe, Lock, Copy, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -16,6 +16,10 @@ interface AlertModal {
   title: string;
   message: string;
   invitationLink?: string;
+  credentials?: {
+    email: string;
+    password: string;
+  };
 }
 
 type TabType = 'personal' | 'employment' | 'family' | 'education' | 'documents' | 'health' | 'professional' | 'salary';
@@ -27,6 +31,8 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
   const [alertModal, setAlertModal] = useState<AlertModal | null>(null);
   const [sendInvitation, setSendInvitation] = useState(true);
   const [invitationType, setInvitationType] = useState<'basic' | 'full_onboarding'>('full_onboarding');
+  const [createLogin, setCreateLogin] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const isQatar = organization?.country === 'Qatar';
   const isSaudi = organization?.country === 'Saudi Arabia';
@@ -233,7 +239,28 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
 
       if (employeeError) throw employeeError;
 
-      if (sendInvitation) {
+      let generatedPassword = '';
+      if (createLogin) {
+        // Generate random password: OrgName + Random 4 digits
+        const orgPrefix = organization.name.substring(0, 3).toUpperCase();
+        const randomDigits = Math.floor(1000 + Math.random() * 9000);
+        generatedPassword = `${orgPrefix}@${randomDigits}`;
+
+        const { error: functionError } = await supabase.functions.invoke('create-employee-user', {
+          body: {
+            email: formData.company_email,
+            password: generatedPassword,
+            organization_id: organization.id,
+            employee_id: employeeData.id,
+            first_name: formData.first_name,
+            last_name: formData.last_name
+          }
+        });
+
+        if (functionError) throw functionError;
+      }
+
+      if (sendInvitation && !createLogin) {
         const { data: inviteData, error: inviteError } = await supabase.rpc('generate_invitation_code');
 
         if (inviteError) throw inviteError;
@@ -276,6 +303,16 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
             : `Employee has been created. Share this invitation link with ${formData.first_name}:`,
           invitationLink: invitationLink
         });
+      } else if (createLogin) {
+        setAlertModal({
+          type: 'success',
+          title: 'Employee & Login Created!',
+          message: `Employee ${formData.first_name} has been created with login access. Please share these credentials securely:`,
+          credentials: {
+            email: formData.company_email,
+            password: generatedPassword
+          }
+        });
       } else {
         setAlertModal({
           type: 'success',
@@ -313,6 +350,17 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
     }
   };
 
+  const copyCredentials = () => {
+    if (alertModal?.credentials) {
+      const text = `Email: ${alertModal.credentials.email}\nPassword: ${alertModal.credentials.password}`;
+      navigator.clipboard.writeText(text);
+      setAlertModal({
+        ...alertModal,
+        message: 'Credentials copied to clipboard!'
+      });
+    }
+  };
+
   const tabs = [
     { id: 'personal', label: 'Personal', icon: User },
     { id: 'employment', label: 'Employment', icon: Briefcase },
@@ -330,8 +378,8 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-scaleIn">
             <div className={`p-6 rounded-t-2xl ${alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
-                alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
-                  'bg-gradient-to-r from-blue-500 to-blue-600'
+              alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                'bg-gradient-to-r from-blue-500 to-blue-600'
               }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -362,6 +410,32 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
                   <p className="text-sm text-slate-900 break-all font-mono">{alertModal.invitationLink}</p>
                 </div>
               )}
+
+              {alertModal.credentials && (
+                <div className="bg-slate-100 rounded-lg p-4 mb-4 space-y-3">
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1 font-semibold">Email:</p>
+                    <p className="text-sm text-slate-900 font-mono">{alertModal.credentials.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1 font-semibold">Password:</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-slate-900 font-mono font-bold">
+                        {showPassword ? alertModal.credentials.password : '••••••••'}
+                      </p>
+                      <button
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="p-1 hover:bg-slate-200 rounded transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4 text-slate-500" /> : <Eye className="h-4 w-4 text-slate-500" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+                    ⚠️ Copy these credentials now. The password will not be shown again.
+                  </div>
+                </div>
+              )}
               <div className="flex gap-3">
                 {alertModal.invitationLink ? (
                   <button
@@ -371,6 +445,26 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
                     <Send className="h-4 w-4" />
                     Copy Link & Close
                   </button>
+                ) : alertModal.credentials ? (
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={copyCredentials}
+                      className="flex-1 py-3 rounded-xl font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copy Credentials
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAlertModal(null);
+                        onSuccess();
+                        onClose();
+                      }}
+                      className="flex-1 py-3 rounded-xl font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all"
+                    >
+                      Done
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={() => {
@@ -381,8 +475,8 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
                       }
                     }}
                     className={`flex-1 py-3 rounded-xl font-semibold text-white transition-all ${alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
-                        alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
-                          'bg-blue-500 hover:bg-blue-600'
+                      alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
+                        'bg-blue-500 hover:bg-blue-600'
                       }`}>
                     OK
                   </button>
@@ -413,8 +507,8 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
                   key={tab.id}
                   onClick={() => setCurrentTab(tab.id as TabType)}
                   className={`flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${currentTab === tab.id
-                      ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -619,6 +713,36 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+                </div>
+
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-5 w-5 text-blue-600" />
+                      <h3 className="font-semibold text-blue-900">Login Credentials</h3>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={createLogin}
+                        onChange={(e) => {
+                          setCreateLogin(e.target.checked);
+                          if (e.target.checked) setSendInvitation(false);
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  <p className="text-sm text-blue-700 mb-2">
+                    Create a user login for this employee immediately?
+                  </p>
+                  {createLogin && (
+                    <div className="text-xs text-blue-600 bg-white p-2 rounded border border-blue-100">
+                      A random password will be generated. You will be able to view and copy it after creation.
+                      The employee will be forced to change it upon first login.
+                    </div>
+                  )}
                 </div>
 
                 <div>
