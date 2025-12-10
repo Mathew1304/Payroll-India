@@ -20,6 +20,8 @@ import { SuperAdminPage } from './pages/SuperAdminPage';
 
 import { HelpdeskPage } from './pages/Helpdesk/HelpdeskPage';
 import { PerformancePage } from './pages/Performance/PerformancePage';
+import { AttendanceAdminPage } from './pages/Attendance/Admin/AttendanceAdminPage';
+import { AttendanceEmployeePage } from './pages/Attendance/Employee/AttendanceEmployeePage';
 import { TrainingPage } from './pages/Training/TrainingPage';
 import { AnnouncementsPage } from './pages/Announcements/AnnouncementsPage';
 // import { AssetsPage } from './pages/Assets/AssetsPage';
@@ -130,6 +132,10 @@ function AppContent() {
         return <TrainingPage />;
       case 'helpdesk':
         return <HelpdeskPage />;
+      case 'attendance-admin':
+        return <AttendanceAdminPage />;
+      case 'attendance-employee':
+        return <AttendanceEmployeePage />;
       case 'announcements':
         return <AnnouncementsPage />;
       case 'work-reports':

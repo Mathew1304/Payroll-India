@@ -3,7 +3,7 @@ import { Menu, X, LogOut, Bell, User, LayoutDashboard, Users, Calendar, Clock, B
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
-import { getEnabledFeatures, clearFeatureCache } from '../services/featureService';
+import { getEnabledFeatures } from '../services/featureService';
 
 interface LayoutProps {
   children: ReactNode;
@@ -82,7 +82,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     try {
       await supabase
         .from('employee_notifications')
-        .update({ is_read: true })
+        .update({ is_read: true } as any)
         .eq('id', notificationId);
       loadNotifications();
     } catch (error) {
@@ -103,7 +103,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'tasks', labelKey: 'menu.tasks', icon: CheckSquare, color: 'from-purple-500 to-purple-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'work-reports', labelKey: 'menu.workReports', icon: ClipboardList, color: 'from-sky-500 to-sky-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'employees', labelKey: 'menu.employees', icon: Users, color: 'from-teal-500 to-teal-600', roles: ['admin', 'hr', 'manager'] },
-    { id: 'attendance', labelKey: 'menu.attendance', icon: Clock, color: 'from-amber-500 to-amber-600', roles: ['admin', 'hr', 'manager', 'employee'] },
+    { id: 'attendance-admin', labelKey: 'menu.attendance', icon: Clock, color: 'from-amber-500 to-amber-600', roles: ['admin', 'hr', 'manager'] },
+    { id: 'attendance-employee', labelKey: 'menu.attendance', icon: Clock, color: 'from-amber-500 to-amber-600', roles: ['employee'] },
     { id: 'leave', labelKey: 'menu.leave', icon: Calendar, color: 'from-cyan-500 to-cyan-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'expenses', labelKey: 'menu.expenses', icon: Receipt, color: 'from-orange-500 to-orange-600', roles: ['admin', 'hr', 'finance', 'manager', 'employee'] },
     { id: 'performance', labelKey: 'menu.performance', icon: Award, color: 'from-yellow-500 to-yellow-600', roles: ['admin', 'hr', 'manager', 'employee'] },
@@ -116,8 +117,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
   // Features explicitly managed by the Feature Service (toggleable)
   // These keys MUST match the database keys in organization_features
-  const MANAGED_FEATURES = ['dashboard', 'employees', 'attendance', 'leave', 'payroll', 'reports', 'tasks', 'settings'];
-
+  const MANAGED_FEATURES = ['dashboard', 'employees', 'attendance', 'leave', 'payroll', 'reports', 'tasks', 'helpdesk', 'performance'] as const;
   const filteredMenuItems = menuItems.filter(item => {
     const hasRole = membership && item.roles.includes(membership.role);
 
@@ -128,7 +128,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
     let isFeatureVisible = true;
 
-    if (MANAGED_FEATURES.includes(item.id)) {
+    if (MANAGED_FEATURES.includes(item.id as any)) {
       // If we have loaded features, check strictly.
       // If not loaded yet, fallback to organization object context if available, or true
       if (featuresLoaded) {

@@ -39,7 +39,9 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
   const isIndia = organization?.country === 'India' || !organization?.country;
   const currencySymbol = isQatar ? 'QAR' : isSaudi ? 'SAR' : '₹';
 
-  const [formData, setFormData] = useState({
+  const DRAFT_KEY = `add_employee_draft_${organization?.id}`;
+
+  const initialFormData = {
     first_name: '',
     middle_name: '',
     last_name: '',
@@ -180,16 +182,36 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
     bank_branch: '',
     ctc_annual: '',
     basic_salary: ''
+  };
+
+  const [formData, setFormData] = useState(initialFormData);
+
+  // Load draft on mount
+  useState(() => {
+    const savedDraft = localStorage.getItem(DRAFT_KEY);
+    if (savedDraft) {
+      try {
+        setFormData(JSON.parse(savedDraft));
+      } catch (e) {
+        console.error('Error parsing draft:', e);
+      }
+    }
   });
 
+  // Save draft on change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
+    let newValue: any = value;
+
     if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      newValue = (e.target as HTMLInputElement).checked;
     }
+
+    setFormData(prev => {
+      const updated = { ...prev, [name]: newValue };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -319,6 +341,11 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
           title: 'Employee Added Successfully!',
           message: `Employee ${formData.first_name} ${formData.last_name} has been added to the system.`
         });
+
+        // Clear draft and reset form
+        localStorage.removeItem(DRAFT_KEY);
+        setFormData(initialFormData);
+
         setTimeout(() => {
           onSuccess();
           onClose();
@@ -457,6 +484,9 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
                     <button
                       onClick={() => {
                         setAlertModal(null);
+                        // Clear draft and reset form
+                        localStorage.removeItem(DRAFT_KEY);
+                        setFormData(initialFormData);
                         onSuccess();
                         onClose();
                       }}
