@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, AlertCircle, CheckCircle, DollarSign, Users } from 'lucide-react';
+import { X, AlertCircle, CheckCircle, Banknote, Users } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -341,21 +341,21 @@ export function QatarPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                 </div>
                 <div className="bg-emerald-50 rounded-xl border-2 border-emerald-200 p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <DollarSign className="h-5 w-5 text-emerald-600" />
+                    <Banknote className="h-5 w-5 text-emerald-600" />
                     <p className="text-sm font-medium text-emerald-900">Gross Salary</p>
                   </div>
                   <p className="text-2xl font-bold text-emerald-600">{totalGross.toLocaleString()} QAR</p>
                 </div>
                 <div className="bg-red-50 rounded-xl border-2 border-red-200 p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <DollarSign className="h-5 w-5 text-red-600" />
+                    <Banknote className="h-5 w-5 text-red-600" />
                     <p className="text-sm font-medium text-red-900">Deductions</p>
                   </div>
                   <p className="text-2xl font-bold text-red-600">{totalDeductions.toLocaleString()} QAR</p>
                 </div>
                 <div className="bg-violet-50 rounded-xl border-2 border-violet-200 p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <DollarSign className="h-5 w-5 text-violet-600" />
+                    <Banknote className="h-5 w-5 text-violet-600" />
                     <p className="text-sm font-medium text-violet-900">Net Salary</p>
                   </div>
                   <p className="text-2xl font-bold text-violet-600">{totalNet.toLocaleString()} QAR</p>

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { DollarSign, Plus, Download, FileText, Clock, Calculator, TrendingUp, Users, Calendar, CheckCircle, AlertCircle, X, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect, Fragment } from 'react';
+import { Banknote, Plus, Download, FileText, Clock, Calculator, TrendingUp, Users, Calendar, CheckCircle, AlertCircle, X, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateCompletePayroll, calculateEOS, calculateYearsOfService } from '../../utils/qatarPayrollCalculations';
@@ -174,7 +174,7 @@ export function QatarPayrollPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <DollarSign className="h-6 w-6 text-emerald-600" />
+            <Banknote className="h-6 w-6 text-emerald-600" />
             Qatar Payroll System
           </h1>
           <p className="text-sm text-slate-600 mt-1">WPS Compliant • End of Service • Overtime Management</p>
@@ -244,7 +244,7 @@ export function QatarPayrollPage() {
         <div className="border-b border-slate-200">
           <div className="flex gap-1 p-1.5">
             {[
-              { id: 'payroll', label: 'Monthly Payroll', icon: DollarSign },
+              { id: 'payroll', label: 'Monthly Payroll', icon: Banknote },
               { id: 'salary-setup', label: 'Salary Components', icon: FileText },
               { id: 'overtime', label: 'Overtime', icon: Clock },
               { id: 'eos', label: 'End of Service', icon: Calculator },
@@ -255,11 +255,10 @@ export function QatarPayrollPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-emerald-100 text-emerald-700 shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${activeTab === tab.id
+                    ? 'bg-emerald-100 text-emerald-700 shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100'
+                    }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {tab.label}
@@ -324,11 +323,10 @@ export function QatarPayrollPage() {
       {notification.show && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all">
-            <div className={`px-4 py-3 rounded-t-xl ${
-              notification.type === 'success' ? 'bg-gradient-to-r from-emerald-600 to-emerald-700' :
+            <div className={`px-4 py-3 rounded-t-xl ${notification.type === 'success' ? 'bg-gradient-to-r from-emerald-600 to-emerald-700' :
               notification.type === 'error' ? 'bg-gradient-to-r from-red-600 to-red-700' :
-              'bg-gradient-to-r from-blue-600 to-blue-700'
-            }`}>
+                'bg-gradient-to-r from-blue-600 to-blue-700'
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {notification.type === 'success' && <CheckCircle className="h-5 w-5 text-white" />}
@@ -349,11 +347,10 @@ export function QatarPayrollPage() {
               <div className="mt-4 flex justify-end">
                 <button
                   onClick={closeNotification}
-                  className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${
-                    notification.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' :
+                  className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-colors ${notification.type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' :
                     notification.type === 'error' ? 'bg-red-600 hover:bg-red-700 text-white' :
-                    'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
+                      'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
                 >
                   OK
                 </button>
@@ -451,8 +448,8 @@ function PayrollRecordsTab({ records, onRefresh, selectedMonth, selectedYear, or
     const qid = record.employee?.qatar_id?.toLowerCase() || '';
 
     return fullName.includes(searchLower) ||
-           employeeCode.includes(searchLower) ||
-           qid.includes(searchLower);
+      employeeCode.includes(searchLower) ||
+      qid.includes(searchLower);
   });
 
   // Calculate pagination
@@ -507,7 +504,7 @@ function PayrollRecordsTab({ records, onRefresh, selectedMonth, selectedYear, or
   if (records.length === 0) {
     return (
       <div className="text-center py-8">
-        <DollarSign className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+        <Banknote className="h-12 w-12 text-slate-300 mx-auto mb-3" />
         <h3 className="text-lg font-bold text-slate-900 mb-1.5">No Payroll Processed</h3>
         <p className="text-sm text-slate-600">Process payroll for this period to generate records</p>
       </div>
@@ -610,8 +607,8 @@ function PayrollRecordsTab({ records, onRefresh, selectedMonth, selectedYear, or
                 const allowancesTotal = Number(record.housing_allowance) + Number(record.food_allowance) + Number(record.transport_allowance);
 
                 return (
-                  <>
-                    <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                  <Fragment key={record.id}>
+                    <tr className="hover:bg-slate-50 transition-colors">
                       <td className="px-3 py-3">
                         <button
                           onClick={() => toggleRowExpansion(record.id)}
@@ -654,23 +651,21 @@ function PayrollRecordsTab({ records, onRefresh, selectedMonth, selectedYear, or
                       </td>
                       <td className="px-3 py-3 text-center">
                         <div className="flex flex-col gap-1 items-center">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${
-                            record.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${record.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
                             record.status === 'approved' ? 'bg-blue-100 text-blue-700' :
-                            'bg-slate-100 text-slate-700'
-                          }`}>
+                              'bg-slate-100 text-slate-700'
+                            }`}>
                             {record.status.toUpperCase()}
                           </span>
                           {(record as any).payment_status && (
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${
-                              (record as any).payment_status === 'paid' || (record as any).payment_status === 'confirmed'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : (record as any).payment_status === 'submitted_to_bank'
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${(record as any).payment_status === 'paid' || (record as any).payment_status === 'confirmed'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : (record as any).payment_status === 'submitted_to_bank'
                                 ? 'bg-blue-100 text-blue-700'
                                 : (record as any).payment_status === 'pending_payment'
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}>
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}>
                               {(record as any).payment_status.replace(/_/g, ' ').toUpperCase()}
                             </span>
                           )}
@@ -741,7 +736,7 @@ function PayrollRecordsTab({ records, onRefresh, selectedMonth, selectedYear, or
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -773,11 +768,10 @@ function PayrollRecordsTab({ records, onRefresh, selectedMonth, selectedYear, or
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white'
-                        : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
-                    }`}
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${currentPage === page
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                      }`}
                   >
                     {page}
                   </button>
@@ -1176,8 +1170,8 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear }:
             iban: record.employee?.iban_number || '',
             basicSalary: Number(record.basic_salary),
             allowances: Number(record.housing_allowance) + Number(record.food_allowance) +
-                       Number(record.transport_allowance) + Number(record.mobile_allowance) +
-                       Number(record.utility_allowance) + Number(record.other_allowances),
+              Number(record.transport_allowance) + Number(record.mobile_allowance) +
+              Number(record.utility_allowance) + Number(record.other_allowances),
             deductions: Number(record.total_deductions) || 0,
             netSalary: Number(record.net_salary),
             bankCode: ''
@@ -1203,8 +1197,8 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear }:
             iban: record.employee?.iban_number || '',
             basicSalary: Number(record.basic_salary),
             allowances: Number(record.housing_allowance) + Number(record.food_allowance) +
-                       Number(record.transport_allowance) + Number(record.mobile_allowance) +
-                       Number(record.utility_allowance) + Number(record.other_allowances),
+              Number(record.transport_allowance) + Number(record.mobile_allowance) +
+              Number(record.utility_allowance) + Number(record.other_allowances),
             deductions: Number(record.total_deductions) || 0,
             netSalary: Number(record.net_salary),
             bankCode: ''
@@ -1368,11 +1362,10 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear }:
             <button
               onClick={() => handleGenerateWPS('sif')}
               disabled={!oldValidation?.valid || !establishmentId.trim()}
-              className={`py-4 rounded-xl font-bold text-white transition-all flex flex-col items-center justify-center gap-2 ${
-                !oldValidation?.valid || !establishmentId.trim()
-                  ? 'bg-slate-300 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg hover:shadow-xl'
-              }`}
+              className={`py-4 rounded-xl font-bold text-white transition-all flex flex-col items-center justify-center gap-2 ${!oldValidation?.valid || !establishmentId.trim()
+                ? 'bg-slate-300 cursor-not-allowed'
+                : 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg hover:shadow-xl'
+                }`}
             >
               <FileText className="h-6 w-6" />
               <span className="text-sm">SIF Format</span>
@@ -1382,11 +1375,10 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear }:
             <button
               onClick={() => handleGenerateWPS('txt')}
               disabled={!oldValidation?.valid || !establishmentId.trim()}
-              className={`py-4 rounded-xl font-bold text-white transition-all flex flex-col items-center justify-center gap-2 ${
-                !oldValidation?.valid || !establishmentId.trim()
-                  ? 'bg-slate-300 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
-              }`}
+              className={`py-4 rounded-xl font-bold text-white transition-all flex flex-col items-center justify-center gap-2 ${!oldValidation?.valid || !establishmentId.trim()
+                ? 'bg-slate-300 cursor-not-allowed'
+                : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl'
+                }`}
             >
               <FileText className="h-6 w-6" />
               <span className="text-sm">TXT Format</span>
@@ -1396,11 +1388,10 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear }:
             <button
               onClick={() => handleGenerateWPS('csv')}
               disabled={!oldValidation?.valid || !establishmentId.trim()}
-              className={`py-4 rounded-xl font-bold text-white transition-all flex flex-col items-center justify-center gap-2 ${
-                !oldValidation?.valid || !establishmentId.trim()
-                  ? 'bg-slate-300 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 shadow-lg hover:shadow-xl'
-              }`}
+              className={`py-4 rounded-xl font-bold text-white transition-all flex flex-col items-center justify-center gap-2 ${!oldValidation?.valid || !establishmentId.trim()
+                ? 'bg-slate-300 cursor-not-allowed'
+                : 'bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-700 hover:to-violet-800 shadow-lg hover:shadow-xl'
+                }`}
             >
               <Download className="h-6 w-6" />
               <span className="text-sm">CSV Format</span>

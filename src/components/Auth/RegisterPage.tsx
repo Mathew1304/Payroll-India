@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Building, User, Lock, Mail, AlertCircle, Check } from 'lucide-react';
+import { Building, User, Lock, Mail, AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
 
 interface RegisterPageProps {
   onSwitchToLogin: () => void;
@@ -16,6 +16,9 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [success, setSuccess] = useState(false);
   const { signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,10 +44,10 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
 
     try {
       await signUp(formData.email, formData.password, formData.organizationName, formData.country);
+      setSuccess(true);
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
       console.error('Registration error:', err);
-    } finally {
       setLoading(false);
     }
   };
@@ -56,6 +59,37 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
     }));
   };
 
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden p-8 text-center">
+            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+              <Mail className="h-8 w-8 text-blue-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Check Your Email</h2>
+            <p className="text-slate-600 mb-6">
+              We've sent a confirmation link to <strong>{formData.email}</strong>.<br />
+              Please verify your email address to activate your account.
+            </p>
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6 text-left">
+              <p className="text-sm text-blue-800 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>If you don't see the email, check your spam folder or try again in a few minutes.</span>
+              </p>
+            </div>
+            <button
+              onClick={onSwitchToLogin}
+              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+            >
+              Back to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
@@ -66,6 +100,16 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
           </div>
 
           <form onSubmit={handleSubmit} className="px-8 py-10 space-y-6">
+            {/* Back to Home Button */}
+            <div className="absolute top-4 left-4">
+              <a
+                href="/"
+                className="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors bg-white/80 backdrop-blur-sm px-4 py-2 rounded-lg shadow-sm border border-slate-200"
+              >
+                <span className="text-xl">←</span>
+                <span className="font-medium">Back to Home</span>
+              </a>
+            </div>
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -151,13 +195,24 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                  className="block w-full pl-10 pr-10 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
                   placeholder="Minimum 6 characters"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
               </div>
             </div>
 
@@ -172,13 +227,24 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                  className="block w-full pl-10 pr-10 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
                   placeholder="Re-enter your password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
               </div>
             </div>
 

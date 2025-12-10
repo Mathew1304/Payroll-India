@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode } from 'react';
-import { Menu, X, LogOut, Bell, User, LayoutDashboard, Users, Calendar, Clock, IndianRupee, FileText, Settings, Sparkles, CheckSquare, Receipt, Headphones, Award, BookOpen, Megaphone, ClipboardList, Languages, HelpCircle } from 'lucide-react';
+import { Menu, X, LogOut, Bell, User, LayoutDashboard, Users, Calendar, Clock, Banknote, FileText, Settings, Sparkles, CheckSquare, Receipt, Headphones, Award, BookOpen, Megaphone, ClipboardList, Languages, HelpCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
@@ -97,7 +97,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
   const menuItems = [
     { id: 'dashboard', labelKey: 'menu.dashboard', icon: LayoutDashboard, color: 'from-blue-500 to-blue-600', roles: ['admin', 'hr', 'finance', 'manager', 'employee'] },
-    { id: 'payroll', labelKey: 'menu.payroll', icon: IndianRupee, color: 'from-emerald-500 to-emerald-600', roles: ['admin', 'hr', 'finance'] },
+    { id: 'payroll', labelKey: 'menu.payroll', icon: Banknote, color: 'from-emerald-500 to-emerald-600', roles: ['admin', 'hr', 'finance'] },
     { id: 'reports', labelKey: 'menu.reports', icon: FileText, color: 'from-violet-500 to-violet-600', roles: ['admin', 'hr', 'finance'] },
     { id: 'tasks', labelKey: 'menu.tasks', icon: CheckSquare, color: 'from-purple-500 to-purple-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'work-reports', labelKey: 'menu.workReports', icon: ClipboardList, color: 'from-sky-500 to-sky-600', roles: ['admin', 'hr', 'manager', 'employee'] },

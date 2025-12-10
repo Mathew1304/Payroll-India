@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, User, Briefcase, Building, DollarSign, FileText, Calendar } from 'lucide-react';
+import { X, Save, User, Briefcase, Building, Banknote, FileText, Calendar } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -225,11 +225,10 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
               <button
                 key={tab.id}
                 onClick={() => setCurrentTab(tab.id as any)}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
-                  currentTab === tab.id
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${currentTab === tab.id
                     ? 'bg-white text-blue-600 shadow-md'
                     : 'text-slate-600 hover:bg-white/50'
-                }`}
+                  }`}
               >
                 <tab.icon className="h-5 w-5" />
                 <span className="hidden sm:inline">{tab.label}</span>

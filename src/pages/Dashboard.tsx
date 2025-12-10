@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, Clock, Calendar, TrendingUp, DollarSign, AlertCircle, CheckCircle, XCircle, FileText, Briefcase, Award, UserPlus, UserMinus, CreditCard, Gift, Bell, TrendingDown, Activity, Target } from 'lucide-react';
+import { Users, Clock, Calendar, TrendingUp, Banknote, AlertCircle, CheckCircle, XCircle, FileText, Briefcase, Award, UserPlus, UserMinus, CreditCard, Gift, Bell, TrendingDown, Activity, Target } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { EmployeeDashboard } from './EmployeeDashboard';
@@ -91,19 +91,19 @@ export function Dashboard() {
             .gte('created_at', firstDayOfMonth),
           organization?.country === 'Qatar'
             ? supabase
-                .from('qatar_payroll_records')
-                .select('net_salary')
-                .eq('organization_id', organization!.id)
-                .eq('pay_period_month', today.getMonth() + 1)
-                .eq('pay_period_year', today.getFullYear())
+              .from('qatar_payroll_records')
+              .select('net_salary')
+              .eq('organization_id', organization!.id)
+              .eq('pay_period_month', today.getMonth() + 1)
+              .eq('pay_period_year', today.getFullYear())
             : organization?.country === 'Saudi Arabia'
-            ? supabase
+              ? supabase
                 .from('saudi_payroll_records')
                 .select('net_salary')
                 .eq('organization_id', organization!.id)
                 .eq('pay_period_month', today.getMonth() + 1)
                 .eq('pay_period_year', today.getFullYear())
-            : { data: null },
+              : { data: null },
           supabase
             .from('expense_claims')
             .select('id')
@@ -280,7 +280,7 @@ export function Dashboard() {
         <StatCard icon={Users} label="Total Employees" value={stats.totalEmployees} color="blue" />
         <StatCard icon={Activity} label="Active Today" value={stats.todayAttendance} color="emerald" subValue={`/${stats.activeEmployees}`} />
         <StatCard icon={Calendar} label="Leave Pending" value={stats.pendingLeaves} color="amber" />
-        <StatCard icon={DollarSign} label="Payroll This Month" value={stats.totalPayroll.toLocaleString()} color="violet" prefix={currency} small />
+        <StatCard icon={Banknote} label="Payroll This Month" value={stats.totalPayroll.toLocaleString()} color="violet" prefix={currency} small />
         <StatCard icon={CreditCard} label="Expenses Pending" value={stats.pendingExpenses} color="rose" />
         <StatCard icon={Gift} label="Birthdays (7d)" value={stats.upcomingBirthdays} color="pink" />
       </div>

@@ -147,67 +147,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
 
     if (data.user) {
-      const slug = organizationName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const subdomain = slug + '-' + Math.random().toString(36).substring(7);
-
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: organizationName,
-          slug: subdomain,
-          subdomain,
-          country: country,
-          owner_id: data.user.id,
-          trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-        })
-        .select()
-        .single();
-
-      if (orgError) throw orgError;
-
-      const { error: memberError } = await supabase
-        .from('organization_members')
-        .insert({
-          organization_id: orgData.id,
-          user_id: data.user.id,
-          role: 'admin',
-          is_active: true
-        });
-
-      if (memberError) throw memberError;
-
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          user_id: data.user.id,
-          current_organization_id: orgData.id,
-          role: 'admin',
-          is_active: true
-        });
-
-      if (profileError) throw profileError;
-
-      const starterPlan = await supabase
-        .from('subscription_plans')
-        .select('id')
-        .eq('name', 'Starter')
-        .maybeSingle();
-
-      if (starterPlan.data) {
-        const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-        await supabase
-          .from('organization_subscriptions')
-          .insert({
-            organization_id: orgData.id,
-            plan_id: starterPlan.data.id,
-            status: 'trial',
-            interval: 'monthly',
-            amount: 999,
-            current_period_start: new Date().toISOString(),
-            current_period_end: trialEnd.toISOString(),
-            trial_start: new Date().toISOString(),
-            trial_end: trialEnd.toISOString()
+      if (data.user) {
+        try {
+          const { error: rpcError } = await supabase.rpc('create_new_organization_flow', {
+            p_user_id: data.user.id,
+            p_user_email: email,
+            p_org_name: organizationName,
+            p_country: country
           });
+
+          if (rpcError) throw rpcError;
+
+          // Wait a moment for triggers to complete if any
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Refresh session to ensure claims are updated could be beneficial
+          await supabase.auth.refreshSession();
+
+        } catch (err) {
+          // If RPC fails, we might want to cleanup the user, but for now just throw
+          console.error('Organization creation failed:', err);
+          throw err;
+        }
       }
     }
   };

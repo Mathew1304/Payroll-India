@@ -16,11 +16,13 @@ import { SettingsPage } from './pages/Settings/SettingsPage';
 import { EmployeeProfilePage } from './pages/EmployeeProfile/EmployeeProfilePage';
 import { TasksPage } from './pages/Tasks/TasksPage';
 import { ExpensesPage } from './pages/Expenses/ExpensesPage';
+import { SuperAdminPage } from './pages/SuperAdminPage';
+
 import { HelpdeskPage } from './pages/Helpdesk/HelpdeskPage';
 import { PerformancePage } from './pages/Performance/PerformancePage';
 import { TrainingPage } from './pages/Training/TrainingPage';
 import { AnnouncementsPage } from './pages/Announcements/AnnouncementsPage';
-import { AssetsPage } from './pages/Assets/AssetsPage';
+// import { AssetsPage } from './pages/Assets/AssetsPage';
 import { OnboardingFormPage } from './pages/EmployeeOnboarding/OnboardingFormPage';
 import { WorkReportsPage } from './pages/WorkReports/WorkReportsPage';
 import { HelpPage } from './pages/Help/HelpPage';
@@ -119,6 +121,8 @@ function AppContent() {
         return <EmployeeProfilePage />;
       case 'help':
         return <HelpPage />;
+      case 'super-admin':
+        return <SuperAdminPage />;
       default:
         return <Dashboard />;
     }

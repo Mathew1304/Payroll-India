@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, FileText, CheckCircle, AlertCircle, Calendar, User, Download, Eye, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { logErrorToSupabase } from '../../services/errorLogger';
 
 interface ImportHistoryModalProps {
   onClose: () => void;
@@ -104,6 +105,11 @@ export function ImportHistoryModal({ onClose }: ImportHistoryModalProps) {
       setHistory(formattedData);
     } catch (error) {
       console.error('Error loading import history:', error);
+      logErrorToSupabase(error as Error, {
+        errorType: 'ImportHistoryLoadError',
+        severity: 'error',
+        metadata: { source: 'ImportHistoryModal' }
+      });
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Palette, Moon, Sun, Sparkles, Check, Globe, Type, Save } from 'lucide-react';
 import { MasterDataManager } from '../../components/Settings/MasterDataManager';
 import { useTheme } from '../../contexts/ThemeContext';
+import { logErrorToSupabase } from '../../services/errorLogger';
 
 const themes = [
   {
@@ -132,8 +133,8 @@ export function SettingsPage() {
             <button
               onClick={() => setActiveTab('appearance')}
               className={`${activeTab === 'appearance'
-                  ? 'border-theme-primary text-theme-primary'
-                  : 'border-transparent text-theme-text-secondary hover:text-theme-text-primary hover:border-theme-border'
+                ? 'border-theme-primary text-theme-primary'
+                : 'border-transparent text-theme-text-secondary hover:text-theme-text-primary hover:border-theme-border'
                 } flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
             >
               <Palette className="h-4 w-4" />
@@ -142,8 +143,8 @@ export function SettingsPage() {
             <button
               onClick={() => setActiveTab('general')}
               className={`${activeTab === 'general'
-                  ? 'border-theme-primary text-theme-primary'
-                  : 'border-transparent text-theme-text-secondary hover:text-theme-text-primary hover:border-theme-border'
+                ? 'border-theme-primary text-theme-primary'
+                : 'border-transparent text-theme-text-secondary hover:text-theme-text-primary hover:border-theme-border'
                 } flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
             >
               <Globe className="h-4 w-4" />
@@ -152,8 +153,8 @@ export function SettingsPage() {
             <button
               onClick={() => setActiveTab('master-data')}
               className={`${activeTab === 'master-data'
-                  ? 'border-theme-primary text-theme-primary'
-                  : 'border-transparent text-theme-text-secondary hover:text-theme-text-primary hover:border-theme-border'
+                ? 'border-theme-primary text-theme-primary'
+                : 'border-transparent text-theme-text-secondary hover:text-theme-text-primary hover:border-theme-border'
                 } flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
             >
               <SettingsIcon className="h-4 w-4" />
@@ -180,8 +181,8 @@ export function SettingsPage() {
                       key={themeOption.id}
                       onClick={() => setTheme(themeOption.id)}
                       className={`relative group text-left p-6 rounded-2xl border-2 transition-all duration-300 ${isSelected
-                          ? 'border-theme-primary shadow-xl shadow-theme-primary/10'
-                          : 'border-theme-border hover:border-theme-text-secondary hover:shadow-lg'
+                        ? 'border-theme-primary shadow-xl shadow-theme-primary/10'
+                        : 'border-theme-border hover:border-theme-text-secondary hover:shadow-lg'
                         }`}
                     >
                       {isSelected && (
@@ -217,8 +218,8 @@ export function SettingsPage() {
                       </div>
 
                       <div className={`mt-4 py-2 px-4 rounded-lg text-center font-medium transition-colors ${isSelected
-                          ? 'bg-theme-primary text-white'
-                          : 'bg-theme-bg-primary text-theme-text-secondary group-hover:bg-theme-border'
+                        ? 'bg-theme-primary text-white'
+                        : 'bg-theme-bg-primary text-theme-text-secondary group-hover:bg-theme-border'
                         }`}>
                         {isSelected ? 'Active Theme' : 'Select Theme'}
                       </div>
@@ -398,8 +399,37 @@ export function SettingsPage() {
                     <option>Spanish</option>
                   </select>
                 </div>
+
+                <div className="p-6 bg-theme-bg-secondary border-2 border-theme-border rounded-xl">
+                  <label className="block mb-2">
+                    <span className="text-sm font-semibold text-theme-text-secondary">Debug</span>
+                  </label>
+                  <button
+                    onClick={async () => {
+                      try {
+                        console.log('Manually triggering test error...');
+                        await logErrorToSupabase(new Error('Manual Test Error from Settings Page'), {
+                          errorType: 'Manual Test',
+                          severity: 'warning',
+                          metadata: { source: 'SettingsPage', time: new Date().toISOString() }
+                        });
+                        alert('Test error logged! Check console for details.');
+                      } catch (e) {
+                        console.error('Manual log failed:', e);
+                        alert('Failed to log error. Check console.');
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium text-sm border border-red-200"
+                  >
+                    Test Error Logging
+                  </button>
+                  <p className="mt-2 text-xs text-theme-text-secondary">
+                    Click to manually log a test error to the database. Check the browser console for logs.
+                  </p>
+                </div>
               </div>
             </div>
+
           )}
 
           {activeTab === 'master-data' && (
@@ -440,6 +470,6 @@ export function SettingsPage() {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 }
