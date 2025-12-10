@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Save, User, Briefcase, Building, Banknote, FileText, Calendar, Mail, Send, CheckCircle, AlertCircle, Users as FamilyIcon, GraduationCap, Heart, Globe, Lock, Copy, Eye, EyeOff } from 'lucide-react';
+import { X, Save, User, Briefcase, Building, Banknote, FileText, Calendar, Mail, Send, CheckCircle, AlertCircle, Users as FamilyIcon, GraduationCap, Heart, Globe, Lock, Copy, Eye, EyeOff, DollarSign } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
