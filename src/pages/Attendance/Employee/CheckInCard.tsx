@@ -28,7 +28,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 export function CheckInCard() {
-    const { user, organization } = useAuth();
+    const { user, organization, membership } = useAuth();
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState<'checked-out' | 'checked-in'>('checked-out');
     const [currentRecord, setCurrentRecord] = useState<any>(null);
@@ -44,19 +44,25 @@ export function CheckInCard() {
     }, []);
 
     useEffect(() => {
-        if (organization?.id && user?.id) {
+        if (organization?.id && membership?.employee_id) {
             loadStatus();
             watchLocation();
         }
-    }, [organization?.id, user?.id]);
+    }, [organization?.id, membership?.employee_id]);
 
     const loadStatus = async () => {
+        if (!membership?.employee_id) {
+            setError('Employee profile not found');
+            setLoading(false);
+            return;
+        }
+
         try {
             const today = format(new Date(), 'yyyy-MM-dd');
             const { data, error } = await supabase
                 .from('attendance_records')
                 .select('*')
-                .eq('employee_id', user!.id)
+                .eq('employee_id', membership.employee_id)
                 .eq('date', today)
                 .single();
 
@@ -67,11 +73,12 @@ export function CheckInCard() {
                 if (data.check_in_time && !data.check_out_time) {
                     setStatus('checked-in');
                 } else {
-                    setStatus('checked-out'); // Or 'completed' if checked out
+                    setStatus('checked-out');
                 }
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error loading status:', err);
+            setError(err.message || 'Failed to load attendance status');
         } finally {
             setLoading(false);
         }
@@ -127,6 +134,11 @@ export function CheckInCard() {
     };
 
     const handleCheckIn = async () => {
+        if (!membership?.employee_id) {
+            alert('Employee profile not found. Please contact HR.');
+            return;
+        }
+
         if (!location || !nearestOffice) {
             alert('Waiting for location data...');
             return;
@@ -143,7 +155,7 @@ export function CheckInCard() {
             const today = format(new Date(), 'yyyy-MM-dd');
             const payload = {
                 organization_id: organization!.id,
-                employee_id: user!.id,
+                employee_id: membership.employee_id,
                 date: today,
                 check_in_time: new Date().toISOString(),
                 check_in_location_id: distance! <= nearestOffice.radius_meters ? nearestOffice.id : null,
@@ -151,7 +163,7 @@ export function CheckInCard() {
                 check_in_longitude: location.lng,
                 status: 'Present',
                 work_type: distance! <= nearestOffice.radius_meters ? 'In Office' : 'Remote',
-                gps_verified: true
+                gps_verified: distance! <= nearestOffice.radius_meters
             };
 
             const { error } = await supabase
@@ -159,10 +171,12 @@ export function CheckInCard() {
                 .insert([payload] as any);
 
             if (error) throw error;
-            loadStatus();
-        } catch (err) {
+
+            setStatus('checked-in');
+            await loadStatus();
+        } catch (err: any) {
             console.error('Error checking in:', err);
-            alert('Failed to check in');
+            alert(`Failed to check in: ${err.message || 'Unknown error'}`);
         }
     };
 
@@ -188,10 +202,12 @@ export function CheckInCard() {
                 .eq('id', currentRecord.id);
 
             if (error) throw error;
-            loadStatus();
-        } catch (err) {
+
+            setStatus('checked-out');
+            await loadStatus();
+        } catch (err: any) {
             console.error('Error checking out:', err);
-            alert('Failed to check out');
+            alert(`Failed to check out: ${err.message || 'Unknown error'}`);
         }
     };
 

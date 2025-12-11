@@ -3,6 +3,7 @@ import { User, Briefcase, DollarSign, FileText, Mail, Phone, MapPin, Calendar, B
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { PayrollHistoryTab } from '../../components/Payroll/PayrollHistoryTab';
+import { AdminOverviewTab } from '../../components/Profile/AdminOverviewTab';
 
 interface SalaryComponent {
   id: string;
@@ -46,6 +47,7 @@ interface LeaveStats {
 export function EmployeeProfilePage() {
   const { membership, organization, user } = useAuth();
   const [employee, setEmployee] = useState<any>(null);
+  const [admin, setAdmin] = useState<any>(null); // Admin profile from organization_admins
   const [userProfile, setUserProfile] = useState<any>(null);
   const [salaryStructure, setSalaryStructure] = useState<SalaryComponent[]>([]);
   const [offerLetters, setOfferLetters] = useState<OfferLetter[]>([]);
@@ -85,7 +87,10 @@ export function EmployeeProfilePage() {
 
       setUserProfile(profile);
 
-      if (membership?.employee_id) {
+      // Check if user is admin (has admin_id in organization_members)
+      if (membership?.admin_id) {
+        await loadAdminData();
+      } else if (membership?.employee_id) {
         await loadEmployeeData();
         await loadAttendanceStats();
         await loadLeaveStats();
@@ -136,6 +141,23 @@ export function EmployeeProfilePage() {
       setOfferLetters(offerData || []);
     } catch (error) {
       console.error('Error loading employee data:', error);
+    }
+  };
+
+  const loadAdminData = async () => {
+    if (!membership?.admin_id) return;
+
+    try {
+      const { data: adminData } = await supabase
+        .from('organization_admins')
+        .select('*')
+        .eq('id', membership.admin_id)
+        .single();
+
+      setAdmin(adminData);
+      setEditFormData(adminData);
+    } catch (error) {
+      console.error('Error loading admin data:', error);
     }
   };
 
@@ -205,7 +227,7 @@ export function EmployeeProfilePage() {
 
   const handleEditToggle = () => {
     if (isEditMode) {
-      setEditFormData(employee);
+      setEditFormData(admin || employee);
     }
     setIsEditMode(!isEditMode);
   };
@@ -215,6 +237,48 @@ export function EmployeeProfilePage() {
   };
 
   const handleSaveProfile = async () => {
+    // Handle admin profile update
+    if (membership?.admin_id) {
+      try {
+        const { error } = await supabase
+          .from('organization_admins')
+          .update({
+            mobile_number: editFormData.mobile_number || null,
+            alternate_number: editFormData.alternate_number || null,
+            current_address: editFormData.current_address || null,
+            permanent_address: editFormData.permanent_address || null,
+            city: editFormData.city || null,
+            state: editFormData.state || null,
+            country: editFormData.country || null,
+            pincode: editFormData.pincode || null,
+            date_of_birth: editFormData.date_of_birth || null,
+            gender: editFormData.gender || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', membership.admin_id);
+
+        if (error) throw error;
+
+        setAlertModal({
+          type: 'success',
+          title: 'Profile Updated',
+          message: 'Your profile has been updated successfully.'
+        });
+
+        setIsEditMode(false);
+        await loadAdminData();
+      } catch (error: any) {
+        console.error('Error updating admin profile:', error);
+        setAlertModal({
+          type: 'error',
+          title: 'Update Failed',
+          message: 'Failed to update profile: ' + error.message
+        });
+      }
+      return;
+    }
+
+    // Handle employee profile update
     if (!membership?.employee_id) return;
 
     try {
@@ -459,9 +523,9 @@ export function EmployeeProfilePage() {
     );
   }
 
-  const isEmployee = !employee;
-  const displayName = employee
-    ? `${employee.first_name} ${employee.middle_name || ''} ${employee.last_name}`.trim()
+  const profileData = admin || employee;
+  const displayName = profileData
+    ? `${profileData.first_name} ${profileData.middle_name || ''} ${profileData.last_name}`.trim()
     : userProfile?.full_name || user?.email || 'User';
 
   const totals = employee ? calculateTotals() : { earnings: 0, deductions: 0, netSalary: 0 };
@@ -581,7 +645,7 @@ export function EmployeeProfilePage() {
               <Lock className="h-4 w-4" />
               Change Password
             </button>
-            {employee && (
+            {(employee || admin) && (
               <button
                 onClick={isEditMode ? handleSaveProfile : handleEditToggle}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${isEditMode
@@ -629,6 +693,15 @@ export function EmployeeProfilePage() {
               </div>
               <div className="text-white flex-1">
                 <h2 className="text-3xl font-bold mb-2">{displayName}</h2>
+                {admin && (
+                  <>
+                    <p className="text-blue-100 text-lg">{admin.designation || 'Administrator'}</p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <p className="text-blue-200 text-sm">{admin.admin_code}</p>
+                      <p className="text-blue-200 text-sm">• Admin Profile</p>
+                    </div>
+                  </>
+                )}
                 {employee && (
                   <>
                     <p className="text-blue-100 text-lg">{employee.designations?.title || 'N/A'}</p>
@@ -646,7 +719,8 @@ export function EmployeeProfilePage() {
 
           <div className="border-b border-slate-200">
             <div className="flex gap-2 px-6 overflow-x-auto">
-              {['overview', 'personal', 'professional', 'documents', 'payroll'].map((tab) => (
+              {/* Show only overview and personal tabs for admins */}
+              {(admin ? ['overview', 'personal'] : ['overview', 'personal', 'professional', 'documents', 'payroll']).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab as any)}
@@ -662,7 +736,7 @@ export function EmployeeProfilePage() {
           </div>
 
           <div className="p-6">
-            {!employee ? (
+            {!employee && !admin ? (
               <div className="text-center py-16">
                 <div className="inline-flex p-6 bg-blue-50 rounded-full mb-6">
                   <User className="h-16 w-16 text-blue-600" />
@@ -710,30 +784,40 @@ export function EmployeeProfilePage() {
             ) : (
               <>
                 {activeTab === 'overview' && (
-                  <OverviewTab
-                    employee={employee}
-                    salaryStructure={salaryStructure}
-                    offerLetters={offerLetters}
-                    totals={totals}
-                    formatCurrency={formatCurrency}
-                    isEditMode={isEditMode}
-                    editFormData={editFormData}
-                    handleEditChange={handleEditChange}
-                    hasData={hasData}
-                    country={country}
-                  />
+                  admin ? (
+                    <AdminOverviewTab
+                      admin={admin}
+                      isEditMode={isEditMode}
+                      editFormData={editFormData}
+                      handleEditChange={handleEditChange}
+                      country={country}
+                    />
+                  ) : (
+                    <OverviewTab
+                      employee={employee}
+                      salaryStructure={salaryStructure}
+                      offerLetters={offerLetters}
+                      totals={totals}
+                      formatCurrency={formatCurrency}
+                      isEditMode={isEditMode}
+                      editFormData={editFormData}
+                      handleEditChange={handleEditChange}
+                      hasData={hasData}
+                      country={country}
+                    />
+                  )
                 )}
 
                 {activeTab === 'personal' && (
                   <PersonalTab
-                    employee={employee}
+                    employee={admin || employee}
                     isEditMode={isEditMode}
                     editFormData={editFormData}
                     handleEditChange={handleEditChange}
                   />
                 )}
 
-                {activeTab === 'professional' && (
+                {!admin && activeTab === 'professional' && (
                   <ProfessionalTab
                     employee={employee}
                     isEditMode={isEditMode}
@@ -743,7 +827,7 @@ export function EmployeeProfilePage() {
                   />
                 )}
 
-                {activeTab === 'documents' && (
+                {!admin && activeTab === 'documents' && (
                   <DocumentsTab
                     employee={employee}
                     maskSensitiveData={maskSensitiveData}
@@ -757,7 +841,7 @@ export function EmployeeProfilePage() {
                     handleEditChange={handleEditChange}
                   />
                 )}
-                {activeTab === 'payroll' && employee && (
+                {!admin && activeTab === 'payroll' && employee && (
                   <PayrollHistoryTab employeeId={employee.id} />
                 )}
               </>

@@ -13,7 +13,6 @@ import { OfficeLocations } from './OfficeLocations';
 import { ScheduleManagement } from './ScheduleManagement';
 import { AttendanceReport } from './AttendanceReport';
 import { AttendanceSettings } from './AttendanceSettings';
-import { LeaveManagement } from './LeaveManagement';
 
 export function AttendanceAdminPage() {
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -23,7 +22,6 @@ export function AttendanceAdminPage() {
         { id: 'locations', label: 'Office Locations', icon: MapPin },
         { id: 'schedules', label: 'Schedules', icon: Calendar },
         { id: 'reports', label: 'Reports', icon: FileText },
-        { id: 'leaves', label: 'Leave Requests', icon: Users },
         { id: 'settings', label: 'Settings', icon: Settings },
     ];
 
@@ -67,7 +65,6 @@ export function AttendanceAdminPage() {
                 {activeTab === 'locations' && <OfficeLocations />}
                 {activeTab === 'schedules' && <ScheduleManagement />}
                 {activeTab === 'reports' && <AttendanceReport />}
-                {activeTab === 'leaves' && <LeaveManagement />}
                 {activeTab === 'settings' && <AttendanceSettings />}
             </div>
         </div>

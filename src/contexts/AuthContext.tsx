@@ -16,6 +16,7 @@ interface OrganizationMember {
   user_id: string;
   role: UserRole;
   employee_id: string | null;
+  admin_id: string | null;
   is_active: boolean;
 }
 

@@ -16,6 +16,8 @@ import {
 import { validatePrePayroll, ValidationResult } from '../../utils/payrollValidation';
 import { PayrollValidationPanel } from '../../components/Payroll/PayrollValidationPanel';
 import { QatarPayrollProcessModal } from '../../components/Payroll/QatarPayrollProcessModal';
+import { FileGenerationHistory } from '../../components/Payroll/FileGenerationHistory';
+import { saveFileGeneration } from '../../lib/payroll/fileGenerationHistory';
 
 interface SalaryComponent {
   id: string;
@@ -1133,7 +1135,7 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear, s
     }
   };
 
-  const handleGenerateWPS = (format: 'sif' | 'txt' | 'csv') => {
+  const handleGenerateWPS = async (format: 'sif' | 'txt' | 'csv') => {
     if (!establishmentId.trim()) {
       showNotification('error', 'Missing Information', 'Please enter your Establishment ID (Employer ID)');
       return;
@@ -1154,12 +1156,21 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear, s
       return;
     }
 
+    if (!organizationId) {
+      showNotification('error', 'Error', 'Organization ID not found');
+      return;
+    }
+
     try {
       const monthStr = selectedMonth.toString().padStart(2, '0');
       const yearStr = selectedYear.toString();
+      let fileContent = '';
+      let filename = '';
+      let fileType: 'WPS_SIF' | 'WPS_TXT' | 'WPS_CSV' = 'WPS_SIF';
 
       if (format === 'sif') {
         // Generate SIF format (Salary Information File)
+        fileType = 'WPS_SIF';
         const sifData: any = {
           establishmentId: establishmentId,
           establishmentName: organization?.name || 'Company',
@@ -1179,14 +1190,15 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear, s
           }))
         };
 
-        const sifContent = generateQatarWPSSIFFile(sifData);
-        const filename = `WPS_SIF_${establishmentId}_${monthStr}${yearStr}.txt`;
-        downloadTextFile(sifContent, filename);
-        setFilePreview(sifContent);
+        fileContent = generateQatarWPSSIFFile(sifData);
+        filename = `WPS_SIF_${establishmentId}_${monthStr}${yearStr}.txt`;
+        downloadTextFile(fileContent, filename);
+        setFilePreview(fileContent);
         setShowPreview(true);
 
       } else if (format === 'csv') {
         // Generate CSV format
+        fileType = 'WPS_CSV';
         const csvData: any = {
           establishmentId: establishmentId,
           establishmentName: organization?.name || 'Company',
@@ -1206,24 +1218,63 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear, s
           }))
         };
 
-        const csvContent = generateQatarWPSCSVFile(csvData);
-        const filename = `WPS_${establishmentId}_${monthStr}${yearStr}.csv`;
-        downloadCSVFile(csvContent, filename);
+        fileContent = generateQatarWPSCSVFile(csvData);
+        filename = `WPS_${establishmentId}_${monthStr}${yearStr}.csv`;
+        downloadCSVFile(fileContent, filename);
 
       } else {
         // Generate simple TXT format
+        fileType = 'WPS_TXT';
         const wpsMonth = formatWPSMonth(selectedYear, selectedMonth);
-        const fileContent = generateQatarWPSFile({
+        fileContent = generateQatarWPSFile({
           employerId: establishmentId,
           month: wpsMonth,
           employees: wpsEmployees
         });
 
-        const filename = getWPSFileName(establishmentId, wpsMonth);
+        filename = getWPSFileName(establishmentId, wpsMonth);
         downloadWPSFile(fileContent, filename);
         setFilePreview(fileContent);
         setShowPreview(true);
       }
+
+      // Save to file generation history
+      try {
+        const fileBlob = new Blob([fileContent], { type: 'text/plain' });
+        const payPeriodStart = new Date(selectedYear, selectedMonth - 1, 1);
+        const payPeriodEnd = new Date(selectedYear, selectedMonth, 0);
+
+        const validationStatus = validation?.passed ? 'passed' : (validation?.totalWarnings ? 'warning' : 'pending');
+        const validationErrors = validation?.errors || [];
+        const validationWarnings = validation?.warnings || [];
+
+        await saveFileGeneration({
+          organizationId: organizationId,
+          fileType: fileType,
+          fileFormat: format,
+          fileBlob: fileBlob,
+          payPeriod: {
+            month: selectedMonth,
+            year: selectedYear,
+            start: payPeriodStart,
+            end: payPeriodEnd
+          },
+          employerId: establishmentId,
+          employerName: organization?.name,
+          totalEmployees: payrollRecords.length,
+          totalAmount: summary.totalNetSalary,
+          validationStatus: validationStatus,
+          validationErrors: validationErrors,
+          validationWarnings: validationWarnings
+        });
+
+        showNotification('success', 'File Generated', `${fileType} file generated and saved to history successfully!`);
+      } catch (historyError: any) {
+        console.error('Error saving to history:', historyError);
+        // Don't fail the whole operation if history save fails
+        showNotification('warning', 'File Generated', 'File generated successfully but failed to save to history.');
+      }
+
     } catch (error: any) {
       showNotification('error', 'Generation Failed', error.message || 'An error occurred while generating the WPS file');
     }
@@ -1453,6 +1504,9 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear, s
           </p>
         </div>
       </div>
+
+      {/* File Generation History */}
+      <FileGenerationHistory />
     </div>
   );
 }
