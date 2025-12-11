@@ -316,6 +316,70 @@ export function EmployeeProfilePage() {
     }
   };
 
+  const handleCreateAdminProfile = async () => {
+    if (!user || !organization) return;
+    setLoading(true);
+
+    try {
+      // 1. Create Employee Record
+      const { data: newEmployee, error: createError } = await supabase
+        .from('employees')
+        .insert({
+          first_name: userProfile?.full_name?.split(' ')[0] || 'Admin',
+          last_name: userProfile?.full_name?.split(' ').slice(1).join(' ') || 'User',
+          company_email: user.email,
+          personal_email: user.email,
+          mobile_number: '', // Schema requires this, but we can update later
+          date_of_joining: new Date().toISOString().split('T')[0],
+          employment_status: 'active',
+          employment_type: 'full_time',
+          user_id: user.id,
+          // department_id: null, // Can be set later
+          // designation_id: null, // Can be set later
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      // 2. Link to Organization Member
+      const { error: linkError } = await supabase
+        .from('organization_members')
+        .update({ employee_id: newEmployee.id })
+        .eq('organization_id', organization.id)
+        .eq('user_id', user.id);
+
+      if (linkError) throw linkError;
+
+      // 3. Link to User Profile (if not already handled by trigger)
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .update({ employee_id: newEmployee.id })
+        .eq('user_id', user.id);
+
+      if (profileError) throw profileError;
+
+      setAlertModal({
+        type: 'success',
+        title: 'Profile Created',
+        message: 'Your employee profile has been created successfully.'
+      });
+
+      // Reload data to show the new profile
+      window.location.reload();
+
+    } catch (error: any) {
+      console.error('Error creating profile:', error);
+      setAlertModal({
+        type: 'error',
+        title: 'Creation Failed',
+        message: error.message || 'Failed to create profile.'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const calculateTotals = () => {
     const earnings = salaryStructure
       .filter(s => s.salary_components.type === 'earning')
@@ -581,21 +645,43 @@ export function EmployeeProfilePage() {
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-3">Employee Profile Not Found</h3>
                 <p className="text-slate-600 mb-6 max-w-md mx-auto">
-                  Your account is not yet linked to an employee profile. Please contact your HR administrator to complete your onboarding process.
+                  Your account is not yet linked to an employee profile.
+                  {isAdmin ? " As an administrator, you can create your profile now." : " Please contact your HR administrator to complete your onboarding process."}
                 </p>
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 max-w-md mx-auto">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-left">
-                      <h4 className="font-semibold text-amber-900 mb-2">What you can do:</h4>
-                      <ul className="text-sm text-amber-800 space-y-1">
-                        <li>• Contact your HR department</li>
-                        <li>• Complete employee onboarding if invited</li>
-                        <li>• Change your password using the button above</li>
-                      </ul>
+
+                {isAdmin ? (
+                  <button
+                    onClick={handleCreateAdminProfile}
+                    disabled={loading}
+                    className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Creating Profile...
+                      </>
+                    ) : (
+                      <>
+                        <User className="h-5 w-5" />
+                        Create My Profile
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 max-w-md mx-auto">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-left">
+                        <h4 className="font-semibold text-amber-900 mb-2">What you can do:</h4>
+                        <ul className="text-sm text-amber-800 space-y-1">
+                          <li>• Contact your HR department</li>
+                          <li>• Complete employee onboarding if invited</li>
+                          <li>• Change your password using the button above</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             ) : (
               <>

@@ -48,7 +48,7 @@ export function QuickInviteModal({ onClose, onSuccess }: QuickInviteModalProps) 
         .select('*')
         .eq('organization_id', organization.id)
         .eq('is_active', true)
-        .order('name')
+        .order('title')
     ]);
 
     if (deptResult.data) setDepartments(deptResult.data);
@@ -70,6 +70,7 @@ export function QuickInviteModal({ onClose, onSuccess }: QuickInviteModalProps) 
           first_name: formData.first_name,
           last_name: formData.last_name,
           personal_email: formData.email,
+          mobile_number: '', // Required by schema but not in quick invite
           employee_code: employeeCode,
           department_id: formData.department_id || null,
           designation_id: formData.designation_id || null,
@@ -298,7 +299,7 @@ export function QuickInviteModal({ onClose, onSuccess }: QuickInviteModalProps) 
               <option value="">Select Designation</option>
               {designations.map((desig) => (
                 <option key={desig.id} value={desig.id}>
-                  {desig.name}
+                  {desig.title}
                 </option>
               ))}
             </select>

@@ -1,10 +1,11 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode, lazy, Suspense } from 'react';
 import { Menu, X, LogOut, Bell, User, LayoutDashboard, Users, Calendar, Clock, Banknote, FileText, Settings, Sparkles, CheckSquare, Receipt, Headphones, Award, BookOpen, Megaphone, ClipboardList, Languages, HelpCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { getEnabledFeatures } from '../services/featureService';
-import { BulkImportEmployeesModal } from './Employees/BulkImportEmployeesModal';
+// Lazy load to avoid circular dependencies
+const BulkImportEmployeesModal = lazy(() => import('./Employees/BulkImportEmployeesModal').then(module => ({ default: module.BulkImportEmployeesModal })));
 import { useImport } from '../contexts/ImportContext';
 
 interface LayoutProps {
@@ -362,10 +363,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       </div>
 
       {importState.isOpen && (
-        <BulkImportEmployeesModal
-          onClose={closeModal}
-          onSuccess={() => { }}
-        />
+        <Suspense fallback={null}>
+          <BulkImportEmployeesModal
+            onClose={closeModal}
+            onSuccess={() => { }}
+          />
+        </Suspense>
       )}
     </div>
   );

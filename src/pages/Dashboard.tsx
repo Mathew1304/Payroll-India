@@ -52,7 +52,7 @@ export function Dashboard() {
     return <EmployeeDashboard />;
   }
 
-  const loadDashboardData = async () => {
+  async function loadDashboardData() {
     try {
       if (membership?.role && ['admin', 'hr', 'finance', 'manager'].includes(membership.role)) {
         const today = new Date();
@@ -175,7 +175,7 @@ export function Dashboard() {
     }
   };
 
-  const loadRecentActivities = async () => {
+  async function loadRecentActivities() {
     const { data } = await supabase
       .from('employees')
       .select('id, first_name, last_name, date_of_joining, employment_status, is_active')
@@ -194,7 +194,7 @@ export function Dashboard() {
     }
   };
 
-  const loadLeaveBalances = async () => {
+  async function loadLeaveBalances() {
     const { data } = await supabase
       .from('employees')
       .select('id, first_name, last_name, is_active')
@@ -212,7 +212,7 @@ export function Dashboard() {
     }
   };
 
-  const loadSalaryDues = async () => {
+  async function loadSalaryDues() {
     const today = new Date();
 
     if (organization?.country === 'Qatar') {

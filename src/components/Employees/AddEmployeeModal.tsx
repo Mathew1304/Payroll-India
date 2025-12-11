@@ -252,6 +252,29 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         designation_id: formData.designation_id || null,
         branch_id: formData.branch_id || null,
 
+        // Unique fields - convert empty string to null to avoid unique constraint violations
+        company_email: formData.company_email || null,
+        pan_number: formData.pan_number || null,
+        aadhaar_number: formData.aadhaar_number || null,
+        uan_number: formData.uan_number || null,
+        esi_number: formData.esi_number || null,
+        passport_number: formData.passport_number || null,
+        driving_license_number: formData.driving_license_number || null,
+        qatar_id: formData.qatar_id || null,
+        residence_permit_number: formData.residence_permit_number || null,
+        work_permit_number: formData.work_permit_number || null,
+        health_card_number: formData.health_card_number || null,
+        labor_card_number: formData.labor_card_number || null,
+        iqama_number: formData.iqama_number || null,
+        muqeem_id: formData.muqeem_id || null,
+        jawazat_number: formData.jawazat_number || null,
+        absher_id: formData.absher_id || null,
+        medical_insurance_number: formData.medical_insurance_number || null,
+        professional_tax_number: formData.professional_tax_number || null,
+        pf_account_number: formData.pf_account_number || null,
+        pf_uan: formData.pf_uan || null,
+        lwf_number: formData.lwf_number || null,
+
         // Date fields - convert empty string to null
         date_of_birth: formData.date_of_birth || null,
         date_of_joining: formData.date_of_joining || null,
@@ -276,10 +299,10 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         previous_employment_to: formData.previous_employment_to || null,
         insurance_expiry: formData.insurance_expiry || null,
         // Additional date fields to be safe
-        confirmation_date: formData.confirmation_date || null,
-        resignation_date: formData.resignation_date || null,
-        last_working_date: formData.last_working_date || null,
-        pan_expiry: formData.pan_expiry || null
+        confirmation_date: (formData as any).confirmation_date || null,
+        resignation_date: (formData as any).resignation_date || null,
+        last_working_date: (formData as any).last_working_date || null,
+        pan_expiry: (formData as any).pan_expiry || null
       };
 
       const { data: employeeData, error: employeeError } = await supabase
@@ -294,7 +317,7 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
       if (formData.basic_salary && parseFloat(formData.basic_salary) > 0) {
         const salaryData = {
           organization_id: organization.id,
-          employee_id: employeeData.id,
+          employee_id: (employeeData as any).id,
           basic_salary: parseFloat(formData.basic_salary),
           housing_allowance: formData.accommodation_allowance ? parseFloat(formData.accommodation_allowance) : 0,
           food_allowance: formData.food_allowance ? parseFloat(formData.food_allowance) : 0,
