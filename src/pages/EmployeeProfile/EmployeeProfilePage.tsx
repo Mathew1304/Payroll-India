@@ -642,6 +642,9 @@ export function EmployeeProfilePage() {
                     country={country}
                     isExpiringSoon={isExpiringSoon}
                     isExpired={isExpired}
+                    isEditMode={isEditMode}
+                    editFormData={editFormData}
+                    handleEditChange={handleEditChange}
                   />
                 )}
               </>
@@ -1309,29 +1312,126 @@ function ProfessionalTab({ employee, isEditMode, editFormData, handleEditChange,
   );
 }
 
-function DocumentsTab({ employee, maskSensitiveData, isAdmin, hasData, country, isExpiringSoon, isExpired }: any) {
+function DocumentsTab({ employee, maskSensitiveData, isAdmin, hasData, country, isExpiringSoon, isExpired, isEditMode, editFormData, handleEditChange }: any) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {country === 'India' && (
         <Section title="Indian Government IDs" icon={Shield}>
           <div className="space-y-3">
-            <SmallInfoItem label="PAN Number" value={maskSensitiveData(employee.pan_number)} />
-            <SmallInfoItem label="Aadhaar Number" value={maskSensitiveData(employee.aadhaar_number)} />
-            <SmallInfoItem label="UAN Number" value={employee.uan_number || 'N/A'} />
-            <SmallInfoItem label="PF Account" value={employee.pf_account_number || 'N/A'} />
-            <SmallInfoItem label="PF UAN" value={employee.pf_uan || 'N/A'} />
-            <SmallInfoItem label="ESI Number" value={employee.esi_number || 'N/A'} />
-            <SmallInfoItem label="Professional Tax" value={employee.professional_tax_number || 'N/A'} />
-            <SmallInfoItem label="LWF Number" value={employee.lwf_number || 'N/A'} />
-            {employee.driving_license_number && (
+            {isEditMode ? (
               <>
-                <SmallInfoItem label="Driving License" value={employee.driving_license_number} />
-                <ExpiryItem
-                  label="DL Expiry"
-                  date={employee.driving_license_expiry}
-                  isExpiringSoon={isExpiringSoon}
-                  isExpired={isExpired}
-                />
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">PAN Number</label>
+                  <input
+                    type="text"
+                    value={editFormData.pan_number || ''}
+                    onChange={(e) => handleEditChange('pan_number', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Aadhaar Number</label>
+                  <input
+                    type="text"
+                    value={editFormData.aadhaar_number || ''}
+                    onChange={(e) => handleEditChange('aadhaar_number', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">UAN Number</label>
+                  <input
+                    type="text"
+                    value={editFormData.uan_number || ''}
+                    onChange={(e) => handleEditChange('uan_number', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">PF Account</label>
+                  <input
+                    type="text"
+                    value={editFormData.pf_account_number || ''}
+                    onChange={(e) => handleEditChange('pf_account_number', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">PF UAN</label>
+                  <input
+                    type="text"
+                    value={editFormData.pf_uan || ''}
+                    onChange={(e) => handleEditChange('pf_uan', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">ESI Number</label>
+                  <input
+                    type="text"
+                    value={editFormData.esi_number || ''}
+                    onChange={(e) => handleEditChange('esi_number', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Professional Tax</label>
+                  <input
+                    type="text"
+                    value={editFormData.professional_tax_number || ''}
+                    onChange={(e) => handleEditChange('professional_tax_number', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">LWF Number</label>
+                  <input
+                    type="text"
+                    value={editFormData.lwf_number || ''}
+                    onChange={(e) => handleEditChange('lwf_number', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Driving License</label>
+                  <input
+                    type="text"
+                    value={editFormData.driving_license_number || ''}
+                    onChange={(e) => handleEditChange('driving_license_number', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">DL Expiry</label>
+                  <input
+                    type="date"
+                    value={editFormData.driving_license_expiry || ''}
+                    onChange={(e) => handleEditChange('driving_license_expiry', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <SmallInfoItem label="PAN Number" value={maskSensitiveData(employee.pan_number)} />
+                <SmallInfoItem label="Aadhaar Number" value={maskSensitiveData(employee.aadhaar_number)} />
+                <SmallInfoItem label="UAN Number" value={employee.uan_number || 'N/A'} />
+                <SmallInfoItem label="PF Account" value={employee.pf_account_number || 'N/A'} />
+                <SmallInfoItem label="PF UAN" value={employee.pf_uan || 'N/A'} />
+                <SmallInfoItem label="ESI Number" value={employee.esi_number || 'N/A'} />
+                <SmallInfoItem label="Professional Tax" value={employee.professional_tax_number || 'N/A'} />
+                <SmallInfoItem label="LWF Number" value={employee.lwf_number || 'N/A'} />
+                {employee.driving_license_number && (
+                  <>
+                    <SmallInfoItem label="Driving License" value={employee.driving_license_number} />
+                    <ExpiryItem
+                      label="DL Expiry"
+                      date={employee.driving_license_expiry}
+                      isExpiringSoon={isExpiringSoon}
+                      isExpired={isExpired}
+                    />
+                  </>
+                )}
               </>
             )}
           </div>
@@ -1342,62 +1442,220 @@ function DocumentsTab({ employee, maskSensitiveData, isAdmin, hasData, country, 
         <>
           <Section title="Qatar Documents" icon={Plane}>
             <div className="space-y-3">
-              <SmallInfoItem label="Qatar ID" value={employee.qatar_id || 'N/A'} />
-              <ExpiryItem
-                label="Qatar ID Expiry"
-                date={employee.qatar_id_expiry}
-                isExpiringSoon={isExpiringSoon}
-                isExpired={isExpired}
-              />
-              <SmallInfoItem label="Residence Permit" value={employee.residence_permit_number || 'N/A'} />
-              <ExpiryItem
-                label="RP Expiry"
-                date={employee.residence_permit_expiry}
-                isExpiringSoon={isExpiringSoon}
-                isExpired={isExpired}
-              />
-              <SmallInfoItem label="Work Permit" value={employee.work_permit_number || 'N/A'} />
-              <ExpiryItem
-                label="Work Permit Expiry"
-                date={employee.work_permit_expiry}
-                isExpiringSoon={isExpiringSoon}
-                isExpired={isExpired}
-              />
-              <SmallInfoItem label="Labor Card" value={employee.labor_card_number || 'N/A'} />
-              <ExpiryItem
-                label="Labor Card Expiry"
-                date={employee.labor_card_expiry}
-                isExpiringSoon={isExpiringSoon}
-                isExpired={isExpired}
-              />
+              {isEditMode ? (
+                <>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Qatar ID</label>
+                    <input
+                      type="text"
+                      value={editFormData.qatar_id || ''}
+                      onChange={(e) => handleEditChange('qatar_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Qatar ID Expiry</label>
+                    <input
+                      type="date"
+                      value={editFormData.qatar_id_expiry || ''}
+                      onChange={(e) => handleEditChange('qatar_id_expiry', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Residence Permit</label>
+                    <input
+                      type="text"
+                      value={editFormData.residence_permit_number || ''}
+                      onChange={(e) => handleEditChange('residence_permit_number', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">RP Expiry</label>
+                    <input
+                      type="date"
+                      value={editFormData.residence_permit_expiry || ''}
+                      onChange={(e) => handleEditChange('residence_permit_expiry', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Work Permit</label>
+                    <input
+                      type="text"
+                      value={editFormData.work_permit_number || ''}
+                      onChange={(e) => handleEditChange('work_permit_number', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Work Permit Expiry</label>
+                    <input
+                      type="date"
+                      value={editFormData.work_permit_expiry || ''}
+                      onChange={(e) => handleEditChange('work_permit_expiry', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Labor Card</label>
+                    <input
+                      type="text"
+                      value={editFormData.labor_card_number || ''}
+                      onChange={(e) => handleEditChange('labor_card_number', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Labor Card Expiry</label>
+                    <input
+                      type="date"
+                      value={editFormData.labor_card_expiry || ''}
+                      onChange={(e) => handleEditChange('labor_card_expiry', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <SmallInfoItem label="Qatar ID" value={employee.qatar_id || 'N/A'} />
+                  <ExpiryItem
+                    label="Qatar ID Expiry"
+                    date={employee.qatar_id_expiry}
+                    isExpiringSoon={isExpiringSoon}
+                    isExpired={isExpired}
+                  />
+                  <SmallInfoItem label="Residence Permit" value={employee.residence_permit_number || 'N/A'} />
+                  <ExpiryItem
+                    label="RP Expiry"
+                    date={employee.residence_permit_expiry}
+                    isExpiringSoon={isExpiringSoon}
+                    isExpired={isExpired}
+                  />
+                  <SmallInfoItem label="Work Permit" value={employee.work_permit_number || 'N/A'} />
+                  <ExpiryItem
+                    label="Work Permit Expiry"
+                    date={employee.work_permit_expiry}
+                    isExpiringSoon={isExpiringSoon}
+                    isExpired={isExpired}
+                  />
+                  <SmallInfoItem label="Labor Card" value={employee.labor_card_number || 'N/A'} />
+                  <ExpiryItem
+                    label="Labor Card Expiry"
+                    date={employee.labor_card_expiry}
+                    isExpiringSoon={isExpiringSoon}
+                    isExpired={isExpired}
+                  />
+                </>
+              )}
             </div>
           </Section>
 
           <Section title="Qatar Health & Sponsorship" icon={Stethoscope}>
             <div className="space-y-3">
-              <SmallInfoItem label="Health Card" value={employee.health_card_number || 'N/A'} />
-              <ExpiryItem
-                label="Health Card Expiry"
-                date={employee.health_card_expiry}
-                isExpiringSoon={isExpiringSoon}
-                isExpired={isExpired}
-              />
-              <SmallInfoItem label="Medical Fitness Cert" value={employee.medical_fitness_certificate || 'N/A'} />
-              <ExpiryItem
-                label="Medical Fitness Expiry"
-                date={employee.medical_fitness_expiry}
-                isExpiringSoon={isExpiringSoon}
-                isExpired={isExpired}
-              />
-              <SmallInfoItem label="Police Clearance" value={employee.police_clearance_certificate || 'N/A'} />
-              <ExpiryItem
-                label="Police Clearance Expiry"
-                date={employee.police_clearance_expiry}
-                isExpiringSoon={isExpiringSoon}
-                isExpired={isExpired}
-              />
-              <SmallInfoItem label="Sponsor Name" value={employee.sponsor_name || 'N/A'} />
-              <SmallInfoItem label="Sponsor ID" value={employee.sponsor_id || 'N/A'} />
+              {isEditMode ? (
+                <>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Health Card</label>
+                    <input
+                      type="text"
+                      value={editFormData.health_card_number || ''}
+                      onChange={(e) => handleEditChange('health_card_number', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Health Card Expiry</label>
+                    <input
+                      type="date"
+                      value={editFormData.health_card_expiry || ''}
+                      onChange={(e) => handleEditChange('health_card_expiry', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Medical Fitness Cert</label>
+                    <input
+                      type="text"
+                      value={editFormData.medical_fitness_certificate || ''}
+                      onChange={(e) => handleEditChange('medical_fitness_certificate', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Medical Fitness Expiry</label>
+                    <input
+                      type="date"
+                      value={editFormData.medical_fitness_expiry || ''}
+                      onChange={(e) => handleEditChange('medical_fitness_expiry', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Police Clearance</label>
+                    <input
+                      type="text"
+                      value={editFormData.police_clearance_certificate || ''}
+                      onChange={(e) => handleEditChange('police_clearance_certificate', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Police Clearance Expiry</label>
+                    <input
+                      type="date"
+                      value={editFormData.police_clearance_expiry || ''}
+                      onChange={(e) => handleEditChange('police_clearance_expiry', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Sponsor Name</label>
+                    <input
+                      type="text"
+                      value={editFormData.sponsor_name || ''}
+                      onChange={(e) => handleEditChange('sponsor_name', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Sponsor ID</label>
+                    <input
+                      type="text"
+                      value={editFormData.sponsor_id || ''}
+                      onChange={(e) => handleEditChange('sponsor_id', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <SmallInfoItem label="Health Card" value={employee.health_card_number || 'N/A'} />
+                  <ExpiryItem
+                    label="Health Card Expiry"
+                    date={employee.health_card_expiry}
+                    isExpiringSoon={isExpiringSoon}
+                    isExpired={isExpired}
+                  />
+                  <SmallInfoItem label="Medical Fitness Cert" value={employee.medical_fitness_certificate || 'N/A'} />
+                  <ExpiryItem
+                    label="Medical Fitness Expiry"
+                    date={employee.medical_fitness_expiry}
+                    isExpiringSoon={isExpiringSoon}
+                    isExpired={isExpired}
+                  />
+                  <SmallInfoItem label="Police Clearance" value={employee.police_clearance_certificate || 'N/A'} />
+                  <ExpiryItem
+                    label="Police Clearance Expiry"
+                    date={employee.police_clearance_expiry}
+                    isExpiringSoon={isExpiringSoon}
+                    isExpired={isExpired}
+                  />
+                  <SmallInfoItem label="Sponsor Name" value={employee.sponsor_name || 'N/A'} />
+                  <SmallInfoItem label="Sponsor ID" value={employee.sponsor_id || 'N/A'} />
+                </>
+              )}
             </div>
           </Section>
         </>
@@ -1433,48 +1691,191 @@ function DocumentsTab({ employee, maskSensitiveData, isAdmin, hasData, country, 
 
       <Section title="Bank Details" icon={CreditCard}>
         <div className="space-y-3">
-          <SmallInfoItem label="Bank Name" value={employee.bank_name || employee.saudi_bank_name || 'N/A'} />
-          <SmallInfoItem label="Account Number" value={maskSensitiveData(employee.bank_account_number)} />
-          {country === 'India' && (
+          {isEditMode ? (
             <>
-              <SmallInfoItem label="IFSC Code" value={employee.bank_ifsc_code || 'N/A'} />
-              <SmallInfoItem label="Branch" value={employee.bank_branch || 'N/A'} />
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Bank Name</label>
+                <input
+                  type="text"
+                  value={editFormData.bank_name || editFormData.saudi_bank_name || ''}
+                  onChange={(e) => {
+                    handleEditChange('bank_name', e.target.value);
+                    handleEditChange('saudi_bank_name', e.target.value);
+                  }}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Account Number</label>
+                <input
+                  type="text"
+                  value={editFormData.bank_account_number || ''}
+                  onChange={(e) => handleEditChange('bank_account_number', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              {country === 'India' && (
+                <>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">IFSC Code</label>
+                    <input
+                      type="text"
+                      value={editFormData.bank_ifsc_code || ''}
+                      onChange={(e) => handleEditChange('bank_ifsc_code', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Branch</label>
+                    <input
+                      type="text"
+                      value={editFormData.bank_branch || ''}
+                      onChange={(e) => handleEditChange('bank_branch', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                </>
+              )}
+              {(country === 'Qatar' || country === 'Saudi Arabia') && (
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">IBAN</label>
+                  <input
+                    type="text"
+                    value={editFormData.iban_number || editFormData.saudi_iban || ''}
+                    onChange={(e) => {
+                      handleEditChange('iban_number', e.target.value);
+                      handleEditChange('saudi_iban', e.target.value);
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                  />
+                </div>
+              )}
             </>
-          )}
-          {(country === 'Qatar' || country === 'Saudi Arabia') && (
-            <SmallInfoItem label="IBAN" value={maskSensitiveData(employee.iban_number || employee.saudi_iban, 6)} />
+          ) : (
+            <>
+              <SmallInfoItem label="Bank Name" value={employee.bank_name || employee.saudi_bank_name || 'N/A'} />
+              <SmallInfoItem label="Account Number" value={maskSensitiveData(employee.bank_account_number)} />
+              {country === 'India' && (
+                <>
+                  <SmallInfoItem label="IFSC Code" value={employee.bank_ifsc_code || 'N/A'} />
+                  <SmallInfoItem label="Branch" value={employee.bank_branch || 'N/A'} />
+                </>
+              )}
+              {(country === 'Qatar' || country === 'Saudi Arabia') && (
+                <SmallInfoItem label="IBAN" value={maskSensitiveData(employee.iban_number || employee.saudi_iban, 6)} />
+              )}
+            </>
           )}
         </div>
       </Section>
 
       <Section title="Passport & Visa" icon={Plane}>
         <div className="space-y-3">
-          <SmallInfoItem label="Passport Number" value={employee.passport_number || 'N/A'} />
-          {employee.passport_issue_date && (
-            <SmallInfoItem label="Passport Issue Date" value={new Date(employee.passport_issue_date).toLocaleDateString()} />
-          )}
-          {employee.passport_issue_place && (
-            <SmallInfoItem label="Issue Place" value={employee.passport_issue_place} />
-          )}
-          <ExpiryItem
-            label="Passport Expiry"
-            date={employee.passport_expiry}
-            isExpiringSoon={isExpiringSoon}
-            isExpired={isExpired}
-          />
-          {employee.visa_number && (
+          {isEditMode ? (
             <>
-              <SmallInfoItem label="Visa Number" value={employee.visa_number} />
-              {employee.visa_sponsor && <SmallInfoItem label="Visa Sponsor" value={employee.visa_sponsor} />}
-              {employee.visa_issue_date && (
-                <SmallInfoItem label="Visa Issue Date" value={new Date(employee.visa_issue_date).toLocaleDateString()} />
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Passport Number</label>
+                <input
+                  type="text"
+                  value={editFormData.passport_number || ''}
+                  onChange={(e) => handleEditChange('passport_number', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Passport Issue Date</label>
+                <input
+                  type="date"
+                  value={editFormData.passport_issue_date || ''}
+                  onChange={(e) => handleEditChange('passport_issue_date', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Issue Place</label>
+                <input
+                  type="text"
+                  value={editFormData.passport_issue_place || ''}
+                  onChange={(e) => handleEditChange('passport_issue_place', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Passport Expiry</label>
+                <input
+                  type="date"
+                  value={editFormData.passport_expiry || ''}
+                  onChange={(e) => handleEditChange('passport_expiry', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Visa Number</label>
+                <input
+                  type="text"
+                  value={editFormData.visa_number || ''}
+                  onChange={(e) => handleEditChange('visa_number', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Visa Sponsor</label>
+                <input
+                  type="text"
+                  value={editFormData.visa_sponsor || ''}
+                  onChange={(e) => handleEditChange('visa_sponsor', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Visa Issue Date</label>
+                <input
+                  type="date"
+                  value={editFormData.visa_issue_date || ''}
+                  onChange={(e) => handleEditChange('visa_issue_date', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Visa Expiry</label>
+                <input
+                  type="date"
+                  value={editFormData.visa_expiry || ''}
+                  onChange={(e) => handleEditChange('visa_expiry', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <SmallInfoItem label="Passport Number" value={employee.passport_number || 'N/A'} />
+              {employee.passport_issue_date && (
+                <SmallInfoItem label="Passport Issue Date" value={new Date(employee.passport_issue_date).toLocaleDateString()} />
+              )}
+              {employee.passport_issue_place && (
+                <SmallInfoItem label="Issue Place" value={employee.passport_issue_place} />
               )}
               <ExpiryItem
-                label="Visa Expiry"
-                date={employee.visa_expiry}
+                label="Passport Expiry"
+                date={employee.passport_expiry}
                 isExpiringSoon={isExpiringSoon}
                 isExpired={isExpired}
               />
+              {employee.visa_number && (
+                <>
+                  <SmallInfoItem label="Visa Number" value={employee.visa_number} />
+                  {employee.visa_sponsor && <SmallInfoItem label="Visa Sponsor" value={employee.visa_sponsor} />}
+                  {employee.visa_issue_date && (
+                    <SmallInfoItem label="Visa Issue Date" value={new Date(employee.visa_issue_date).toLocaleDateString()} />
+                  )}
+                  <ExpiryItem
+                    label="Visa Expiry"
+                    date={employee.visa_expiry}
+                    isExpiringSoon={isExpiringSoon}
+                    isExpired={isExpired}
+                  />
+                </>
+              )}
             </>
           )}
         </div>

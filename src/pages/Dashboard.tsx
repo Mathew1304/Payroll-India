@@ -70,7 +70,7 @@ export function Dashboard() {
         ] = await Promise.all([
           supabase
             .from('employees')
-            .select('id, employment_status, department_id, date_of_birth, date_of_joining, is_active')
+            .select('id, first_name, last_name, employment_status, department_id, date_of_birth, date_of_joining, is_active')
             .eq('organization_id', organization!.id)
             .eq('is_active', true),
           supabase

@@ -41,27 +41,13 @@ export function EmployeesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showQuickInviteModal, setShowQuickInviteModal] = useState(false);
   const [showBulkInviteModal, setShowBulkInviteModal] = useState(false);
-  import { useImport } from '../../contexts/ImportContext';
-
-  // ... inside component
   const { openModal } = useImport();
-  // ... remove showBulkImportModal state
-
-  // ... update button onClick
-  <button
-    onClick={openModal}
-    className="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-xl hover:from-orange-700 hover:to-orange-800 transition-all shadow-lg hover:shadow-xl"
-  >
-    <Upload className="h-5 w-5" />
-    Bulk Import
-  </button>
-
-  // ... remove BulkImportEmployeesModal rendering
-
   const [showImportHistoryModal, setShowImportHistoryModal] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
+
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -106,10 +92,15 @@ export function EmployeesPage() {
       }
 
       if (statusFilter !== 'all') {
-        query = query.eq('employment_status', statusFilter);
+        if (statusFilter === 'inactive') {
+          query = query.in('employment_status', ['resigned', 'terminated', 'on_hold']);
+        } else {
+          query = query.eq('employment_status', statusFilter);
+        }
       }
 
       const { data, error } = await query;
+
 
       if (error) {
         console.error('Error loading employees:', error);
@@ -226,7 +217,7 @@ export function EmployeesPage() {
             Import History
           </button>
           <button
-            onClick={() => setShowBulkImportModal(true)}
+            onClick={openModal}
             className="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-xl hover:from-orange-700 hover:to-orange-800 transition-all shadow-lg hover:shadow-xl"
           >
             <Upload className="h-5 w-5" />
@@ -317,7 +308,6 @@ export function EmployeesPage() {
                 <option value="probation">Probation</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-                <option value="on_leave">On Leave</option>
                 <option value="terminated">Terminated</option>
               </select>
               <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4 pointer-events-none" />

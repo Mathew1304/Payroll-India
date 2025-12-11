@@ -236,7 +236,7 @@ export function QatarPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
 
     try {
       for (const calc of calculations) {
-        await supabase.from('qatar_payroll_records').insert({
+        await supabase.from('qatar_payroll_records').upsert({
           organization_id: organization!.id,
           employee_id: calc.employee.id,
           pay_period_month: month,
@@ -261,6 +261,8 @@ export function QatarPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
           days_absent: calc.attendance?.days_absent || 0,
           days_leave: calc.attendance?.days_leave || 0,
           status: 'approved'
+        }, {
+          onConflict: 'employee_id, pay_period_month, pay_period_year'
         });
 
         // Update loan installments

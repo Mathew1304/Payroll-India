@@ -171,7 +171,9 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <ImportProvider>
+          <AppContent />
+        </ImportProvider>
       </AuthProvider>
     </ThemeProvider>
   );
