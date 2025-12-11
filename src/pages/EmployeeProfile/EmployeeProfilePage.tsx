@@ -325,6 +325,7 @@ export function EmployeeProfilePage() {
       const { data: newEmployee, error: createError } = await supabase
         .from('employees')
         .insert({
+          organization_id: organization.id,
           first_name: userProfile?.full_name?.split(' ')[0] || 'Admin',
           last_name: userProfile?.full_name?.split(' ').slice(1).join(' ') || 'User',
           company_email: user.email,

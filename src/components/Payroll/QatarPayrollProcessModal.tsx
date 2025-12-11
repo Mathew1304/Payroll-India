@@ -159,8 +159,16 @@ export function QatarPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
         advancesMap.set(adv.employee_id, current + Number(adv.recovery_amount));
       });
 
-      // Calculate payroll for each employee
-      const calcs: PayrollCalculation[] = salaryData.map(comp => {
+      // Deduplicate salary components to ensure one record per employee
+      const uniqueSalaryMap = new Map();
+      salaryData.forEach((comp: any) => {
+        if (!uniqueSalaryMap.has(comp.employee.id)) {
+          uniqueSalaryMap.set(comp.employee.id, comp);
+        }
+      });
+
+      // Calculate payroll for each unique employee
+      const calcs: PayrollCalculation[] = Array.from(uniqueSalaryMap.values()).map((comp: any) => {
         const employee = comp.employee;
         const attendance = attendanceMap.get(employee.id);
         const daysPresent = attendance?.days_present || workingDays;
@@ -235,8 +243,28 @@ export function QatarPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
     setError('');
 
     try {
-      for (const calc of calculations) {
-        await supabase.from('qatar_payroll_records').upsert({
+      // 1. Fetch existing records for this period to get their IDs
+      const { data: existingRecords, error: fetchError } = await supabase
+        .from('qatar_payroll_records')
+        .select('id, employee_id')
+        .eq('organization_id', organization!.id)
+        .eq('pay_period_month', month)
+        .eq('pay_period_year', year);
+
+      if (fetchError) throw fetchError;
+
+      // Create a map of employee_id -> record_id
+      const existingRecordMap = new Map<string, string>();
+      existingRecords?.forEach(record => {
+        existingRecordMap.set(record.employee_id, record.id);
+      });
+
+      // 2. Prepare upsert payload with IDs if they exist
+      const upsertPayload = calculations.map(calc => {
+        const existingId = existingRecordMap.get(calc.employee.id);
+
+        return {
+          id: existingId, // Include ID if it exists to force update
           organization_id: organization!.id,
           employee_id: calc.employee.id,
           pay_period_month: month,
@@ -261,34 +289,54 @@ export function QatarPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
           days_absent: calc.attendance?.days_absent || 0,
           days_leave: calc.attendance?.days_leave || 0,
           status: 'approved'
-        }, {
-          onConflict: 'employee_id, pay_period_month, pay_period_year'
+        };
+      });
+
+      // 3. Perform bulk upsert
+      const { error: upsertError } = await supabase
+        .from('qatar_payroll_records')
+        .upsert(upsertPayload, {
+          onConflict: 'id' // Use ID conflict resolution since we're providing IDs for existing records
         });
 
-        // Update loan installments
-        if (calc.loan_deduction > 0) {
-          await supabase.rpc('increment', {
-            table_name: 'qatar_employee_loans',
-            column_name: 'paid_installments',
-            filter_column: 'employee_id',
-            filter_value: calc.employee.id
-          });
-        }
+      if (upsertError) throw upsertError;
 
-        // Update advance recoveries
-        if (calc.advance_deduction > 0) {
-          await supabase.rpc('increment', {
-            table_name: 'qatar_employee_advances',
-            column_name: 'paid_recoveries',
-            filter_column: 'employee_id',
-            filter_value: calc.employee.id
-          });
+      // 4. Update loans and advances (only for new records or if logic requires)
+      // Note: Incrementing paid installments blindly on re-run might be an issue. 
+      // Ideally we should track if this specific payroll run already deducted.
+      // For now, we'll skip this part on re-runs to avoid double deduction in DB counters, 
+      // or we assume the user knows what they are doing when re-processing.
+      // A safer approach for re-runs is to NOT increment if record already existed.
+
+      for (const calc of calculations) {
+        const existingId = existingRecordMap.get(calc.employee.id);
+
+        // Only update loan/advance counters if this is a NEW record
+        if (!existingId) {
+          if (calc.loan_deduction > 0) {
+            await supabase.rpc('increment', {
+              table_name: 'qatar_employee_loans',
+              column_name: 'paid_installments',
+              filter_column: 'employee_id',
+              filter_value: calc.employee.id
+            });
+          }
+
+          if (calc.advance_deduction > 0) {
+            await supabase.rpc('increment', {
+              table_name: 'qatar_employee_advances',
+              column_name: 'paid_recoveries',
+              filter_column: 'employee_id',
+              filter_value: calc.employee.id
+            });
+          }
         }
       }
 
       onSuccess();
     } catch (err: any) {
-      setError(err.message);
+      console.error('Payroll processing error:', err);
+      setError(err.message || 'Failed to process payroll');
     } finally {
       setProcessing(false);
     }

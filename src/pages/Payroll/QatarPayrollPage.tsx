@@ -15,6 +15,7 @@ import {
 } from '../../utils/wpsFileGeneratorQatar';
 import { validatePrePayroll, ValidationResult } from '../../utils/payrollValidation';
 import { PayrollValidationPanel } from '../../components/Payroll/PayrollValidationPanel';
+import { QatarPayrollProcessModal } from '../../components/Payroll/QatarPayrollProcessModal';
 
 interface SalaryComponent {
   id: string;
@@ -309,7 +310,7 @@ export function QatarPayrollPage() {
       </div>
 
       {showProcessModal && (
-        <ProcessPayrollModal
+        <QatarPayrollProcessModal
           onClose={() => setShowProcessModal(false)}
           onSuccess={() => {
             setShowProcessModal(false);
@@ -317,7 +318,6 @@ export function QatarPayrollPage() {
           }}
           month={selectedMonth}
           year={selectedYear}
-          showNotification={showNotification}
         />
       )}
 
@@ -1457,141 +1457,7 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear, s
   );
 }
 
-function ProcessPayrollModal({ onClose, onSuccess, month, year, showNotification }: any) {
-  const { organization } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [step, setStep] = useState(1);
 
-  const handleProcess = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      // Check for existing payroll records
-      const { data: existingRecords } = await supabase
-        .from('qatar_payroll_records')
-        .select('id')
-        .eq('organization_id', organization!.id)
-        .eq('pay_period_month', month)
-        .eq('pay_period_year', year)
-        .limit(1);
-
-      if (existingRecords && existingRecords.length > 0) {
-        throw new Error(`Payroll for ${monthNames[month - 1]} ${year} has already been processed. Delete existing records first if you need to reprocess.`);
-      }
-
-      const { data: salaryComponents, error: salaryError } = await supabase
-        .from('qatar_salary_components')
-        .select('*, employee:employees(id, first_name, last_name, employee_code, qatar_id, iban_number)')
-        .eq('organization_id', organization!.id)
-        .eq('is_active', true);
-
-      if (salaryError) {
-        throw new Error(`Failed to load salary components: ${salaryError.message}`);
-      }
-
-      if (!salaryComponents || salaryComponents.length === 0) {
-        throw new Error('No active salary components found. Please set up employee salaries first.');
-      }
-
-      let successCount = 0;
-      const errors: string[] = [];
-
-      for (const comp of salaryComponents) {
-        const grossSalary =
-          Number(comp.basic_salary) +
-          Number(comp.housing_allowance) +
-          Number(comp.food_allowance) +
-          Number(comp.transport_allowance) +
-          Number(comp.mobile_allowance) +
-          Number(comp.utility_allowance) +
-          Number(comp.other_allowances);
-
-        const { error: insertError } = await supabase.from('qatar_payroll_records').insert({
-          organization_id: organization!.id,
-          employee_id: comp.employee_id,
-          salary_component_id: comp.id,
-          pay_period_month: month,
-          pay_period_year: year,
-          basic_salary: comp.basic_salary,
-          housing_allowance: comp.housing_allowance,
-          food_allowance: comp.food_allowance,
-          transport_allowance: comp.transport_allowance,
-          mobile_allowance: comp.mobile_allowance,
-          utility_allowance: comp.utility_allowance,
-          other_allowances: comp.other_allowances,
-          overtime_amount: 0,
-          total_deductions: 0,
-          gross_salary: grossSalary,
-          net_salary: grossSalary,
-          status: 'approved',
-          working_days: 26,
-          days_present: 26
-        });
-
-        if (insertError) {
-          errors.push(`${comp.employee?.first_name} ${comp.employee?.last_name}: ${insertError.message}`);
-        } else {
-          successCount++;
-        }
-      }
-
-      if (errors.length > 0) {
-        throw new Error(`Processed ${successCount} employees with ${errors.length} errors:\n${errors.join('\n')}`);
-      }
-
-      showNotification('success', 'Payroll Processed', `Successfully processed payroll for ${successCount} employee(s)!`);
-      onSuccess();
-    } catch (err: any) {
-      setError(err.message);
-      showNotification('error', 'Processing Failed', err.message || 'An error occurred while processing payroll');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full">
-        <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 rounded-t-2xl">
-          <h2 className="text-2xl font-bold text-white">Process Monthly Payroll</h2>
-          <p className="text-emerald-100 text-sm mt-1">
-            {new Date(year, month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-          </p>
-        </div>
-
-        <div className="p-6 space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
-              {error}
-            </div>
-          )}
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-900">
-              This will process payroll for all active employees based on their salary components.
-              Overtime and deductions will be calculated automatically.
-            </p>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-            <button onClick={onClose} className="btn-secondary" disabled={loading}>
-              Cancel
-            </button>
-            <button
-              onClick={handleProcess}
-              disabled={loading}
-              className="btn-primary"
-            >
-              {loading ? 'Processing...' : 'Process Payroll'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, showNotification }: any) {
   const { organization } = useAuth();
