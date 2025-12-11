@@ -31,6 +31,7 @@ import { WorkReportsPage } from './pages/WorkReports/WorkReportsPage';
 import { HelpPage } from './pages/Help/HelpPage';
 import { EmployeeDashboard } from './pages/EmployeeDashboard';
 import { ChangePasswordPage } from './pages/Auth/ChangePasswordPage';
+import { MyPayrollPage } from './pages/Payroll/MyPayrollPage';
 
 function AppContent() {
   const { user, loading, membership } = useAuth();
@@ -127,6 +128,8 @@ function AppContent() {
         return <ExpensesPage />;
       case 'payroll':
         return <PayrollPage />;
+      case 'my-payroll':
+        return <MyPayrollPage />;
       case 'performance':
         return <PerformancePage />;
       case 'training':

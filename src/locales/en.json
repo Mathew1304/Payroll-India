@@ -35,6 +35,7 @@
   "menu": {
     "dashboard": "Dashboard",
     "payroll": "Payroll",
+    "myPayroll": "My Payroll",
     "reports": "Reports",
     "tasks": "Tasks",
     "workReports": "Work Reports",

@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { CheckInCard } from './CheckInCard';
 import { AttendanceHistory } from './AttendanceHistory';
-import { LeaveRequestForm } from './LeaveRequestForm';
 
 export function AttendanceEmployeePage() {
     const [activeTab, setActiveTab] = useState('checkin');
@@ -16,7 +15,6 @@ export function AttendanceEmployeePage() {
     const tabs = [
         { id: 'checkin', label: 'Check In/Out', icon: Clock },
         { id: 'history', label: 'My History', icon: History },
-        { id: 'leave', label: 'Request Leave', icon: Calendar },
     ];
 
     return (
@@ -57,7 +55,6 @@ export function AttendanceEmployeePage() {
             <div className="min-h-[500px]">
                 {activeTab === 'checkin' && <CheckInCard />}
                 {activeTab === 'history' && <AttendanceHistory />}
-                {activeTab === 'leave' && <LeaveRequestForm />}
             </div>
         </div>
     );

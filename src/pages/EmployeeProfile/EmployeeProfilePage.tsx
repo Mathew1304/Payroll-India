@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { User, Briefcase, DollarSign, FileText, Mail, Phone, MapPin, Calendar, Building, Download, Eye, Edit, Save, X, Lock, Camera, CheckCircle, AlertCircle, Clock, TrendingUp, Calendar as CalendarIcon, Award, Heart, GraduationCap, Briefcase as BriefcaseIcon, Languages, Shield, Link as LinkIcon, Users as UsersIcon, AlertTriangle, FileCheck, CreditCard, BookOpen, Home, Plane, Stethoscope, Car, Utensils } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { PayrollHistoryTab } from '../../components/Payroll/PayrollHistoryTab';
 
 interface SalaryComponent {
   id: string;
@@ -61,7 +62,7 @@ export function EmployeeProfilePage() {
     newPassword: '',
     confirmPassword: ''
   });
-  const [activeTab, setActiveTab] = useState<'overview' | 'personal' | 'professional' | 'documents'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'personal' | 'professional' | 'documents' | 'payroll'>('overview');
 
   const country = organization?.country || 'India';
 
@@ -236,8 +237,8 @@ export function EmployeeProfilePage() {
           linkedin_url: editFormData.linkedin_url,
           github_url: editFormData.github_url,
           portfolio_url: editFormData.portfolio_url,
-          // New fields
-          date_of_birth: editFormData.date_of_birth,
+          // New fields - convert empty strings to null for dates
+          date_of_birth: editFormData.date_of_birth || null,
           gender: editFormData.gender,
           blood_group: editFormData.blood_group,
           marital_status: editFormData.marital_status,
@@ -248,6 +249,28 @@ export function EmployeeProfilePage() {
           mother_name: editFormData.mother_name,
           spouse_name: editFormData.spouse_name,
           number_of_children: editFormData.number_of_children,
+          // Document fields - convert empty strings to null
+          pan_number: editFormData.pan_number || null,
+          pan_expiry: editFormData.pan_expiry || null,
+          aadhaar_number: editFormData.aadhaar_number || null,
+          passport_number: editFormData.passport_number || null,
+          passport_issue_date: editFormData.passport_issue_date || null,
+          passport_expiry_date: editFormData.passport_expiry_date || null,
+          passport_issue_place: editFormData.passport_issue_place || null,
+          visa_number: editFormData.visa_number || null,
+          visa_sponsor: editFormData.visa_sponsor || null,
+          visa_issue_date: editFormData.visa_issue_date || null,
+          visa_expiry_date: editFormData.visa_expiry_date || null,
+          qatar_id: editFormData.qatar_id || null,
+          qatar_id_expiry: editFormData.qatar_id_expiry || null,
+          iqama_number: editFormData.iqama_number || null,
+          iqama_expiry: editFormData.iqama_expiry || null,
+          driving_license_number: editFormData.driving_license_number || null,
+          driving_license_expiry: editFormData.driving_license_expiry || null,
+          bank_name: editFormData.bank_name || null,
+          account_number: editFormData.account_number || null,
+          iban: editFormData.iban || null,
+          branch: editFormData.branch || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', membership.employee_id);
@@ -267,7 +290,7 @@ export function EmployeeProfilePage() {
       setAlertModal({
         type: 'error',
         title: 'Update Failed',
-        message: 'Failed to update profile: ' + error.message
+        message: 'Failed to update employee: ' + error.message
       });
     }
   };
@@ -623,7 +646,7 @@ export function EmployeeProfilePage() {
 
           <div className="border-b border-slate-200">
             <div className="flex gap-2 px-6 overflow-x-auto">
-              {['overview', 'personal', 'professional', 'documents'].map((tab) => (
+              {['overview', 'personal', 'professional', 'documents', 'payroll'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab as any)}
@@ -733,6 +756,9 @@ export function EmployeeProfilePage() {
                     editFormData={editFormData}
                     handleEditChange={handleEditChange}
                   />
+                )}
+                {activeTab === 'payroll' && employee && (
+                  <PayrollHistoryTab employeeId={employee.id} />
                 )}
               </>
             )}

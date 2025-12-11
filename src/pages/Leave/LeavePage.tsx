@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Calendar, Plus, X, Send, CheckCircle, AlertCircle, Clock, TrendingUp, FileText, Download, Eye, Check, XCircle, Sparkles, Info, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { AdminLeavePage } from './AdminLeavePage';
 
 interface LeaveType {
   id: string;
@@ -49,6 +50,19 @@ interface ApplyLeaveForm {
 }
 
 export function LeavePage() {
+  const { membership, organization } = useAuth();
+  const isAdmin = membership?.role && ['admin', 'hr'].includes(membership.role);
+
+  // If admin/HR, show admin dashboard
+  if (isAdmin) {
+    return <AdminLeavePage />;
+  }
+
+  // Otherwise show employee leave view
+  return <EmployeeLeavePage />;
+}
+
+function EmployeeLeavePage() {
   const { membership, organization } = useAuth();
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
@@ -368,12 +382,11 @@ export function LeavePage() {
       {alertModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-scaleIn">
-            <div className={`p-6 rounded-t-2xl ${
-              alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
-              alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
-              alertModal.type === 'warning' ? 'bg-gradient-to-r from-amber-500 to-amber-600' :
-              'bg-gradient-to-r from-blue-500 to-blue-600'
-            }`}>
+            <div className={`p-6 rounded-t-2xl ${alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
+                alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                  alertModal.type === 'warning' ? 'bg-gradient-to-r from-amber-500 to-amber-600' :
+                    'bg-gradient-to-r from-blue-500 to-blue-600'
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {alertModal.type === 'success' && <CheckCircle className="h-8 w-8 text-white" />}
@@ -394,12 +407,11 @@ export function LeavePage() {
               <p className="text-slate-700 text-lg">{alertModal.message}</p>
               <button
                 onClick={() => setAlertModal(null)}
-                className={`mt-6 w-full py-3 rounded-xl font-semibold text-white transition-all ${
-                  alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
-                  alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
-                  alertModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' :
-                  'bg-blue-500 hover:bg-blue-600'
-                }`}>
+                className={`mt-6 w-full py-3 rounded-xl font-semibold text-white transition-all ${alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
+                    alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
+                      alertModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' :
+                        'bg-blue-500 hover:bg-blue-600'
+                  }`}>
                 OK
               </button>
             </div>
@@ -651,9 +663,9 @@ function LeaveBalanceCard({ balance }: { balance: LeaveBalance }) {
       <div className="flex items-center gap-3 mb-4">
         <div className={`p-3 rounded-xl bg-gradient-to-br ${colorGradient === 'blue' ? 'from-blue-500 to-blue-600' :
           colorGradient === 'red' ? 'from-red-500 to-red-600' :
-          colorGradient === 'green' ? 'from-emerald-500 to-emerald-600' :
-          colorGradient === 'purple' ? 'from-violet-500 to-violet-600' :
-          'from-blue-500 to-blue-600'}`}>
+            colorGradient === 'green' ? 'from-emerald-500 to-emerald-600' :
+              colorGradient === 'purple' ? 'from-violet-500 to-violet-600' :
+                'from-blue-500 to-blue-600'}`}>
           <Calendar className="h-6 w-6 text-white" />
         </div>
         <div>
@@ -680,9 +692,9 @@ function LeaveBalanceCard({ balance }: { balance: LeaveBalance }) {
           <div
             className={`h-3 rounded-full bg-gradient-to-r ${colorGradient === 'blue' ? 'from-blue-500 to-blue-600' :
               colorGradient === 'red' ? 'from-red-500 to-red-600' :
-              colorGradient === 'green' ? 'from-emerald-500 to-emerald-600' :
-              colorGradient === 'purple' ? 'from-violet-500 to-violet-600' :
-              'from-blue-500 to-blue-600'}`}
+                colorGradient === 'green' ? 'from-emerald-500 to-emerald-600' :
+                  colorGradient === 'purple' ? 'from-violet-500 to-violet-600' :
+                    'from-blue-500 to-blue-600'}`}
             style={{ width: `${percentage}%` }}
           ></div>
         </div>

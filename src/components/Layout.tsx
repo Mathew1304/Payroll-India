@@ -103,6 +103,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'dashboard', labelKey: 'menu.dashboard', icon: LayoutDashboard, color: 'from-blue-500 to-blue-600', roles: ['admin', 'hr', 'finance', 'manager'] },
     { id: 'employee-dashboard', labelKey: 'menu.dashboard', icon: LayoutDashboard, color: 'from-blue-500 to-blue-600', roles: ['employee'] },
     { id: 'payroll', labelKey: 'menu.payroll', icon: Banknote, color: 'from-emerald-500 to-emerald-600', roles: ['admin', 'hr', 'finance'] },
+    { id: 'my-payroll', labelKey: 'menu.myPayroll', icon: Banknote, color: 'from-emerald-500 to-emerald-600', roles: ['employee'] },
     { id: 'reports', labelKey: 'menu.reports', icon: FileText, color: 'from-violet-500 to-violet-600', roles: ['admin', 'hr', 'finance'] },
     { id: 'tasks', labelKey: 'menu.tasks', icon: CheckSquare, color: 'from-purple-500 to-purple-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'work-reports', labelKey: 'menu.workReports', icon: ClipboardList, color: 'from-sky-500 to-sky-600', roles: ['admin', 'hr', 'manager', 'employee'] },
