@@ -250,7 +250,31 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         dependents_covered: formData.dependents_covered ? parseInt(formData.dependents_covered) : null,
         department_id: formData.department_id || null,
         designation_id: formData.designation_id || null,
-        branch_id: formData.branch_id || null
+        branch_id: formData.branch_id || null,
+
+        // Date fields - convert empty string to null
+        date_of_birth: formData.date_of_birth || null,
+        date_of_joining: formData.date_of_joining || null,
+        probation_end_date: formData.probation_end_date || null,
+        contract_start_date: formData.contract_start_date || null,
+        contract_end_date: formData.contract_end_date || null,
+        passport_expiry: formData.passport_expiry || null,
+        passport_issue_date: formData.passport_issue_date || null,
+        driving_license_expiry: formData.driving_license_expiry || null,
+        qatar_id_expiry: formData.qatar_id_expiry || null,
+        residence_permit_expiry: formData.residence_permit_expiry || null,
+        work_permit_expiry: formData.work_permit_expiry || null,
+        health_card_expiry: formData.health_card_expiry || null,
+        labor_card_expiry: formData.labor_card_expiry || null,
+        medical_fitness_expiry: formData.medical_fitness_expiry || null,
+        police_clearance_expiry: formData.police_clearance_expiry || null,
+        visa_expiry: formData.visa_expiry || null,
+        visa_issue_date: formData.visa_issue_date || null,
+        iqama_expiry: formData.iqama_expiry || null,
+        medical_insurance_expiry: formData.medical_insurance_expiry || null,
+        previous_employment_from: formData.previous_employment_from || null,
+        previous_employment_to: formData.previous_employment_to || null,
+        insurance_expiry: formData.insurance_expiry || null
       };
 
       const { data: employeeData, error: employeeError } = await supabase

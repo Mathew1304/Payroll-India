@@ -4,13 +4,14 @@ import { supabase } from '../../lib/supabase';
 import { AddEmployeeModal } from '../../components/Employees/AddEmployeeModal';
 import { QuickInviteModal } from '../../components/Employees/QuickInviteModal';
 import { BulkInviteModal } from '../../components/Employees/BulkInviteModal';
-import { BulkImportEmployeesModal } from '../../components/Employees/BulkImportEmployeesModal';
+
 import { ImportHistoryModal } from '../../components/Employees/ImportHistoryModal';
 import { ViewEmployeeModal } from '../../components/Employees/ViewEmployeeModal';
 import { EditEmployeeModal } from '../../components/Employees/EditEmployeeModal';
 import { DeleteConfirmationModal } from '../../components/Employees/DeleteConfirmationModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { useImport } from '../../contexts/ImportContext';
 
 interface Employee {
   id: string;
@@ -40,7 +41,23 @@ export function EmployeesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showQuickInviteModal, setShowQuickInviteModal] = useState(false);
   const [showBulkInviteModal, setShowBulkInviteModal] = useState(false);
-  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  import { useImport } from '../../contexts/ImportContext';
+
+  // ... inside component
+  const { openModal } = useImport();
+  // ... remove showBulkImportModal state
+
+  // ... update button onClick
+  <button
+    onClick={openModal}
+    className="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-xl hover:from-orange-700 hover:to-orange-800 transition-all shadow-lg hover:shadow-xl"
+  >
+    <Upload className="h-5 w-5" />
+    Bulk Import
+  </button>
+
+  // ... remove BulkImportEmployeesModal rendering
+
   const [showImportHistoryModal, setShowImportHistoryModal] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null);
@@ -466,8 +483,8 @@ export function EmployeesPage() {
                         key={page}
                         onClick={() => setCurrentPage(page)}
                         className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${currentPage === page
-                            ? 'bg-blue-600 text-white font-semibold'
-                            : 'border border-slate-300 hover:bg-slate-50'
+                          ? 'bg-blue-600 text-white font-semibold'
+                          : 'border border-slate-300 hover:bg-slate-50'
                           }`}
                       >
                         {page}
@@ -523,16 +540,6 @@ export function EmployeesPage() {
           onClose={() => setShowBulkInviteModal(false)}
           onSuccess={() => {
             setShowBulkInviteModal(false);
-            loadEmployees();
-          }}
-        />
-      )}
-
-      {showBulkImportModal && (
-        <BulkImportEmployeesModal
-          onClose={() => setShowBulkImportModal(false)}
-          onSuccess={() => {
-            setShowBulkImportModal(false);
             loadEmployees();
           }}
         />

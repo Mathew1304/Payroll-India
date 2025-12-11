@@ -110,6 +110,8 @@ export function BulkInviteModal({ onClose, onSuccess }: BulkInviteModalProps) {
               first_name: inv.first_name,
               last_name: inv.last_name,
               personal_email: inv.email,
+              company_email: inv.email,
+              mobile_number: '0000000000', // Placeholder for bulk invite
               employee_code: employeeCode,
               department_id: inv.department_id || null,
               designation_id: inv.designation_id || null,
@@ -202,11 +204,10 @@ export function BulkInviteModal({ onClose, onSuccess }: BulkInviteModalProps) {
               {results.map((result, index) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-lg border-2 ${
-                    result.success
+                  className={`p-4 rounded-lg border-2 ${result.success
                       ? 'bg-emerald-50 border-emerald-200'
                       : 'bg-red-50 border-red-200'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

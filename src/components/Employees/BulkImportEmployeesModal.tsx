@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { X, Upload, Download, CheckCircle, AlertCircle, FileText, Users } from 'lucide-react';
 import Papa from 'papaparse';
+import { read, utils } from 'xlsx';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+
+import { useImport } from '../../contexts/ImportContext';
 
 interface BulkImportEmployeesModalProps {
   onClose: () => void;
@@ -29,19 +32,20 @@ interface RowErrors {
 
 export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmployeesModalProps) {
   const { organization, user } = useAuth();
-  const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<ImportRow[]>([]);
+  const { state, setFile, setParsedData, setStep, setImportProgress, setImportResults, setFailedRowDetails, closeModal, minimizeModal } = useImport();
+  const { file, parsedData: rawParsedData, step, importProgress, importResults, failedRowDetails: rawFailedRowDetails, isMinimized } = state;
+  const parsedData = rawParsedData as ImportRow[];
+  const failedRowDetails = rawFailedRowDetails as any[];
+
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [rowErrors, setRowErrors] = useState<Map<number, RowErrors>>(new Map());
   const [selectedRow, setSelectedRow] = useState<RowErrors | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState(0);
-  const [importResults, setImportResults] = useState<{ success: number; failed: number } | null>(null);
-  const [failedRowDetails, setFailedRowDetails] = useState<any[]>([]);
-  const [step, setStep] = useState<'upload' | 'preview' | 'importing' | 'complete'>('upload');
+  const [isDragging, setIsDragging] = useState(false);
+
+  if (isMinimized) return null;
 
   const isQatar = organization?.country === 'Qatar';
-  const isIndia = organization?.country === 'India' || !organization?.country;
+
 
   const getTemplateHeaders = () => {
     const commonHeaders = [
@@ -139,8 +143,8 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (!selectedFile.name.endsWith('.csv')) {
-        alert('Please upload a CSV file');
+      if (!selectedFile.name.endsWith('.csv') && !selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls')) {
+        alert('Please upload a CSV or Excel file');
         return;
       }
       setFile(selectedFile);
@@ -148,36 +152,87 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
     }
   };
 
-  const parseFile = (file: File) => {
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        // Normalize data fields to snake_case
-        const normalizedData = (results.data as ImportRow[]).map(row => {
-          if (row.employment_type) {
-            row.employment_type = row.employment_type.toLowerCase().trim().replace(/[\s-]/g, '_');
-          }
-          if (row.employment_status) {
-            row.employment_status = row.employment_status.toLowerCase().trim().replace(/[\s-]/g, '_');
-          }
-          if (row.gender) {
-            row.gender = row.gender.toLowerCase().trim();
-          }
-          if (row.marital_status) {
-            row.marital_status = row.marital_status.toLowerCase().trim();
-          }
-          return row;
-        });
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
 
-        setParsedData(normalizedData);
-        validateData(normalizedData);
-        setStep('preview');
-      },
-      error: (error) => {
-        alert('Error parsing CSV file: ' + error.message);
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) {
+      if (!droppedFile.name.endsWith('.csv') && !droppedFile.name.endsWith('.xlsx') && !droppedFile.name.endsWith('.xls')) {
+        alert('Please upload a CSV or Excel file');
+        return;
       }
+      setFile(droppedFile);
+      parseFile(droppedFile);
+    }
+  };
+
+  const parseFile = (file: File) => {
+    if (file.name.endsWith('.csv')) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: 'greedy',
+        transformHeader: (h) => h.trim(),
+        complete: (results) => {
+          if (results.errors.length > 0) {
+            console.warn('CSV Parse Errors:', results.errors);
+            alert(`Warning: ${results.errors.length} issues found during parsing. Some rows might be missing or incomplete. Check console for details.`);
+          }
+          processParsedData(results.data as ImportRow[]);
+        },
+        error: (error) => {
+          alert('Error parsing CSV file: ' + error.message);
+        }
+      });
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = utils.sheet_to_json(worksheet) as ImportRow[];
+          processParsedData(jsonData);
+        } catch (error: any) {
+          alert('Error parsing Excel file: ' + error.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  };
+
+  const processParsedData = (data: ImportRow[]) => {
+    // Normalize data fields to snake_case
+    const normalizedData = data.map(row => {
+      if (row.employment_type) {
+        row.employment_type = row.employment_type.toLowerCase().trim().replace(/[\s-]/g, '_');
+      }
+      if (row.employment_status) {
+        row.employment_status = row.employment_status.toLowerCase().trim().replace(/[\s-]/g, '_');
+      }
+      if (row.gender) {
+        row.gender = row.gender.toLowerCase().trim();
+      }
+      if (row.marital_status) {
+        row.marital_status = row.marital_status.toLowerCase().trim();
+      }
+      return row;
     });
+
+    setParsedData(normalizedData);
+    validateData(normalizedData);
+    setStep('preview');
   };
 
   const downloadErrorReport = () => {
@@ -372,7 +427,6 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
   const startImport = async () => {
     if (!organization?.id) return;
 
-    setImporting(true);
     setStep('importing');
     setImportProgress(0);
 
@@ -383,7 +437,7 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
     const failedRows: any[] = [];
 
     for (let i = 0; i < parsedData.length; i += batchSize) {
-      const batch = parsedData.slice(i, i + batchSize);
+      const batch = parsedData.slice(i, i + batchSize) as ImportRow[];
 
       for (let j = 0; j < batch.length; j++) {
         const row = batch[j];
@@ -452,11 +506,13 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
             employeeData.bank_ifsc_code = row.bank_ifsc_code?.trim() || null;
           }
 
-          const { data, error } = await supabase
+          const { data: rawData, error } = await supabase
             .from('employees')
             .insert(employeeData)
             .select('id, first_name, middle_name, last_name, company_email, mobile_number, employment_type')
             .single();
+
+          const data = rawData as any;
 
           if (error) throw error;
 
@@ -486,7 +542,7 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
             if (salaryTableName !== 'salary_components') {
               const { error: salaryError } = await supabase
                 .from(salaryTableName)
-                .insert(salaryData);
+                .insert(salaryData as any);
 
               if (salaryError) {
                 console.error(`Error inserting salary components for ${data.first_name}:`, salaryError);
@@ -535,14 +591,13 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
           imported_employees: importedEmployees,
           failed_rows: failedRows,
           country: organization.country
-        });
+        } as any);
     } catch (error) {
       console.error('Error saving import history:', error);
     }
 
     setImportResults({ success: successCount, failed: failedCount });
     setFailedRowDetails(failedRows);
-    setImporting(false);
     setStep('complete');
   };
 
@@ -556,15 +611,25 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
             </div>
             <div>
               <h2 className="text-2xl font-bold text-slate-900">Bulk Import Employees</h2>
-              <p className="text-sm text-slate-600">Import multiple employees from CSV file</p>
+              <p className="text-sm text-slate-600">Import multiple employees from CSV or Excel file</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={minimizeModal}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Minimize"
+            >
+              <span className="h-5 w-5 flex items-center justify-center font-bold text-slate-500">-</span>
+            </button>
+            <button
+              onClick={closeModal}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -579,8 +644,8 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
                   <li>Include salary components (basic_salary, allowances) to enable payroll processing</li>
                   <li>Date fields must be in YYYY-MM-DD format (e.g., 2024-01-15)</li>
                   <li>Salary and allowance fields must be numeric values</li>
-                  <li>Save your file as CSV format</li>
-                  <li>Upload the completed CSV file below</li>
+                  <li>Save your file as CSV or Excel format</li>
+                  <li>Upload the completed file below</li>
                 </ul>
               </div>
 
@@ -592,10 +657,16 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
                 <span className="font-medium text-slate-700">Download CSV Template ({organization?.country || 'General'})</span>
               </button>
 
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300'
+                  }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <input
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   onChange={handleFileChange}
                   className="hidden"
                   id="csv-upload"
@@ -605,11 +676,13 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
                   className="cursor-pointer flex flex-col items-center gap-3"
                 >
                   <div className="p-4 bg-slate-100 rounded-full">
-                    <Upload className="h-8 w-8 text-slate-600" />
+                    <Upload className={`h-8 w-8 ${isDragging ? 'text-blue-600' : 'text-slate-600'}`} />
                   </div>
                   <div>
-                    <p className="text-lg font-medium text-slate-900">Upload CSV File</p>
-                    <p className="text-sm text-slate-600">Click to browse or drag and drop</p>
+                    <p className="text-lg font-medium text-slate-900">
+                      {isDragging ? 'Drop file here' : 'Upload File'}
+                    </p>
+                    <p className="text-sm text-slate-600">Click to browse or drag and drop (CSV, Excel)</p>
                   </div>
                 </label>
                 {file && (

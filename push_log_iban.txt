@@ -1,0 +1,9 @@
+WARN: no SMS provider is enabled. Disabling phone login
+Initialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • 20251211120000_add_bank_iban_column.sql
+
+ [Y/n] Y
+Applying migration 20251211120000_add_bank_iban_column.sql...
+Finished supabase db push.

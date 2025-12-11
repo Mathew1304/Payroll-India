@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { getEnabledFeatures } from '../services/featureService';
+import { BulkImportEmployeesModal } from './Employees/BulkImportEmployeesModal';
+import { useImport } from '../contexts/ImportContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -18,6 +20,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const { t, i18n } = useTranslation();
+  const { state: importState, closeModal } = useImport();
 
   // Feature toggle state
   const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(new Set());
@@ -357,6 +360,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           {children}
         </main>
       </div>
+
+      {importState.isOpen && (
+        <BulkImportEmployeesModal
+          onClose={closeModal}
+          onSuccess={() => { }}
+        />
+      )}
     </div>
   );
 }

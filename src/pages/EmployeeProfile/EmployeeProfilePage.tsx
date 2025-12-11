@@ -236,6 +236,18 @@ export function EmployeeProfilePage() {
           linkedin_url: editFormData.linkedin_url,
           github_url: editFormData.github_url,
           portfolio_url: editFormData.portfolio_url,
+          // New fields
+          date_of_birth: editFormData.date_of_birth,
+          gender: editFormData.gender,
+          blood_group: editFormData.blood_group,
+          marital_status: editFormData.marital_status,
+          nationality: editFormData.nationality,
+          religion: editFormData.religion,
+          place_of_birth: editFormData.place_of_birth,
+          father_name: editFormData.father_name,
+          mother_name: editFormData.mother_name,
+          spouse_name: editFormData.spouse_name,
+          number_of_children: editFormData.number_of_children,
           updated_at: new Date().toISOString()
         })
         .eq('id', membership.employee_id);
@@ -371,11 +383,10 @@ export function EmployeeProfilePage() {
       {alertModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">
-            <div className={`p-6 rounded-t-2xl ${
-              alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
+            <div className={`p-6 rounded-t-2xl ${alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
               alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
-              'bg-gradient-to-r from-blue-500 to-blue-600'
-            }`}>
+                'bg-gradient-to-r from-blue-500 to-blue-600'
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {alertModal.type === 'success' && <CheckCircle className="h-8 w-8 text-white" />}
@@ -395,11 +406,10 @@ export function EmployeeProfilePage() {
               <p className="text-slate-700 text-lg">{alertModal.message}</p>
               <button
                 onClick={() => setAlertModal(null)}
-                className={`mt-6 w-full py-3 rounded-xl font-semibold text-white transition-all ${
-                  alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
+                className={`mt-6 w-full py-3 rounded-xl font-semibold text-white transition-all ${alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
                   alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
-                  'bg-blue-500 hover:bg-blue-600'
-                }`}>
+                    'bg-blue-500 hover:bg-blue-600'
+                  }`}>
                 OK
               </button>
             </div>
@@ -486,11 +496,10 @@ export function EmployeeProfilePage() {
             {employee && (
               <button
                 onClick={isEditMode ? handleSaveProfile : handleEditToggle}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
-                  isEditMode
-                    ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800'
-                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${isEditMode
+                  ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800'
+                  : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800'
+                  }`}
               >
                 {isEditMode ? (
                   <>
@@ -553,11 +562,10 @@ export function EmployeeProfilePage() {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab as any)}
-                  className={`px-6 py-4 font-semibold text-sm transition-all whitespace-nowrap ${
-                    activeTab === tab
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-6 py-4 font-semibold text-sm transition-all whitespace-nowrap ${activeTab === tab
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
@@ -789,13 +797,78 @@ function OverviewTab({ employee, salaryStructure, offerLetters, totals, formatCu
       <div className="space-y-6">
         <Section title="Personal Details" icon={User}>
           <div className="space-y-3">
-            <SmallInfoItem label="Date of Birth" value={employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString() : 'N/A'} />
-            <SmallInfoItem label="Gender" value={employee.gender?.toUpperCase() || 'N/A'} />
-            <SmallInfoItem label="Blood Group" value={employee.blood_group || 'N/A'} />
-            <SmallInfoItem label="Marital Status" value={employee.marital_status?.replace('_', ' ').toUpperCase() || 'N/A'} />
-            {employee.nationality && <SmallInfoItem label="Nationality" value={employee.nationality} />}
-            {employee.religion && <SmallInfoItem label="Religion" value={employee.religion} />}
-            {employee.place_of_birth && <SmallInfoItem label="Place of Birth" value={employee.place_of_birth} />}
+            {isEditMode ? (
+              <>
+                <EditableField
+                  icon={Calendar}
+                  label="Date of Birth"
+                  value={editFormData.date_of_birth || ''}
+                  onChange={(v) => handleEditChange('date_of_birth', v)}
+                  type="date"
+                />
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Gender</label>
+                  <select
+                    value={editFormData.gender || ''}
+                    onChange={(e) => handleEditChange('gender', e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <EditableField
+                  icon={Heart}
+                  label="Blood Group"
+                  value={editFormData.blood_group || ''}
+                  onChange={(v) => handleEditChange('blood_group', v)}
+                />
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Marital Status</label>
+                  <select
+                    value={editFormData.marital_status || ''}
+                    onChange={(e) => handleEditChange('marital_status', e.target.value)}
+                    className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="">Select Status</option>
+                    <option value="single">Single</option>
+                    <option value="married">Married</option>
+                    <option value="divorced">Divorced</option>
+                    <option value="widowed">Widowed</option>
+                  </select>
+                </div>
+                <EditableField
+                  icon={Plane}
+                  label="Nationality"
+                  value={editFormData.nationality || ''}
+                  onChange={(v) => handleEditChange('nationality', v)}
+                />
+                <EditableField
+                  icon={BookOpen}
+                  label="Religion"
+                  value={editFormData.religion || ''}
+                  onChange={(v) => handleEditChange('religion', v)}
+                />
+                <EditableField
+                  icon={MapPin}
+                  label="Place of Birth"
+                  value={editFormData.place_of_birth || ''}
+                  onChange={(v) => handleEditChange('place_of_birth', v)}
+                />
+              </>
+            ) : (
+              <>
+                <SmallInfoItem label="Date of Birth" value={employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString() : 'N/A'} />
+                <SmallInfoItem label="Gender" value={employee.gender?.toUpperCase() || 'N/A'} />
+                <SmallInfoItem label="Blood Group" value={employee.blood_group || 'N/A'} />
+                <SmallInfoItem label="Marital Status" value={employee.marital_status?.replace('_', ' ').toUpperCase() || 'N/A'} />
+                <SmallInfoItem label="Nationality" value={employee.nationality || 'N/A'} />
+                <SmallInfoItem label="Religion" value={employee.religion || 'N/A'} />
+                <SmallInfoItem label="Place of Birth" value={employee.place_of_birth || 'N/A'} />
+              </>
+            )}
           </div>
         </Section>
 
@@ -851,11 +924,10 @@ function OverviewTab({ employee, salaryStructure, offerLetters, totals, formatCu
                     <span className="text-xs font-semibold text-slate-900">
                       {new Date(letter.offer_date).toLocaleDateString()}
                     </span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                      letter.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' :
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${letter.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' :
                       letter.status === 'sent' ? 'bg-blue-100 text-blue-700' :
-                      'bg-slate-100 text-slate-700'
-                    }`}>
+                        'bg-slate-100 text-slate-700'
+                      }`}>
                       {letter.status.toUpperCase()}
                     </span>
                   </div>
@@ -888,12 +960,44 @@ function PersonalTab({ employee, isEditMode, editFormData, handleEditChange }: a
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Section title="Family Information" icon={UsersIcon}>
         <div className="space-y-3">
-          <SmallInfoItem label="Father's Name" value={employee.father_name || 'Not provided'} />
-          <SmallInfoItem label="Mother's Name" value={employee.mother_name || 'Not provided'} />
-          {employee.marital_status === 'married' && (
+          {isEditMode ? (
             <>
-              <SmallInfoItem label="Spouse's Name" value={employee.spouse_name || 'Not provided'} />
-              <SmallInfoItem label="Number of Children" value={employee.number_of_children || '0'} />
+              <EditableField
+                icon={User}
+                label="Father's Name"
+                value={editFormData.father_name || ''}
+                onChange={(v) => handleEditChange('father_name', v)}
+              />
+              <EditableField
+                icon={User}
+                label="Mother's Name"
+                value={editFormData.mother_name || ''}
+                onChange={(v) => handleEditChange('mother_name', v)}
+              />
+              <EditableField
+                icon={Heart}
+                label="Spouse's Name"
+                value={editFormData.spouse_name || ''}
+                onChange={(v) => handleEditChange('spouse_name', v)}
+              />
+              <EditableField
+                icon={UsersIcon}
+                label="Number of Children"
+                value={editFormData.number_of_children || ''}
+                onChange={(v) => handleEditChange('number_of_children', v)}
+                type="number"
+              />
+            </>
+          ) : (
+            <>
+              <SmallInfoItem label="Father's Name" value={employee.father_name || 'Not provided'} />
+              <SmallInfoItem label="Mother's Name" value={employee.mother_name || 'Not provided'} />
+              {employee.marital_status === 'married' && (
+                <>
+                  <SmallInfoItem label="Spouse's Name" value={employee.spouse_name || 'Not provided'} />
+                  <SmallInfoItem label="Number of Children" value={employee.number_of_children || '0'} />
+                </>
+              )}
             </>
           )}
         </div>
@@ -1448,11 +1552,10 @@ function ExpiryItem({ label, date, isExpiringSoon, isExpired }: any) {
   const expiringSoon = isExpiringSoon(date);
 
   return (
-    <div className={`p-2 rounded-lg ${
-      expired ? 'bg-red-50 border border-red-200' :
+    <div className={`p-2 rounded-lg ${expired ? 'bg-red-50 border border-red-200' :
       expiringSoon ? 'bg-amber-50 border border-amber-200' :
-      'bg-slate-50'
-    }`}>
+        'bg-slate-50'
+      }`}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-slate-500 mb-1">{label}</p>
