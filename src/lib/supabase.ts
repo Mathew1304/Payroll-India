@@ -16,10 +16,4 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Logging client - uses RAW fetch to avoid infinite loops
-// This client should ONLY be used by the error logger
-export const loggingSupabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  global: {
-    fetch: rawFetch
-  }
-});
+

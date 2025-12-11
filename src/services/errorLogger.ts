@@ -1,4 +1,4 @@
-import { loggingSupabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 interface ErrorLogData {
     errorType?: string;
@@ -11,43 +11,70 @@ interface ErrorLogData {
 
 export async function logErrorToSupabase(error: Error | string, data?: Partial<ErrorLogData>) {
     try {
-        // Get current user using logging client (avoids interceptor loop)
-        const { data: { user } } = await loggingSupabase.auth.getUser();
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        if (!supabaseUrl || !supabaseAnonKey) return;
+
+        // Get current session from main client (safe, no network request usually)
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
+        const token = session?.access_token;
+
+        const headers: HeadersInit = {
+            'apikey': supabaseAnonKey,
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
 
         let userName: string | null = user?.email || null;
         let organizationId: string | null = null;
         let organizationName: string | null = null;
 
-        if (user) {
-            // Get user's profile to find organization
-            const { data: profile } = await loggingSupabase
-                .from('user_profiles')
-                .select('current_organization_id')
-                .eq('user_id', user.id)
-                .maybeSingle();
+        if (user && token) {
+            try {
+                // 1. Get user profile to find organization
+                // GET /rest/v1/user_profiles?user_id=eq.ID&select=current_organization_id
+                const profileRes = await fetch(
+                    `${supabaseUrl}/rest/v1/user_profiles?user_id=eq.${user.id}&select=current_organization_id`,
+                    { headers }
+                );
 
-            if (profile?.current_organization_id) {
-                organizationId = profile.current_organization_id;
+                if (profileRes.ok) {
+                    const profiles = await profileRes.json();
+                    const profile = profiles[0];
 
-                const { data: org } = await loggingSupabase
-                    .from('organizations')
-                    .select('name')
-                    .eq('id', organizationId)
-                    .maybeSingle();
+                    if (profile?.current_organization_id) {
+                        organizationId = profile.current_organization_id;
 
-                organizationName = org?.name || null;
-            }
+                        // 2. Get organization name
+                        // GET /rest/v1/organizations?id=eq.ID&select=name
+                        const orgRes = await fetch(
+                            `${supabaseUrl}/rest/v1/organizations?id=eq.${organizationId}&select=name`,
+                            { headers }
+                        );
 
-            // Try to get name from metadata
-            if (user.user_metadata?.full_name) {
-                userName = user.user_metadata.full_name;
+                        if (orgRes.ok) {
+                            const orgs = await orgRes.json();
+                            organizationName = orgs[0]?.name || null;
+                        }
+                    }
+                }
+
+                // Try to get name from metadata
+                if (user.user_metadata?.full_name) {
+                    userName = user.user_metadata.full_name;
+                }
+            } catch (e) {
+                // Ignore context fetching errors
+                console.warn('Failed to fetch context for error log', e);
             }
         }
 
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
 
-        // Sanitize metadata to ensure it's JSON serializable
+        // Sanitize metadata
         const safeMetadata = data?.metadata ? JSON.parse(JSON.stringify(data.metadata, (key, value) => {
             if (typeof value === 'object' && value !== null) {
                 if (value instanceof HTMLElement) return '[HTMLElement]';
@@ -71,17 +98,22 @@ export async function logErrorToSupabase(error: Error | string, data?: Partial<E
             p_metadata: safeMetadata
         };
 
-        // Insert or update error log via RPC using logging client
-        const { error: rpcError } = await loggingSupabase.rpc('log_error', errorData);
+        // Call RPC log_error
+        // POST /rest/v1/rpc/log_error
+        const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/log_error`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(errorData)
+        });
 
-        if (rpcError) throw rpcError;
+        if (!rpcRes.ok) {
+            throw new Error(`RPC failed: ${rpcRes.status} ${rpcRes.statusText}`);
+        }
 
-        // Log to console in development
         if (import.meta.env.DEV) {
             console.log('%c Error logged to database successfully', 'color: green; font-weight: bold');
         }
     } catch (logError) {
-        // Fallback: log to console if database logging fails
         console.warn('Failed to log error to database:', logError);
     }
 }
