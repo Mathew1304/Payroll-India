@@ -2,3 +2,4 @@
 10/12/2025- Merge branch 
 10/12/2025 - feat: Implement comprehensive error 
 11/12/2025 - Login Page
+11/12/2025 -- feat: Implement Dashboard, Employees, Employee Profile pages 
