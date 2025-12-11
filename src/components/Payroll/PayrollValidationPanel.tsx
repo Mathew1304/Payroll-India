@@ -1,6 +1,7 @@
-import { AlertCircle, CheckCircle, AlertTriangle, XCircle, RefreshCw, Download, Eye, ExternalLink, Users } from 'lucide-react';
+import { AlertCircle, CheckCircle, AlertTriangle, XCircle, RefreshCw, Download, Eye, ExternalLink, Users, Wrench } from 'lucide-react';
 import { useState } from 'react';
 import { ValidationResult, ValidationError, generateValidationReport } from '../../utils/payrollValidation';
+import { QuickFixModal } from './QuickFixModal';
 
 interface PayrollValidationPanelProps {
   validation: ValidationResult | null;
@@ -25,6 +26,7 @@ export function PayrollValidationPanel({
 }: PayrollValidationPanelProps) {
   const [showErrors, setShowErrors] = useState(true);
   const [showWarnings, setShowWarnings] = useState(true);
+  const [fixingError, setFixingError] = useState<ValidationError | null>(null);
 
   const getSummary = (): ValidationSummary => {
     if (!validation) return { missingQID: 0, missingIBAN: 0, invalidIBAN: 0, expiredDocs: 0, missingSalary: 0 };
@@ -51,6 +53,10 @@ export function PayrollValidationPanel({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleFixSuccess = async () => {
+    await onRunValidation();
   };
 
   return (
@@ -81,11 +87,10 @@ export function PayrollValidationPanel({
       {validation && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className={`p-4 rounded-xl border-2 ${
-              validation.passed
+            <div className={`p-4 rounded-xl border-2 ${validation.passed
                 ? 'bg-emerald-50 border-emerald-200'
                 : 'bg-red-50 border-red-200'
-            }`}>
+              }`}>
               <div className="flex items-center gap-3">
                 {validation.passed ? (
                   <div className="p-2 bg-emerald-100 rounded-lg">
@@ -98,9 +103,8 @@ export function PayrollValidationPanel({
                 )}
                 <div>
                   <p className="text-sm text-slate-600">Status</p>
-                  <p className={`text-lg font-bold ${
-                    validation.passed ? 'text-emerald-600' : 'text-red-600'
-                  }`}>
+                  <p className={`text-lg font-bold ${validation.passed ? 'text-emerald-600' : 'text-red-600'
+                    }`}>
                     {validation.passed ? 'PASSED' : 'FAILED'}
                   </p>
                 </div>
@@ -230,8 +234,7 @@ export function PayrollValidationPanel({
                   {validation.errors.map((error, idx) => (
                     <div
                       key={idx}
-                      className="p-4 hover:bg-red-50 transition-colors cursor-pointer"
-                      onClick={() => onViewError?.(error)}
+                      className="p-4 hover:bg-red-50 transition-colors"
                     >
                       <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
@@ -258,6 +261,18 @@ export function PayrollValidationPanel({
                             <p className="text-xs text-slate-500 mt-1">Field: {error.field_name}</p>
                           )}
                         </div>
+                        {error.field_name && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFixingError(error);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-white border border-red-300 text-red-700 text-sm font-medium rounded-lg hover:bg-red-50 transition-colors shadow-sm"
+                          >
+                            <Wrench className="h-3.5 w-3.5" />
+                            Fix Now
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -286,8 +301,7 @@ export function PayrollValidationPanel({
                   {validation.warnings.map((warning, idx) => (
                     <div
                       key={idx}
-                      className="p-4 hover:bg-amber-50 transition-colors cursor-pointer"
-                      onClick={() => onViewError?.(warning)}
+                      className="p-4 hover:bg-amber-50 transition-colors"
                     >
                       <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
@@ -314,6 +328,18 @@ export function PayrollValidationPanel({
                             <p className="text-xs text-slate-500 mt-1">Field: {warning.field_name}</p>
                           )}
                         </div>
+                        {warning.field_name && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFixingError(warning);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-white border border-amber-300 text-amber-700 text-sm font-medium rounded-lg hover:bg-amber-50 transition-colors shadow-sm"
+                          >
+                            <Wrench className="h-3.5 w-3.5" />
+                            Fix Now
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -354,6 +380,15 @@ export function PayrollValidationPanel({
           <RefreshCw className="h-12 w-12 text-blue-600 mx-auto mb-3 animate-spin" />
           <p className="text-slate-600">Validating employee data...</p>
         </div>
+      )}
+
+      {fixingError && (
+        <QuickFixModal
+          isOpen={true}
+          onClose={() => setFixingError(null)}
+          error={fixingError}
+          onSuccess={handleFixSuccess}
+        />
       )}
     </div>
   );

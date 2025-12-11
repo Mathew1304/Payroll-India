@@ -73,7 +73,7 @@ export function ImportHistoryModal({ onClose }: ImportHistoryModalProps) {
       if (uploaderIds.length > 0) {
         const { data: profilesData, error: profilesError } = await supabase
           .from('user_profiles')
-          .select('user_id, first_name, last_name')
+          .select('user_id, first_name, last_name, email')
           .in('user_id', uploaderIds);
 
         if (!profilesError && profilesData) {
@@ -90,10 +90,22 @@ export function ImportHistoryModal({ onClose }: ImportHistoryModalProps) {
         // Try to find in fetched profiles
         const uploader = userProfilesMap.get(record.uploaded_by);
         if (uploader) {
-          uploaderName = `${uploader.first_name} ${uploader.last_name}`;
-        } else if (user && record.uploaded_by === user.id && profile) {
-          // Fallback to current user profile if ID matches
-          uploaderName = `${profile.first_name} ${profile.last_name}`;
+          const firstName = uploader.first_name || '';
+          const lastName = uploader.last_name || '';
+          if (firstName || lastName) {
+            uploaderName = `${firstName} ${lastName}`.trim();
+          } else if (uploader.email) {
+            uploaderName = uploader.email;
+          }
+        }
+
+        // Fallback to current user profile if ID matches and we haven't found a name yet
+        if ((uploaderName === 'Unknown User' || uploaderName === '') && user && record.uploaded_by === user.id) {
+          if (profile && ((profile as any).first_name || (profile as any).last_name)) {
+            uploaderName = `${(profile as any).first_name || ''} ${(profile as any).last_name || ''}`.trim();
+          } else if (user.email) {
+            uploaderName = user.email;
+          }
         }
 
         return {

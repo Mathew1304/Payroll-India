@@ -658,7 +658,7 @@ function PayrollRecordsTab({ records, onRefresh, selectedMonth, selectedYear, or
                             }`}>
                             {record.status.toUpperCase()}
                           </span>
-                          {(record as any).payment_status && (
+                          {(record as any).payment_status && (record as any).payment_status !== record.status && (
                             <span className={`px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${(record as any).payment_status === 'paid' || (record as any).payment_status === 'confirmed'
                               ? 'bg-emerald-100 text-emerald-700'
                               : (record as any).payment_status === 'submitted_to_bank'
