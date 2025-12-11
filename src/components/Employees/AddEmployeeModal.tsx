@@ -274,7 +274,12 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         medical_insurance_expiry: formData.medical_insurance_expiry || null,
         previous_employment_from: formData.previous_employment_from || null,
         previous_employment_to: formData.previous_employment_to || null,
-        insurance_expiry: formData.insurance_expiry || null
+        insurance_expiry: formData.insurance_expiry || null,
+        // Additional date fields to be safe
+        confirmation_date: formData.confirmation_date || null,
+        resignation_date: formData.resignation_date || null,
+        last_working_date: formData.last_working_date || null,
+        pan_expiry: formData.pan_expiry || null
       };
 
       const { data: employeeData, error: employeeError } = await supabase
@@ -284,6 +289,41 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         .single();
 
       if (employeeError) throw employeeError;
+
+      // Insert salary components if basic salary is provided
+      if (formData.basic_salary && parseFloat(formData.basic_salary) > 0) {
+        const salaryData = {
+          organization_id: organization.id,
+          employee_id: employeeData.id,
+          basic_salary: parseFloat(formData.basic_salary),
+          housing_allowance: formData.accommodation_allowance ? parseFloat(formData.accommodation_allowance) : 0,
+          food_allowance: formData.food_allowance ? parseFloat(formData.food_allowance) : 0,
+          transport_allowance: formData.transportation_allowance ? parseFloat(formData.transportation_allowance) : 0,
+          mobile_allowance: 0, // Default to 0 as it's not in the form
+          utility_allowance: 0, // Default to 0
+          other_allowances: 0, // Default to 0
+          effective_from: formData.date_of_joining || new Date().toISOString().split('T')[0],
+          is_active: true
+        };
+
+        let salaryTableName = 'salary_components';
+        if (isQatar) {
+          salaryTableName = 'qatar_salary_components';
+        } else if (isSaudi) {
+          salaryTableName = 'saudi_salary_components';
+        }
+
+        if (salaryTableName !== 'salary_components') {
+          const { error: salaryError } = await supabase
+            .from(salaryTableName)
+            .insert(salaryData);
+
+          if (salaryError) {
+            console.error('Error inserting salary components:', salaryError);
+            // We don't throw here to avoid blocking the whole process, but we log it
+          }
+        }
+      }
 
       let generatedPassword = '';
       if (createLogin) {

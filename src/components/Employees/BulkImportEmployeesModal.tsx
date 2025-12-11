@@ -453,7 +453,8 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
             .maybeSingle();
 
           if (existingEmployee) {
-            throw new Error(`Duplicate employee found: ${existingEmployee.company_email || existingEmployee.mobile_number} already exists`);
+            const existing = existingEmployee as any;
+            throw new Error(`Duplicate employee found: ${existing.company_email || existing.mobile_number} already exists`);
           }
 
           const employeeData: any = {
