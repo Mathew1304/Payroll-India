@@ -263,8 +263,7 @@ export function QatarPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
       const upsertPayload = calculations.map(calc => {
         const existingId = existingRecordMap.get(calc.employee.id);
 
-        return {
-          id: existingId, // Include ID if it exists to force update
+        const basePayload = {
           organization_id: organization!.id,
           employee_id: calc.employee.id,
           pay_period_month: month,
@@ -290,6 +289,9 @@ export function QatarPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
           days_leave: calc.attendance?.days_leave || 0,
           status: 'approved'
         };
+
+        // Only include id if it exists (for updates), otherwise omit it (for inserts)
+        return existingId ? { id: existingId, ...basePayload } : basePayload;
       });
 
       // 3. Perform bulk upsert

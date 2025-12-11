@@ -165,8 +165,8 @@ export function QatarPayrollPage() {
 
   const stats = {
     totalEmployees: allEmployees.length,
-    processedPayroll: payrollRecords.filter(r => r.status === 'paid').length,
-    pendingPayroll: payrollRecords.filter(r => r.status === 'approved').length,
+    processedPayroll: payrollRecords.filter(r => (r as any).payment_status === 'paid' || (r as any).payment_status === 'confirmed').length,
+    pendingPayroll: payrollRecords.filter(r => !((r as any).payment_status === 'paid' || (r as any).payment_status === 'confirmed')).length,
     totalAmount: payrollRecords.reduce((sum, r) => sum + Number(r.net_salary), 0)
   };
 

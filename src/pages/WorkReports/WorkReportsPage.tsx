@@ -27,7 +27,7 @@ interface WorkReport {
 }
 
 export function WorkReportsPage() {
-  const { organization, userProfile } = useAuth();
+  const { organization, userProfile, membership } = useAuth();
   const [reports, setReports] = useState<WorkReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -66,7 +66,10 @@ export function WorkReportsPage() {
       .order('report_date', { ascending: false });
 
     if (filter === 'mine') {
-      query = query.eq('employee_id', userProfile?.employee_id);
+      const employeeId = userProfile?.employee_id || membership?.employee_id;
+      if (employeeId) {
+        query = query.eq('employee_id', employeeId);
+      }
     }
 
     if (statusFilter !== 'all') {
@@ -186,33 +189,30 @@ export function WorkReportsPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setFilter('mine')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                filter === 'mine'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'mine'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
             >
               My Reports
             </button>
             {isManager && (
               <button
                 onClick={() => setFilter('team')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  filter === 'team'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'team'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
               >
                 Team Reports
               </button>
             )}
             <button
               onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                filter === 'all'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'all'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
             >
               All Reports
             </button>
@@ -400,7 +400,7 @@ function StatsCard({ title, value, icon: Icon, gradient }: any) {
 }
 
 function CreateReportModal({ onClose, onSuccess }: any) {
-  const { organization, userProfile } = useAuth();
+  const { organization, userProfile, membership } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -439,9 +439,16 @@ function CreateReportModal({ onClose, onSuccess }: any) {
     setError('');
 
     try {
+      // Get employee_id from userProfile or membership
+      const employeeId = userProfile?.employee_id || membership?.employee_id;
+
+      if (!employeeId) {
+        throw new Error('Employee ID not found. Please contact your administrator.');
+      }
+
       const reportData = {
         organization_id: organization!.id,
-        employee_id: userProfile!.employee_id,
+        employee_id: employeeId,
         report_date: formData.report_date,
         report_type: formData.report_type,
         title: formData.title,
@@ -829,11 +836,10 @@ function ViewReportModal({ report, onClose, onUpdate }: any) {
                 {report.employee?.first_name} {report.employee?.last_name} • {new Date(report.report_date).toLocaleDateString()}
               </p>
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-              report.status === 'approved' ? 'bg-emerald-500 text-white' :
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${report.status === 'approved' ? 'bg-emerald-500 text-white' :
               report.status === 'submitted' ? 'bg-blue-500 text-white' :
-              'bg-slate-500 text-white'
-            }`}>
+                'bg-slate-500 text-white'
+              }`}>
               {report.status.toUpperCase()}
             </span>
           </div>

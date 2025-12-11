@@ -163,10 +163,26 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
 
     setLoading(true);
     try {
+      // Convert empty date strings to null to avoid database errors
+      const dateFields = [
+        'date_of_birth', 'date_of_joining', 'probation_end_date',
+        'qatar_id_expiry', 'residence_permit_expiry', 'work_permit_expiry',
+        'health_card_expiry', 'labor_card_expiry', 'iqama_expiry'
+      ];
+
+      const updateData: any = { ...formData };
+
+      // Convert empty strings to null for date fields
+      dateFields.forEach(field => {
+        if (updateData[field] === '') {
+          updateData[field] = null;
+        }
+      });
+
       const { error } = await supabase
         .from('employees')
         .update({
-          ...formData,
+          ...updateData,
           ctc_annual: formData.ctc_annual ? parseFloat(formData.ctc_annual) : null,
           basic_salary: formData.basic_salary ? parseFloat(formData.basic_salary) : null,
           department_id: formData.department_id || null,
