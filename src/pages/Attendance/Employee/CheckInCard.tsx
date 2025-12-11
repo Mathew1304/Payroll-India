@@ -211,7 +211,36 @@ export function CheckInCard() {
         }
     };
 
+    // Check if user is an employee (not admin)
+    const isEmployee = membership?.employee_id != null;
+
     if (loading) return <div className="p-8 text-center text-slate-500">Loading attendance status...</div>;
+
+    // Show message if user is not an employee
+    if (!isEmployee) {
+        return (
+            <div className="max-w-md mx-auto">
+                <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200 p-8">
+                    <div className="text-center">
+                        <div className="mx-auto w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
+                            <AlertTriangle className="h-8 w-8 text-orange-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                            Employee Access Only
+                        </h3>
+                        <p className="text-slate-600 mb-4">
+                            Attendance check-in is only available for employee accounts.
+                            Admin and HR users do not have access to this feature.
+                        </p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-slate-700">
+                            <p className="font-medium text-blue-900 mb-1">Admin Access</p>
+                            <p>As an admin, you can view and manage attendance records from the Admin Dashboard.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const isWithinRange = distance !== null && nearestOffice && distance <= nearestOffice.radius_meters;
 

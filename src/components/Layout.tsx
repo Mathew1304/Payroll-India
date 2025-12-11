@@ -118,6 +118,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'announcements', labelKey: 'menu.announcements', icon: Megaphone, color: 'from-fuchsia-500 to-fuchsia-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'help', labelKey: 'menu.help', icon: HelpCircle, color: 'from-blue-500 to-blue-600', roles: ['admin', 'hr', 'manager', 'employee', 'finance'] },
     { id: 'settings', labelKey: 'menu.settings', icon: Settings, color: 'from-slate-500 to-slate-600', roles: ['admin', 'hr'] },
+    { id: 'employee-settings', labelKey: 'menu.settings', icon: Settings, color: 'from-slate-500 to-slate-600', roles: ['employee'] },
   ];
 
   // Features explicitly managed by the Feature Service (toggleable)

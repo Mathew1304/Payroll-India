@@ -14,6 +14,7 @@ import { LeavePage } from './pages/Leave/LeavePage';
 import { PayrollPage } from './pages/Payroll/PayrollPage';
 import { ReportsPage } from './pages/Reports/ReportsPage';
 import { SettingsPage } from './pages/Settings/SettingsPage';
+import { EmployeeSettingsPage } from './pages/Settings/EmployeeSettingsPage';
 import { EmployeeProfilePage } from './pages/EmployeeProfile/EmployeeProfilePage';
 import { TasksPage } from './pages/Tasks/TasksPage';
 import { ExpensesPage } from './pages/Expenses/ExpensesPage';
@@ -148,6 +149,8 @@ function AppContent() {
         return <ReportsPage />;
       case 'settings':
         return <SettingsPage />;
+      case 'employee-settings':
+        return <EmployeeSettingsPage />;
       case 'profile':
         return <EmployeeProfilePage />;
       case 'help':
