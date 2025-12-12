@@ -76,38 +76,55 @@ export function PayrollHistoryTab({ employeeId }: PayrollHistoryTabProps) {
                 return;
             }
 
+            // Create proper PayslipData structure matching the interface
             const payslipData = {
-                employee: {
-                    name: `${employee.first_name} ${employee.last_name}`,
-                    code: employee.employee_code,
-                    designation: 'Employee',
-                    department: 'Department',
-                },
-                month: monthNames[record.pay_period_month - 1],
-                year: record.pay_period_year,
-                earnings: {
-                    basic: record.basic_salary,
-                    housing: record.housing_allowance,
-                    food: record.food_allowance,
-                    transport: record.transport_allowance,
-                    mobile: record.mobile_allowance,
-                    utility: record.utility_allowance,
-                    other: record.other_allowances,
-                    overtime: record.overtime_amount,
-                },
-                deductions: {
-                    absence: record.absence_deduction,
-                    loan: record.loan_deduction,
-                    advance: record.advance_deduction,
-                    other: record.other_deductions,
-                },
-                gross: record.gross_salary,
-                totalDeductions: record.total_deductions,
-                net: record.net_salary,
+                country: 'Qatar' as const,
+                currency: 'QAR' as const,
+
+                companyName: organization?.name || 'Company',
+                companyAddress: organization?.address || '',
+                establishmentId: '',
+
+                employeeName: `${employee.first_name} ${employee.last_name}`,
+                employeeCode: employee.employee_code || '',
+                employeeId: employee.id,
+                designation: employee.designation || '',
+                department: employee.department || '',
+                joiningDate: employee.date_of_joining || '',
+                iban: employee.iban_number || '',
+
+                payPeriod: `${monthNames[record.pay_period_month - 1]} ${record.pay_period_year}`,
+                paymentDate: record.payment_date || '',
+                workingDays: record.working_days || 26,
+                daysPresent: record.days_present || 26,
+                daysAbsent: record.days_absent || 0,
+
+                basicSalary: Number(record.basic_salary) || 0,
+                housingAllowance: Number(record.housing_allowance) || 0,
+                foodAllowance: Number(record.food_allowance) || 0,
+                transportAllowance: Number(record.transport_allowance) || 0,
+                mobileAllowance: Number(record.mobile_allowance) || 0,
+                utilityAllowance: Number(record.utility_allowance) || 0,
+                otherAllowances: Number(record.other_allowances) || 0,
+
+                overtimeHours: Number(record.overtime_hours) || 0,
+                overtimeAmount: Number(record.overtime_amount) || 0,
+                bonus: Number(record.bonus) || 0,
+
+                absenceDeduction: Number(record.absence_deduction) || 0,
+                loanDeduction: Number(record.loan_deduction) || 0,
+                advanceDeduction: Number(record.advance_deduction) || 0,
+                penaltyDeduction: Number(record.penalty_deduction) || 0,
+                otherDeductions: Number(record.other_deductions) || 0,
+
+                grossSalary: Number(record.gross_salary) || 0,
+                totalEarnings: Number(record.gross_salary) || 0,
+                totalDeductions: Number(record.total_deductions) || 0,
+                netSalary: Number(record.net_salary) || 0,
             };
 
             const { downloadPayslipHTML } = await import('../../utils/payslipGenerator');
-            downloadPayslipHTML(payslipData, organization?.name || 'Company');
+            downloadPayslipHTML(payslipData);
         } catch (error) {
             console.error('Error downloading payslip:', error);
             alert('Failed to download payslip');

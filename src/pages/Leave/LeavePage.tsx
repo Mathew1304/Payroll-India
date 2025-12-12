@@ -14,8 +14,9 @@ interface LeaveType {
 interface LeaveBalance {
   id: string;
   leave_type_id: string;
-  total_leaves: number;
+  total_quota: number;
   used_leaves: number;
+  pending_leaves: number;
   available_leaves: number;
   leave_types: LeaveType;
 }
@@ -27,7 +28,7 @@ interface LeaveApplication {
   total_days: number;
   reason: string;
   status: string;
-  applied_date: string;
+  applied_at: string;
   approved_by: string | null;
   approved_date: string | null;
   rejected_reason: string | null;
@@ -145,7 +146,7 @@ function EmployeeLeavePage() {
           leave_types (*)
         `)
         .eq('employee_id', membership.employee_id)
-        .order('applied_date', { ascending: false })
+        .order('applied_at', { ascending: false })
         .limit(20);
       setLeaveApplications(data || []);
     } catch (error) {
@@ -164,7 +165,7 @@ function EmployeeLeavePage() {
           employees (first_name, last_name, employee_code)
         `)
         .eq('status', 'pending')
-        .order('applied_date', { ascending: false });
+        .order('applied_at', { ascending: false });
       setPendingApplications(data || []);
     } catch (error) {
       console.error('Error loading pending applications:', error);
@@ -219,6 +220,7 @@ function EmployeeLeavePage() {
     try {
       const days = calculateDays();
 
+      // @ts-ignore - leave_applications table exists but not in generated types
       const { error: insertError } = await supabase
         .from('leave_applications')
         .insert({
@@ -228,10 +230,9 @@ function EmployeeLeavePage() {
           to_date: formData.to_date,
           total_days: days,
           reason: formData.reason,
-          contact_number: formData.contact_number || null,
           is_half_day: formData.half_day,
           status: 'pending',
-          applied_date: new Date().toISOString()
+          applied_at: new Date().toISOString()
         });
 
       if (insertError) throw insertError;
@@ -383,9 +384,9 @@ function EmployeeLeavePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-scaleIn">
             <div className={`p-6 rounded-t-2xl ${alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
-                alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
-                  alertModal.type === 'warning' ? 'bg-gradient-to-r from-amber-500 to-amber-600' :
-                    'bg-gradient-to-r from-blue-500 to-blue-600'
+              alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                alertModal.type === 'warning' ? 'bg-gradient-to-r from-amber-500 to-amber-600' :
+                  'bg-gradient-to-r from-blue-500 to-blue-600'
               }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -408,9 +409,9 @@ function EmployeeLeavePage() {
               <button
                 onClick={() => setAlertModal(null)}
                 className={`mt-6 w-full py-3 rounded-xl font-semibold text-white transition-all ${alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
-                    alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
-                      alertModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' :
-                        'bg-blue-500 hover:bg-blue-600'
+                  alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
+                    alertModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' :
+                      'bg-blue-500 hover:bg-blue-600'
                   }`}>
                 OK
               </button>
@@ -655,7 +656,7 @@ function EmployeeLeavePage() {
 }
 
 function LeaveBalanceCard({ balance }: { balance: LeaveBalance }) {
-  const percentage = (balance.available_leaves / balance.total_leaves) * 100;
+  const percentage = (balance.available_leaves / balance.total_quota) * 100;
   const colorGradient = balance.leave_types.color || 'blue';
 
   return (
@@ -676,7 +677,7 @@ function LeaveBalanceCard({ balance }: { balance: LeaveBalance }) {
       <div className="space-y-3">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
-            <p className="text-2xl font-bold text-slate-900">{balance.total_leaves}</p>
+            <p className="text-2xl font-bold text-slate-900">{balance.total_quota}</p>
             <p className="text-xs text-slate-500">Total</p>
           </div>
           <div>
@@ -741,7 +742,7 @@ function LeaveApplicationCard({ application }: { application: LeaveApplication }
         <p className="text-sm text-slate-700"><strong>Reason:</strong> {application.reason}</p>
       </div>
       <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
-        <span>Applied: {new Date(application.applied_date).toLocaleDateString()}</span>
+        <span>Applied: {new Date(application.applied_at).toLocaleDateString()}</span>
         {application.approved_date && (
           <span>
             {application.status === 'approved' ? 'Approved' : 'Rejected'}: {new Date(application.approved_date).toLocaleDateString()}
