@@ -124,24 +124,31 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   // Features explicitly managed by the Feature Service (toggleable)
   // These keys MUST match the database keys in organization_features
   const MANAGED_FEATURES = ['dashboard', 'employees', 'attendance', 'leave', 'payroll', 'reports', 'tasks', 'helpdesk', 'performance'] as const;
+
   const filteredMenuItems = menuItems.filter(item => {
     const hasRole = membership && item.roles.includes(membership.role);
 
     // Feature Check Logic:
-    // 1. If it's a managed feature, check if it's in the enabled set.
-    // 2. If features haven't loaded yet, loosely allow (or hide? defaulting to true for smoother UX)
-    // 3. If it's NOT a managed feature (like Help, Profile, etc.), always allow it.
+    // 1. Check if item.id matches or starts with any managed feature
+    // 2. If it's a managed feature, check if it's in the enabled set.
+    // 3. If features haven't loaded yet, loosely allow (or hide? defaulting to true for smoother UX)
+    // 4. If it's NOT a managed feature (like Help, Profile, etc.), always allow it.
 
     let isFeatureVisible = true;
 
-    if (MANAGED_FEATURES.includes(item.id as any)) {
-      // If we have loaded features, check strictly.
-      // If not loaded yet, fallback to organization object context if available, or true
+    // Find if this menu item belongs to a managed feature
+    // e.g., 'attendance-admin' -> 'attendance', 'attendance-employee' -> 'attendance'
+    const matchedFeature = MANAGED_FEATURES.find(feature =>
+      item.id === feature || item.id.startsWith(feature + '-')
+    );
+
+    if (matchedFeature) {
+      // This is a managed feature, check if enabled
       if (featuresLoaded) {
-        isFeatureVisible = enabledFeatures.has(item.id);
+        isFeatureVisible = enabledFeatures.has(matchedFeature);
       } else {
         // Fallback to previous context logic during load to prevent flickering
-        isFeatureVisible = organization?.features?.[item.id] !== false;
+        isFeatureVisible = organization?.features?.[matchedFeature] !== false;
       }
     }
 
