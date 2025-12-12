@@ -111,20 +111,12 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
         if (!newComment.trim()) return;
         setUpdating(true);
         try {
-            // Get current employee ID
-            const { data: profile } = await supabase
-                .from('user_profiles')
-                .select('employee_id')
-                .eq('user_id', user!.id)
-                .single();
-
-            if (!profile?.employee_id) throw new Error('Employee profile not found');
-
+            // Admins without employee_id can add comments, user_id will be null
             const { error } = await supabase
                 .from('goal_comments')
                 .insert({
                     goal_id: goalId,
-                    user_id: profile.employee_id,
+                    user_id: membership?.employee_id || null,
                     comment_text: newComment
                 });
 
@@ -154,8 +146,8 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
                                 {goal.goal_type?.name}
                             </span>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${goal.priority === 'Critical' ? 'bg-red-100 text-red-700' :
-                                    goal.priority === 'High' ? 'bg-orange-100 text-orange-700' :
-                                        'bg-blue-100 text-blue-700'
+                                goal.priority === 'High' ? 'bg-orange-100 text-orange-700' :
+                                    'bg-blue-100 text-blue-700'
                                 }`}>
                                 {goal.priority}
                             </span>
@@ -191,8 +183,8 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
                                         <button
                                             onClick={() => handleToggleMilestone(milestone.id, milestone.is_completed)}
                                             className={`mt-0.5 h-5 w-5 rounded border flex items-center justify-center transition-colors ${milestone.is_completed
-                                                    ? 'bg-green-500 border-green-500 text-white'
-                                                    : 'border-slate-300 hover:border-blue-500'
+                                                ? 'bg-green-500 border-green-500 text-white'
+                                                : 'border-slate-300 hover:border-blue-500'
                                                 }`}
                                         >
                                             {milestone.is_completed && <CheckCircle className="h-3.5 w-3.5" />}
@@ -286,8 +278,8 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
                                 <div className="flex justify-between text-sm mb-2">
                                     <span className="text-slate-500">Status</span>
                                     <span className={`font-medium ${goal.status === 'Completed' ? 'text-green-600' :
-                                            goal.status === 'Overdue' ? 'text-red-600' :
-                                                'text-blue-600'
+                                        goal.status === 'Overdue' ? 'text-red-600' :
+                                            'text-blue-600'
                                         }`}>{goal.status}</span>
                                 </div>
                             </div>

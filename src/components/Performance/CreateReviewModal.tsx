@@ -8,7 +8,7 @@ interface CreateReviewModalProps {
 }
 
 export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
-    const { organization, user } = useAuth();
+    const { organization, membership } = useAuth();
     const [loading, setLoading] = useState(false);
     const [employees, setEmployees] = useState<any[]>([]);
 
@@ -44,20 +44,12 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
         setLoading(true);
 
         try {
-            // Get current employee ID for reviewer_id
-            const { data: profile } = await supabase
-                .from('user_profiles')
-                .select('employee_id')
-                .eq('user_id', user!.id)
-                .single();
-
-            if (!profile?.employee_id) throw new Error('Reviewer profile not found');
-
+            // Admins without employee_id can create reviews, reviewer_id will be null
             const { error } = await supabase
                 .from('performance_reviews')
                 .insert({
                     organization_id: organization!.id,
-                    reviewer_id: profile.employee_id,
+                    reviewer_id: membership?.employee_id || null,
                     ...formData,
                     status: 'Draft'
                 });

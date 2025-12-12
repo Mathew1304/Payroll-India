@@ -20,6 +20,16 @@ BEGIN
     (NEW.id, 'Developer', 'DEV', 2, true),
     (NEW.id, 'Tester', 'TST', 2, true);
 
+  -- Insert default Goal Types
+  INSERT INTO goal_types (organization_id, name, is_active)
+  VALUES
+    (NEW.id, 'Annual Goal', true),
+    (NEW.id, 'Quarterly Goal', true),
+    (NEW.id, 'Project Goal', true),
+    (NEW.id, 'Development Goal', true),
+    (NEW.id, 'Performance Goal', true),
+    (NEW.id, 'Team Goal', true);
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

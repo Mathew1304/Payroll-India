@@ -22,6 +22,7 @@ export function PerformancePage() {
   // Modals
   const [showCreateGoal, setShowCreateGoal] = useState(false);
   const [showCreateReview, setShowCreateReview] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (organization?.id) {
@@ -119,8 +120,8 @@ export function PerformancePage() {
             <button
               onClick={() => setActiveTab('goals')}
               className={`py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'goals'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
             >
               <Target className="h-4 w-4" />
@@ -129,8 +130,8 @@ export function PerformancePage() {
             <button
               onClick={() => setActiveTab('reviews')}
               className={`py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'reviews'
-                  ? 'border-amber-500 text-amber-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'border-amber-500 text-amber-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
             >
               <Star className="h-4 w-4" />
@@ -139,8 +140,8 @@ export function PerformancePage() {
             <button
               onClick={() => setActiveTab('analytics')}
               className={`py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'analytics'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
             >
               <BarChart2 className="h-4 w-4" />
@@ -152,6 +153,7 @@ export function PerformancePage() {
         <div className="p-6">
           {activeTab === 'goals' && (
             <GoalsTab
+              key={refreshKey}
               departmentId={selectedDept === 'all' ? undefined : selectedDept}
               employeeId={selectedEmployee === 'all' ? undefined : selectedEmployee}
             />
@@ -172,7 +174,7 @@ export function PerformancePage() {
       </div>
 
       {showCreateGoal && (
-        <CreateGoalModal onClose={() => setShowCreateGoal(false)} />
+        <CreateGoalModal onClose={() => { setShowCreateGoal(false); setRefreshKey(prev => prev + 1); }} />
       )}
 
       {showCreateReview && (

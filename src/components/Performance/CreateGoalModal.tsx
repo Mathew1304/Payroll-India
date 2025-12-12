@@ -8,7 +8,7 @@ interface CreateGoalModalProps {
 }
 
 export function CreateGoalModal({ onClose }: CreateGoalModalProps) {
-    const { organization, user } = useAuth();
+    const { organization, membership } = useAuth();
     const [loading, setLoading] = useState(false);
     const [employees, setEmployees] = useState<any[]>([]);
     const [goalTypes, setGoalTypes] = useState<any[]>([]);
@@ -80,21 +80,13 @@ export function CreateGoalModal({ onClose }: CreateGoalModalProps) {
         setLoading(true);
 
         try {
-            // Get current employee ID for created_by
-            const { data: profile } = await supabase
-                .from('user_profiles')
-                .select('employee_id')
-                .eq('user_id', user!.id)
-                .single();
-
-            if (!profile?.employee_id) throw new Error('Employee profile not found');
-
             // Create Goal
+            // Admins without employee_id can create goals, created_by will be null
             const { data: goal, error: goalError } = await supabase
                 .from('goals')
                 .insert({
                     organization_id: organization!.id,
-                    created_by: profile.employee_id,
+                    created_by: membership?.employee_id || null,
                     ...formData,
                     weight: formData.weight || null
                 })

@@ -321,7 +321,7 @@ export function generatePayslipHTML(data: PayslipData): string {
             <span class="label">${item.label}</span>
             <span class="amount">${item.amount.toLocaleString()} ${data.currency}</span>
           </div>
-        `).join('') : '<div class="item"><span class="label">No Deductions</span><span class="amount">0.00 ${data.currency}</span></div>'}
+        `).join('') : `<div class="item"><span class="label">No Deductions</span><span class="amount">0.00 ${data.currency}</span></div>`}
         <div class="item total">
           <span class="label">Total Deductions</span>
           <span class="amount">${data.totalDeductions.toLocaleString()} ${data.currency}</span>
@@ -348,8 +348,8 @@ export function generatePayslipHTML(data: PayslipData): string {
       <p>Generated on: ${new Date().toLocaleDateString()}</p>
       <p class="note">
         ${data.country === 'Qatar' ?
-          'This payslip is WPS compliant as per Qatar Labour Law.' :
-          'This payslip is compliant with Saudi Labour Law and GOSI regulations.'}
+      'This payslip is WPS compliant as per Qatar Labour Law.' :
+      'This payslip is compliant with Saudi Labour Law and GOSI regulations.'}
       </p>
     </div>
   </div>
@@ -409,16 +409,34 @@ function numberToWords(num: number): string {
 }
 
 export function downloadPayslipHTML(data: PayslipData): void {
-  const html = generatePayslipHTML(data);
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `Payslip_${data.employeeCode}_${data.payPeriod.replace(/\s/g, '_')}.html`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  // Import html2pdf dynamically
+  import('html2pdf.js').then(({ default: html2pdf }) => {
+    const html = generatePayslipHTML(data);
+
+    // Create a temporary container for the HTML
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    document.body.appendChild(container);
+
+    // Configure PDF options
+    const opt = {
+      margin: 0,
+      filename: `Payslip_${data.employeeCode}_${data.payPeriod.replace(/\s/g, '_')}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Generate PDF and download
+    html2pdf().set(opt).from(container).save().then(() => {
+      document.body.removeChild(container);
+    });
+  }).catch((error) => {
+    console.error('Error loading html2pdf:', error);
+    alert('Error generating PDF. Please try again.');
+  });
 }
 
 export function printPayslip(data: PayslipData): void {

@@ -402,7 +402,7 @@ export function HelpPage() {
                 </p>
                 <div className="space-y-2 text-sm">
                   <p className="text-blue-900">
-                    <strong>Email:</strong> support@yourcompany.com
+                    <strong>Email:</strong> support@loghr.qa
                   </p>
                   <p className="text-blue-900">
                     <strong>Response Time:</strong> Within 24 hours
