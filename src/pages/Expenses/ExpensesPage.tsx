@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DollarSign, Plus, X, Send, Clock, Check, XCircle, Receipt, IndianRupee, Filter, Search, Sparkles, FileText } from 'lucide-react';
+import { DollarSign, Plus, X, Send, Clock, Check, XCircle, Receipt, Banknote, Filter, Search, Sparkles, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -192,7 +192,7 @@ export function ExpensesPage() {
             <div className="p-6 bg-gradient-to-r from-rose-500 to-rose-600 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <IndianRupee className="h-6 w-6" />
+                  <Banknote className="h-6 w-6" />
                   New Expense Claim
                 </h3>
                 <button onClick={() => setShowCreateModal(false)} className="p-1 hover:bg-white/20 rounded-lg">
@@ -312,7 +312,7 @@ export function ExpensesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3">
-              <IndianRupee className="h-8 w-8 text-rose-600" />
+              <Banknote className="h-8 w-8 text-rose-600" />
               Expense Management
             </h1>
             <p className="text-slate-600 mt-2">Track and manage expense claims</p>
@@ -357,7 +357,7 @@ export function ExpensesPage() {
           </div>
           <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-4">
             <div className="h-12 w-12 bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl flex items-center justify-center mb-3">
-              <IndianRupee className="h-6 w-6 text-white" />
+              <Banknote className="h-6 w-6 text-white" />
             </div>
             <p className="text-2xl font-bold">{stats.totalAmount.toLocaleString()} QAR</p>
             <p className="text-sm text-slate-600">Total Amount</p>
@@ -396,12 +396,11 @@ export function ExpensesPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-bold text-slate-900 text-lg">{claim.title}</h3>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        claim.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
-                        claim.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                        claim.status === 'paid' ? 'bg-blue-100 text-blue-700' :
-                        'bg-amber-100 text-amber-700'
-                      }`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${claim.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                          claim.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                            claim.status === 'paid' ? 'bg-blue-100 text-blue-700' :
+                              'bg-amber-100 text-amber-700'
+                        }`}>
                         {claim.status.toUpperCase()}
                       </span>
                     </div>

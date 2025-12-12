@@ -123,7 +123,21 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
   // Features explicitly managed by the Feature Service (toggleable)
   // These keys MUST match the database keys in organization_features
-  const MANAGED_FEATURES = ['dashboard', 'employees', 'attendance', 'leave', 'payroll', 'reports', 'tasks', 'helpdesk', 'performance'] as const;
+  // Note: Pattern matching handles variants like 'attendance-admin', 'attendance-employee' automatically
+  const MANAGED_FEATURES = [
+    'dashboard',
+    'employees',
+    'attendance',
+    'leave',
+    'payroll',
+    'reports',
+    'tasks',
+    'expenses',
+    'work-reports',
+    'helpdesk',
+    'performance',
+    'training'
+  ] as const;
 
   const filteredMenuItems = menuItems.filter(item => {
     const hasRole = membership && item.roles.includes(membership.role);

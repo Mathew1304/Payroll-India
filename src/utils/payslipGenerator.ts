@@ -408,6 +408,7 @@ function numberToWords(num: number): string {
   }
 }
 
+
 export function downloadPayslipHTML(data: PayslipData): void {
   // Import html2pdf dynamically
   import('html2pdf.js').then(({ default: html2pdf }) => {
@@ -416,28 +417,56 @@ export function downloadPayslipHTML(data: PayslipData): void {
     // Create a temporary container for the HTML
     const container = document.createElement('div');
     container.innerHTML = html;
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
+
+    // Style the container to be visible but not interfering
+    container.style.position = 'fixed';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.width = '210mm'; // A4 width
+    container.style.zIndex = '-9999';
+    container.style.background = 'white';
     document.body.appendChild(container);
+
+    // Find the payslip element to convert (not the whole HTML)
+    const payslipElement = container.querySelector('.payslip') || container;
 
     // Configure PDF options
     const opt = {
       margin: 0,
       filename: `Payslip_${data.employeeCode}_${data.payPeriod.replace(/\s/g, '_')}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        letterRendering: true,
+        width: 794, // A4 width in pixels at 96 DPI
+        windowWidth: 794
+      },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    // Generate PDF and download
-    html2pdf().set(opt).from(container).save().then(() => {
-      document.body.removeChild(container);
-    });
+    // Small delay to ensure rendering
+    setTimeout(() => {
+      // Generate PDF and download
+      html2pdf()
+        .set(opt)
+        .from(payslipElement)
+        .save()
+        .then(() => {
+          document.body.removeChild(container);
+        })
+        .catch((error: Error) => {
+          console.error('Error generating PDF:', error);
+          document.body.removeChild(container);
+          alert('Error generating PDF. Please try again.');
+        });
+    }, 100);
   }).catch((error) => {
     console.error('Error loading html2pdf:', error);
     alert('Error generating PDF. Please try again.');
   });
 }
+
 
 export function printPayslip(data: PayslipData): void {
   const html = generatePayslipHTML(data);
