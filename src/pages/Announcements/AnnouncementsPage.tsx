@@ -27,7 +27,8 @@ interface DistributionList {
 }
 
 export function AnnouncementsPage() {
-  const { organization, userProfile } = useAuth();
+  const { organization, userProfile, membership } = useAuth();
+  const isAdmin = membership?.role && ['admin', 'hr', 'manager'].includes(membership.role);
   const [activeTab, setActiveTab] = useState<'announcements' | 'distribution-lists'>('announcements');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [distributionLists, setDistributionLists] = useState<DistributionList[]>([]);
@@ -139,7 +140,8 @@ export function AnnouncementsPage() {
   };
 
   const handleEdit = (announcement: Announcement) => {
-    alert('Edit functionality coming soon!');
+    setSelectedAnnouncement(announcement);
+    setShowEditModal(true);
   };
 
   const handleDelete = async (announcementId: string) => {
@@ -164,22 +166,24 @@ export function AnnouncementsPage() {
           </h1>
           <p className="text-slate-600 mt-2">Share news, updates, and important notices</p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowListModal(true)}
-            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
-          >
-            <Users className="h-5 w-5" />
-            Distribution Lists
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
-          >
-            <Plus className="h-5 w-5" />
-            New Announcement
-          </button>
-        </div>
+        {isAdmin && (
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowListModal(true)}
+              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
+            >
+              <Users className="h-5 w-5" />
+              Distribution Lists
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
+            >
+              <Plus className="h-5 w-5" />
+              New Announcement
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-4 bg-white rounded-xl shadow-md p-4 border border-slate-200">
@@ -233,14 +237,16 @@ export function AnnouncementsPage() {
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-12 text-center">
           <Megaphone className="h-16 w-16 text-fuchsia-300 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-slate-900 mb-2">No Announcements Yet</h3>
-          <p className="text-slate-600 mb-6">Create your first announcement to keep everyone informed</p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary inline-flex items-center gap-2"
-          >
-            <Plus className="h-5 w-5" />
-            Create First Announcement
-          </button>
+          <p className="text-slate-600 mb-6">{isAdmin ? 'Create your first announcement to keep everyone informed' : 'No announcements have been posted yet'}</p>
+          {isAdmin && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <Plus className="h-5 w-5" />
+              Create First Announcement
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -302,20 +308,24 @@ export function AnnouncementsPage() {
                   >
                     <Eye className="h-5 w-5" />
                   </button>
-                  <button
-                    onClick={() => handleEdit(announcement)}
-                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                    title="Edit"
-                  >
-                    <Edit className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(announcement.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
+                  {isAdmin && (
+                    <>
+                      <button
+                        onClick={() => handleEdit(announcement)}
+                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(announcement.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -342,6 +352,22 @@ export function AnnouncementsPage() {
             loadDistributionLists();
           }}
           lists={distributionLists}
+        />
+      )}
+
+      {showEditModal && selectedAnnouncement && (
+        <EditAnnouncementModal
+          announcement={selectedAnnouncement}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedAnnouncement(null);
+          }}
+          onSuccess={() => {
+            setShowEditModal(false);
+            setSelectedAnnouncement(null);
+            loadAnnouncements();
+          }}
+          distributionLists={distributionLists}
         />
       )}
     </div>
@@ -595,6 +621,174 @@ function CreateAnnouncementModal({ onClose, onSuccess, distributionLists }: any)
             <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
               <Send className="h-5 w-5" />
               {loading ? 'Creating...' : 'Create & Send'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditAnnouncementModal({ announcement, onClose, onSuccess, distributionLists }: any) {
+  const { organization, user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Calculate days until expiry for initial value
+  const daysUntilExpiry = Math.ceil(
+    (new Date(announcement.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  const [formData, setFormData] = useState({
+    title: announcement.title || '',
+    content: announcement.content || '',
+    type: announcement.type || 'general',
+    priority: announcement.priority || 'medium',
+    is_active: announcement.is_active ?? true,
+    expires_in_days: daysUntilExpiry > 0 ? daysUntilExpiry : 30
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + formData.expires_in_days);
+
+      const { error: updateError } = await supabase
+        .from('announcements')
+        .update({
+          title: formData.title,
+          content: formData.content,
+          type: formData.type,
+          priority: formData.priority,
+          is_active: formData.is_active,
+          expires_at: expiresAt.toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', announcement.id);
+
+      if (updateError) throw updateError;
+
+      onSuccess();
+    } catch (err: any) {
+      console.error('Error updating announcement:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-6 rounded-t-2xl">
+          <h2 className="text-2xl font-bold text-white">Edit Announcement</h2>
+          <p className="text-blue-100 text-sm mt-1">Update announcement details</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Title *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="input-modern"
+              placeholder="Enter announcement title"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Content *
+            </label>
+            <textarea
+              required
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              className="input-modern min-h-[120px]"
+              placeholder="Write your announcement message..."
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Type
+              </label>
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="input-modern"
+              >
+                <option value="general">📢 General</option>
+                <option value="policy">📋 Policy</option>
+                <option value="event">🎉 Event</option>
+                <option value="urgent">🚨 Urgent</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Priority
+              </label>
+              <select
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                className="input-modern"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Expires In (Days)
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={formData.expires_in_days}
+              onChange={(e) => setFormData({ ...formData, expires_in_days: parseInt(e.target.value) })}
+              className="input-modern"
+            />
+          </div>
+
+          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
+            <input
+              type="checkbox"
+              id="is_active"
+              checked={formData.is_active}
+              onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+              className="w-4 h-4 text-blue-600 rounded"
+            />
+            <label htmlFor="is_active" className="text-sm font-medium text-slate-700 cursor-pointer">
+              Active (uncheck to deactivate this announcement)
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+            <button type="button" onClick={onClose} className="btn-secondary" disabled={loading}>
+              Cancel
+            </button>
+            <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              {loading ? 'Updating...' : 'Update Announcement'}
             </button>
           </div>
         </form>

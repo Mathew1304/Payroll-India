@@ -116,7 +116,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'training', labelKey: 'menu.training', icon: BookOpen, color: 'from-green-500 to-green-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'helpdesk', labelKey: 'menu.helpdesk', icon: Headphones, color: 'from-pink-500 to-pink-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'announcements', labelKey: 'menu.announcements', icon: Megaphone, color: 'from-fuchsia-500 to-fuchsia-600', roles: ['admin', 'hr', 'manager', 'employee'] },
-    { id: 'help', labelKey: 'menu.help', icon: HelpCircle, color: 'from-blue-500 to-blue-600', roles: ['admin', 'hr', 'manager', 'employee', 'finance'] },
+    { id: 'help', labelKey: 'menu.help', icon: HelpCircle, color: 'from-blue-500 to-blue-600', roles: ['admin', 'hr', 'manager', 'finance'] },
     { id: 'settings', labelKey: 'menu.settings', icon: Settings, color: 'from-slate-500 to-slate-600', roles: ['admin', 'hr'] },
     { id: 'employee-settings', labelKey: 'menu.settings', icon: Settings, color: 'from-slate-500 to-slate-600', roles: ['employee'] },
   ];
