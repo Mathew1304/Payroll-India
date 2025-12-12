@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Star } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -11,12 +11,19 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
     const { organization, membership } = useAuth();
     const [loading, setLoading] = useState(false);
     const [employees, setEmployees] = useState<any[]>([]);
+    const [goals, setGoals] = useState<any[]>([]);
+    const [rating, setRating] = useState(0);
 
     const [formData, setFormData] = useState({
         employee_id: '',
-        review_type: 'Annual',
-        review_period_start: '',
-        review_period_end: ''
+        goal_id: '',
+        review_cycle: 'Quarterly',
+        review_period: '',
+        rating: 0,
+        overall_feedback: '',
+        strengths: '',
+        areas_for_improvement: '',
+        goals_met: false
     });
 
     useEffect(() => {
@@ -25,11 +32,17 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
         }
     }, [organization?.id]);
 
+    useEffect(() => {
+        if (formData.employee_id) {
+            loadEmployeeGoals(formData.employee_id);
+        }
+    }, [formData.employee_id]);
+
     const loadEmployees = async () => {
         try {
             const { data } = await supabase
                 .from('employees')
-                .select('id, first_name, last_name, department_id')
+                .select('id, first_name, last_name')
                 .eq('is_active', true)
                 .order('first_name');
 
@@ -39,25 +52,46 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
         }
     };
 
+    const loadEmployeeGoals = async (employeeId: string) => {
+        try {
+            const { data } = await supabase
+                .from('goals')
+                .select('id, title, status')
+                .eq('employee_id', employeeId)
+                .order('created_at', { ascending: false });
+
+            setGoals(data || []);
+        } catch (err) {
+            console.error('Error loading goals:', err);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            // Admins without employee_id can create reviews, reviewer_id will be null
+            // @ts-ignore - Supabase type mismatch
             const { error } = await supabase
                 .from('performance_reviews')
                 .insert({
                     organization_id: organization!.id,
+                    employee_id: formData.employee_id,
+                    goal_id: formData.goal_id || null,
                     reviewer_id: membership?.employee_id || null,
-                    ...formData,
-                    status: 'Draft'
+                    review_period: formData.review_period,
+                    rating: rating,
+                    feedback: formData.overall_feedback,
+                    strengths: formData.strengths,
+                    areas_for_improvement: formData.areas_for_improvement,
+                    goals_met: formData.goals_met,
+                    reviewed_at: new Date().toISOString()
                 });
 
             if (error) throw error;
 
+            alert('Performance review created successfully!');
             onClose();
-            // Ideally trigger refresh
         } catch (err) {
             console.error('Error creating review:', err);
             alert('Failed to create review. Please try again.');
@@ -68,22 +102,26 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-                <div className="flex items-center justify-between p-6 border-b border-slate-200">
-                    <h2 className="text-xl font-bold text-slate-900">New Performance Review</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-6 rounded-t-2xl flex items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-bold text-white">Create Performance Review</h2>
+                        <p className="text-amber-100 text-sm mt-1">Evaluate employee performance and provide feedback</p>
+                    </div>
+                    <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
                         <X className="h-6 w-6" />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                    {/* Employee Selection */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Employee *</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Employee *</label>
                         <select
                             required
                             value={formData.employee_id}
-                            onChange={e => setFormData({ ...formData, employee_id: e.target.value })}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                            onChange={e => setFormData({ ...formData, employee_id: e.target.value, goal_id: '' })}
+                            className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
                         >
                             <option value="">Select Employee</option>
                             {employees.map(e => (
@@ -92,60 +130,144 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
                         </select>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Review Type *</label>
-                        <select
-                            required
-                            value={formData.review_type}
-                            onChange={e => setFormData({ ...formData, review_type: e.target.value })}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
-                        >
-                            <option value="Annual">Annual Review</option>
-                            <option value="Mid-Year">Mid-Year Review</option>
-                            <option value="Quarterly">Quarterly Review</option>
-                            <option value="Probation">Probation Review</option>
-                            <option value="Project-Based">Project-Based Review</option>
-                        </select>
-                    </div>
+                    {/* Goal Selection */}
+                    {formData.employee_id && (
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                Goal (Optional)</label>
+                            <select
+                                value={formData.goal_id}
+                                onChange={e => setFormData({ ...formData, goal_id: e.target.value })}
+                                className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                            >
+                                <option value="">General Review (No specific goal)</option>
+                                {goals.map(goal => (
+                                    <option key={goal.id} value={goal.id}>
+                                        {goal.title} ({goal.status})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
+                    {/* Review Cycle and Period */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Period Start *</label>
-                            <input
-                                type="date"
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Review Cycle *</label>
+                            <select
                                 required
-                                value={formData.review_period_start}
-                                onChange={e => setFormData({ ...formData, review_period_start: e.target.value })}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
-                            />
+                                value={formData.review_cycle}
+                                onChange={e => setFormData({ ...formData, review_cycle: e.target.value })}
+                                className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                            >
+                                <option value="Quarterly">Quarterly</option>
+                                <option value="Annual">Annual</option>
+                                <option value="Mid-Year">Mid-Year</option>
+                                <option value="Probation">Probation</option>
+                            </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Period End *</label>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">Review Period *</label>
                             <input
-                                type="date"
+                                type="text"
                                 required
-                                min={formData.review_period_start}
-                                value={formData.review_period_end}
-                                onChange={e => setFormData({ ...formData, review_period_end: e.target.value })}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                                value={formData.review_period}
+                                onChange={e => setFormData({ ...formData, review_period: e.target.value })}
+                                placeholder="e.g., Q1 2025"
+                                className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
                             />
                         </div>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 mt-2">
+                    {/* Rating */}
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Rating (1-5) *</label>
+                        <div className="flex items-center gap-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => {
+                                        setRating(star);
+                                        setFormData({ ...formData, rating: star });
+                                    }}
+                                    className="focus:outline-none hover:scale-110 transition-transform"
+                                >
+                                    <Star
+                                        className={`h-10 w-10 ${star <= rating ? 'fill-amber-500 text-amber-500' : 'text-slate-300'
+                                            }`}
+                                    />
+                                </button>
+                            ))}
+                            <span className="ml-4 text-2xl font-bold text-amber-600">{rating}/5</span>
+                        </div>
+                    </div>
+
+                    {/* Overall Feedback */}
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Overall Feedback *</label>
+                        <textarea
+                            required
+                            value={formData.overall_feedback}
+                            onChange={e => setFormData({ ...formData, overall_feedback: e.target.value })}
+                            placeholder="Provide general performance feedback..."
+                            rows={4}
+                            className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                        />
+                    </div>
+
+                    {/* Strengths */}
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Strengths</label>
+                        <textarea
+                            value={formData.strengths}
+                            onChange={e => setFormData({ ...formData, strengths: e.target.value })}
+                            placeholder="What are the employee's key strengths?"
+                            rows={3}
+                            className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                        />
+                    </div>
+
+                    {/* Areas for Improvement */}
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Areas for Improvement</label>
+                        <textarea
+                            value={formData.areas_for_improvement}
+                            onChange={e => setFormData({ ...formData, areas_for_improvement: e.target.value })}
+                            placeholder="What areas need development?"
+                            rows={3}
+                            className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                        />
+                    </div>
+
+                    {/* Goals Met Checkbox */}
+                    <div>
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.goals_met}
+                                onChange={e => setFormData({ ...formData, goals_met: e.target.checked })}
+                                className="w-5 h-5 text-amber-600 border-slate-300 rounded focus:ring-amber-500"
+                            />
+                            <span className="text-sm font-semibold text-slate-700">Goals Met</span>
+                        </label>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                            className="px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-semibold"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50"
+                            disabled={loading || rating === 0}
+                            className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl hover:from-amber-600 hover:to-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg"
                         >
-                            {loading ? 'Creating...' : 'Start Review'}
+                            {loading ? 'Creating...' : 'Create Review'}
                         </button>
                     </div>
                 </form>

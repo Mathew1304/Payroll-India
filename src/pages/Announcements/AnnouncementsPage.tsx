@@ -35,6 +35,9 @@ export function AnnouncementsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showListModal, setShowListModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'expired'>('active');
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     if (organization?.id) {
@@ -131,6 +134,26 @@ export function AnnouncementsPage() {
     }
   };
 
+  const handleView = (announcement: Announcement) => {
+    alert(`Viewing: ${announcement.title}\n\n${announcement.content}`);
+  };
+
+  const handleEdit = (announcement: Announcement) => {
+    alert('Edit functionality coming soon!');
+  };
+
+  const handleDelete = async (announcementId: string) => {
+    if (!confirm('Are you sure you want to delete this announcement?')) return;
+
+    try {
+      await supabase.from('announcements').delete().eq('id', announcementId);
+      loadAnnouncements();
+    } catch (err) {
+      console.error('Error deleting announcement:', err);
+      alert('Failed to delete announcement');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -169,11 +192,10 @@ export function AnnouncementsPage() {
             <button
               key={f}
               onClick={() => setFilter(f as any)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                filter === f
-                  ? 'bg-fuchsia-600 text-white shadow-md'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === f
+                ? 'bg-fuchsia-600 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
@@ -253,8 +275,8 @@ export function AnnouncementsPage() {
                       <Users className="h-4 w-4" />
                       <span>
                         {announcement.target_type === 'all' ? 'All Employees' :
-                         announcement.target_type === 'distribution_list' ? 'Distribution Lists' :
-                         'Specific Employees'}
+                          announcement.target_type === 'distribution_list' ? 'Distribution Lists' :
+                            'Specific Employees'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -273,13 +295,25 @@ export function AnnouncementsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 ml-4">
-                  <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                  <button
+                    onClick={() => handleView(announcement)}
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="View Details"
+                  >
                     <Eye className="h-5 w-5" />
                   </button>
-                  <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                  <button
+                    onClick={() => handleEdit(announcement)}
+                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    title="Edit"
+                  >
                     <Edit className="h-5 w-5" />
                   </button>
-                  <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                  <button
+                    onClick={() => handleDelete(announcement.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
                     <Trash2 className="h-5 w-5" />
                   </button>
                 </div>

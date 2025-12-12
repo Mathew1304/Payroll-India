@@ -22,6 +22,7 @@ import { SuperAdminPage } from './pages/SuperAdminPage';
 
 import { HelpdeskPage } from './pages/Helpdesk/HelpdeskPage';
 import { PerformancePage } from './pages/Performance/PerformancePage';
+import { EmployeePerformancePage } from './pages/Performance/EmployeePerformancePage';
 import { AttendanceAdminPage } from './pages/Attendance/Admin/AttendanceAdminPage';
 import { AttendanceEmployeePage } from './pages/Attendance/Employee/AttendanceEmployeePage';
 import { TrainingPage } from './pages/Training/TrainingPage';
@@ -132,7 +133,8 @@ function AppContent() {
       case 'my-payroll':
         return <MyPayrollPage />;
       case 'performance':
-        return <PerformancePage />;
+        // Show employee-specific view for employees, admin view for managers/admins
+        return membership?.role === 'employee' ? <EmployeePerformancePage /> : <PerformancePage />;
       case 'training':
         return <TrainingPage />;
       case 'helpdesk':

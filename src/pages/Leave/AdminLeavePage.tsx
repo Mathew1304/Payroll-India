@@ -95,7 +95,7 @@ export function AdminLeavePage() {
             const { data: applications } = await supabase
                 .from('leave_applications')
                 .select('*')
-                .order('applied_date', { ascending: false });
+                .order('applied_at', { ascending: false });
 
             const today = new Date().toISOString().split('T')[0];
 
@@ -143,7 +143,7 @@ export function AdminLeavePage() {
                 .from('leave_applications')
                 .select(`
           *,
-          employees (first_name, last_name, employee_code),
+          employees (first_name, last_name, employee_code, departments(name)),
           leave_types (name, code)
         `)
                 .order('applied_at', { ascending: false })
@@ -153,6 +153,50 @@ export function AdminLeavePage() {
         } catch (error) {
             console.error('Error loading applications:', error);
         }
+    };
+
+    const handleExportCSV = () => {
+        const csvData = leaveApplications.map(app => ({
+            Employee: `${app.employees?.first_name} ${app.employees?.last_name}`,
+            'Employee Code': app.employees?.employee_code,
+            Department: app.employees?.departments?.name || 'N/A',
+            'Leave Type': app.leave_types?.name,
+            From: new Date(app.from_date).toLocaleDateString('en-GB'),
+            To: new Date(app.to_date).toLocaleDateString('en-GB'),
+            Days: app.total_days,
+            Reason: app.reason || '',
+            Status: app.status.toUpperCase(),
+            'Applied Date': new Date(app.applied_at).toLocaleDateString('en-GB')
+        }));
+
+        const headers = Object.keys(csvData[0] || {});
+        const csvContent = [
+            headers.join(','),
+            ...csvData.map(row => headers.map(header => `"${row[header]}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `leave_applications_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    };
+
+    const handleApplyFilters = () => {
+        // In a real implementation, you would filter the leave applications based on the filters state
+        alert('Filters applied! (Full implementation pending)');
+        loadLeaveApplications();
+    };
+
+    const handleClearFilters = () => {
+        setFilters({
+            status: '',
+            leaveType: '',
+            department: '',
+            fromDate: '',
+            toDate: ''
+        });
+        loadLeaveApplications();
     };
 
     const loadMonthlyTrends = async () => {
@@ -467,7 +511,10 @@ export function AdminLeavePage() {
                             <p className="text-xs text-slate-500">Organization-wide leave applications</p>
                         </div>
                     </div>
-                    <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2">
+                    <button
+                        onClick={handleExportCSV}
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                    >
                         <Download className="h-4 w-4" />
                         Export CSV
                     </button>
@@ -523,10 +570,16 @@ export function AdminLeavePage() {
                         />
                     </div>
                     <div className="flex items-center gap-3 mt-3">
-                        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+                        <button
+                            onClick={handleApplyFilters}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+                        >
                             Apply
                         </button>
-                        <button className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50">
+                        <button
+                            onClick={handleClearFilters}
+                            className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50"
+                        >
                             Clear Filters
                         </button>
                     </div>
@@ -543,6 +596,7 @@ export function AdminLeavePage() {
                                 <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600">From</th>
                                 <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600">To</th>
                                 <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600">Days</th>
+                                <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600">Reason</th>
                                 <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600">Status</th>
                                 <th className="text-left py-3 px-4 text-xs font-semibold text-slate-600">Action</th>
                             </tr>
@@ -553,7 +607,9 @@ export function AdminLeavePage() {
                                     <td className="py-3 px-4 text-sm font-medium text-slate-900">
                                         {app.employees?.first_name} {app.employees?.last_name}
                                     </td>
-                                    <td className="py-3 px-4 text-sm text-slate-700">IT</td>
+                                    <td className="py-3 px-4 text-sm text-slate-700">
+                                        {app.employees?.departments?.name || 'N/A'}
+                                    </td>
                                     <td className="py-3 px-4">
                                         <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
                                             {app.leave_types?.code}
@@ -566,6 +622,9 @@ export function AdminLeavePage() {
                                         {new Date(app.to_date).toLocaleDateString('en-GB')}
                                     </td>
                                     <td className="py-3 px-4 text-sm font-semibold text-slate-900">{app.total_days}</td>
+                                    <td className="py-3 px-4 text-sm text-slate-700 max-w-xs truncate" title={app.reason}>
+                                        {app.reason || '-'}
+                                    </td>
                                     <td className="py-3 px-4">
                                         <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${getStatusBadge(app.status)}`}>
                                             {app.status}

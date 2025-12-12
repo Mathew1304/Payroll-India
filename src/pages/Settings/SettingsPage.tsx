@@ -228,24 +228,6 @@ export function SettingsPage() {
                 })}
               </div>
 
-              <div className="bg-gradient-to-br from-theme-bg-primary to-theme-bg-secondary border-2 border-theme-border rounded-2xl p-6">
-                <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 bg-theme-primary rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-theme-text-primary text-lg mb-2">Premium Themes Coming Soon</h3>
-                    <p className="text-theme-text-secondary text-sm mb-4">
-                      Get access to exclusive themes with advanced customization options, including custom color palettes,
-                      glassmorphism effects, and animated backgrounds.
-                    </p>
-                    <button className="px-4 py-2 bg-theme-primary text-white rounded-lg hover:bg-opacity-90 transition-colors font-medium text-sm">
-                      Learn More
-                    </button>
-                  </div>
-                </div>
-              </div>
-
               <div className="border-t border-theme-border pt-6">
                 <h3 className="font-bold text-theme-text-primary mb-4">Theme Settings</h3>
                 <div className="space-y-4">

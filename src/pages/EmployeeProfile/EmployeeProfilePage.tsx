@@ -332,7 +332,7 @@ export function EmployeeProfilePage() {
           driving_license_number: editFormData.driving_license_number || null,
           driving_license_expiry: editFormData.driving_license_expiry || null,
           bank_name: editFormData.bank_name || null,
-          account_number: editFormData.account_number || null,
+          bank_account_number: editFormData.bank_account_number || null,
           iban: editFormData.iban || null,
           branch: editFormData.branch || null,
           updated_at: new Date().toISOString()
