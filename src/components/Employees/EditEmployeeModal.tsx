@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { X, Save, User, Briefcase, Building, Banknote, FileText, Calendar, DollarSign } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { AlertModal, AlertModalProps } from '../UI/AlertModal';
+import { Gender, MaritalStatus, EmploymentType, EmploymentStatus, Database } from '../../lib/database.types';
+
+type EmployeeRow = Database['public']['Tables']['employees']['Row'];
 
 interface EditEmployeeModalProps {
   employeeId: string;
@@ -17,6 +21,7 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [currentTab, setCurrentTab] = useState<'personal' | 'employment' | 'salary' | 'documents'>('personal');
+  const [alertModal, setAlertModal] = useState<AlertModalProps | null>(null);
 
   const isQatar = organization?.country === 'Qatar';
   const isSaudi = organization?.country === 'Saudi Arabia';
@@ -73,7 +78,10 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
     iban_number: '',
     bank_branch: '',
     ctc_annual: '',
-    basic_salary: ''
+    basic_salary: '',
+    accommodation_allowance: '',
+    transportation_allowance: '',
+    food_allowance: ''
   });
 
   useEffect(() => {
@@ -91,62 +99,71 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
       if (error) throw error;
 
       if (data) {
+        const emp = data as EmployeeRow;
         setFormData({
-          first_name: data.first_name || '',
-          middle_name: data.middle_name || '',
-          last_name: data.last_name || '',
-          date_of_birth: data.date_of_birth || '',
-          gender: data.gender || 'male',
-          marital_status: data.marital_status || 'single',
-          blood_group: data.blood_group || '',
-          personal_email: data.personal_email || '',
-          company_email: data.company_email || '',
-          mobile_number: data.mobile_number || '',
-          alternate_number: data.alternate_number || '',
-          current_address: data.current_address || '',
-          permanent_address: data.permanent_address || '',
-          city: data.city || '',
-          state: data.state || '',
-          pincode: data.pincode || '',
-          department_id: data.department_id || '',
-          designation_id: data.designation_id || '',
-          branch_id: data.branch_id || '',
-          employment_type: data.employment_type || 'full_time',
-          employment_status: data.employment_status || 'probation',
-          date_of_joining: data.date_of_joining || '',
-          probation_end_date: data.probation_end_date || '',
-          pan_number: data.pan_number || '',
-          aadhaar_number: data.aadhaar_number || '',
-          uan_number: data.uan_number || '',
-          esi_number: data.esi_number || '',
-          qatar_id: data.qatar_id || '',
-          qatar_id_expiry: data.qatar_id_expiry || '',
-          residence_permit_number: data.residence_permit_number || '',
-          residence_permit_expiry: data.residence_permit_expiry || '',
-          work_permit_number: data.work_permit_number || '',
-          work_permit_expiry: data.work_permit_expiry || '',
-          health_card_number: data.health_card_number || '',
-          health_card_expiry: data.health_card_expiry || '',
-          labor_card_number: data.labor_card_number || '',
-          labor_card_expiry: data.labor_card_expiry || '',
-          sponsor_name: data.sponsor_name || '',
-          sponsor_id: data.sponsor_id || '',
-          iqama_number: data.iqama_number || '',
-          iqama_expiry: data.iqama_expiry || '',
-          gosi_number: data.gosi_number || '',
-          border_number: data.border_number || '',
-          bank_name: data.bank_name || '',
-          bank_account_number: data.bank_account_number || '',
-          bank_ifsc_code: data.bank_ifsc_code || '',
-          iban_number: data.iban_number || '',
-          bank_branch: data.bank_branch || '',
-          ctc_annual: data.ctc_annual?.toString() || '',
-          basic_salary: data.basic_salary?.toString() || ''
+          first_name: emp.first_name || '',
+          middle_name: emp.middle_name || '',
+          last_name: emp.last_name || '',
+          date_of_birth: emp.date_of_birth || '',
+          gender: emp.gender || 'male',
+          marital_status: emp.marital_status || 'single',
+          blood_group: emp.blood_group || '',
+          personal_email: emp.personal_email || '',
+          company_email: emp.company_email || '',
+          mobile_number: emp.mobile_number || '',
+          alternate_number: emp.alternate_number || '',
+          current_address: emp.current_address || '',
+          permanent_address: emp.permanent_address || '',
+          city: emp.city || '',
+          state: emp.state || '',
+          pincode: emp.pincode || '',
+          department_id: emp.department_id || '',
+          designation_id: emp.designation_id || '',
+          branch_id: emp.branch_id || '',
+          employment_type: emp.employment_type || 'full_time',
+          employment_status: emp.employment_status || 'probation',
+          date_of_joining: emp.date_of_joining || '',
+          probation_end_date: emp.probation_end_date || '',
+          pan_number: emp.pan_number || '',
+          aadhaar_number: emp.aadhaar_number || '',
+          uan_number: emp.uan_number || '',
+          esi_number: emp.esi_number || '',
+          qatar_id: emp.qatar_id || '',
+          qatar_id_expiry: emp.qatar_id_expiry || '',
+          residence_permit_number: emp.residence_permit_number || '',
+          residence_permit_expiry: emp.residence_permit_expiry || '',
+          work_permit_number: emp.work_permit_number || '',
+          work_permit_expiry: emp.work_permit_expiry || '',
+          health_card_number: emp.health_card_number || '',
+          health_card_expiry: emp.health_card_expiry || '',
+          labor_card_number: emp.labor_card_number || '',
+          labor_card_expiry: emp.labor_card_expiry || '',
+          sponsor_name: emp.sponsor_name || '',
+          sponsor_id: emp.sponsor_id || '',
+          iqama_number: emp.iqama_number || '',
+          iqama_expiry: emp.iqama_expiry || '',
+          gosi_number: emp.gosi_number || '',
+          border_number: emp.border_number || '',
+          bank_name: emp.bank_name || '',
+          bank_account_number: emp.bank_account_number || '',
+          bank_ifsc_code: emp.bank_ifsc_code || '',
+          iban_number: emp.bank_iban || '',
+          bank_branch: emp.bank_branch || '',
+          ctc_annual: emp.ctc_annual?.toString() || '',
+          basic_salary: emp.basic_salary?.toString() || '',
+          accommodation_allowance: emp.accommodation_allowance?.toString() || '',
+          transportation_allowance: emp.transportation_allowance?.toString() || '',
+          food_allowance: emp.food_allowance?.toString() || ''
         });
       }
     } catch (error) {
       console.error('Error loading employee:', error);
-      alert('Failed to load employee data');
+      setAlertModal({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to load employee data',
+        onClose: () => setAlertModal(null)
+      });
     } finally {
       setLoadingData(false);
     }
@@ -154,6 +171,7 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    // console.log('Field changed:', name, value); 
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -185,20 +203,39 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
           ...updateData,
           ctc_annual: formData.ctc_annual ? parseFloat(formData.ctc_annual) : null,
           basic_salary: formData.basic_salary ? parseFloat(formData.basic_salary) : null,
+          accommodation_allowance: formData.accommodation_allowance ? parseFloat(formData.accommodation_allowance) : null,
+          transportation_allowance: formData.transportation_allowance ? parseFloat(formData.transportation_allowance) : null,
+          food_allowance: formData.food_allowance ? parseFloat(formData.food_allowance) : null,
           department_id: formData.department_id || null,
           designation_id: formData.designation_id || null,
           branch_id: formData.branch_id || null,
+          gender: formData.gender as Gender,
+          marital_status: formData.marital_status as MaritalStatus,
+          employment_type: formData.employment_type as EmploymentType,
+          employment_status: formData.employment_status as EmploymentStatus,
           updated_at: new Date().toISOString()
-        })
+        } as any)
         .eq('id', employeeId);
 
       if (error) throw error;
 
-      alert('Employee updated successfully!');
-      onSuccess();
+      setAlertModal({
+        type: 'success',
+        title: 'Success',
+        message: 'Employee updated successfully!',
+        onClose: () => {
+          setAlertModal(null);
+          onSuccess();
+        }
+      });
     } catch (error: any) {
       console.error('Error updating employee:', error);
-      alert(`Failed to update employee: ${error.message}`);
+      setAlertModal({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update employee: ' + error.message,
+        onClose: () => setAlertModal(null)
+      });
     } finally {
       setLoading(false);
     }
@@ -570,6 +607,42 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Accommodation Allow.</label>
+                  <input
+                    type="number"
+                    name="accommodation_allowance"
+                    value={formData.accommodation_allowance}
+                    onChange={handleChange}
+                    step="0.01"
+                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Transportation Allow.</label>
+                  <input
+                    type="number"
+                    name="transportation_allowance"
+                    value={formData.transportation_allowance}
+                    onChange={handleChange}
+                    step="0.01"
+                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Food Allowance</label>
+                  <input
+                    type="number"
+                    name="food_allowance"
+                    value={formData.food_allowance}
+                    onChange={handleChange}
+                    step="0.01"
+                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">Bank Name</label>
@@ -591,18 +664,16 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
                     className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-                {!isQatar && (
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">IFSC Code</label>
-                    <input
-                      type="text"
-                      name="bank_ifsc_code"
-                      value={formData.bank_ifsc_code}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">IFSC Code</label>
+                  <input
+                    type="text"
+                    name="bank_ifsc_code"
+                    value={formData.bank_ifsc_code}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
                 {(isQatar || isSaudi) && (
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">IBAN Number</label>
@@ -836,6 +907,13 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
           </button>
         </div>
       </div>
+
+      {alertModal && (
+        <AlertModal
+          {...alertModal}
+          onClose={() => setAlertModal(null)}
+        />
+      )}
     </div>
   );
 }

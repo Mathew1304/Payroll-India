@@ -10,6 +10,10 @@
   direction: ltr;
 }
 
+html {
+  font-size: 80%; /* Scales down the entire UI by 20% as requested */
+}
+
 body {
   font-family: 'Inter', 'Cairo', 'Noto Sans Arabic', sans-serif;
 }

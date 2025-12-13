@@ -2,6 +2,7 @@ import { X, User, Mail, Phone, MapPin, Briefcase, Calendar, CreditCard, FileText
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { AlertModal, AlertModalProps } from '../UI/AlertModal';
 
 interface ViewEmployeeModalProps {
   employeeId: string;
@@ -18,6 +19,10 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
   const [requestingInfo, setRequestingInfo] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
+  const [alertModal, setAlertModal] = useState<AlertModalProps | null>(null);
+
+  const isIndia = organization?.country === 'India' || !organization?.country;
+  console.log('ViewEmployeeModal: isIndia=', isIndia, 'Country=', organization?.country);
 
   useEffect(() => {
     loadEmployeeDetails();
@@ -41,7 +46,13 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
       setEmployee(data);
     } catch (error) {
       console.error('Error loading employee details:', error);
-      alert('Failed to load employee details');
+      console.error('Error loading employee details:', error);
+      setAlertModal({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to load employee details',
+        onClose: () => setAlertModal(null)
+      });
     } finally {
       setLoading(false);
     }
@@ -103,12 +114,23 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
 
       if (notifError) throw notifError;
 
-      alert('Information request sent successfully! The employee will be notified.');
+      setAlertModal({
+        type: 'success',
+        title: 'Success',
+        message: 'Information request sent successfully! The employee will be notified.',
+        onClose: () => setAlertModal(null)
+      });
       setShowRequestModal(false);
       setRequestMessage('');
     } catch (error) {
       console.error('Error sending request:', error);
-      alert('Failed to send information request');
+      console.error('Error sending request:', error);
+      setAlertModal({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to send information request',
+        onClose: () => setAlertModal(null)
+      });
     } finally {
       setRequestingInfo(false);
     }
@@ -170,12 +192,11 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
                 <span>•</span>
                 <span>{employee.designations?.title || 'N/A'}</span>
                 <span>•</span>
-                <span className={`px-2 py-0.5 text-xs rounded-full ${
-                  employee.employment_status === 'active' ? 'bg-emerald-500' :
+                <span className={`px-2 py-0.5 text-xs rounded-full ${employee.employment_status === 'active' ? 'bg-emerald-500' :
                   employee.employment_status === 'probation' ? 'bg-amber-500' :
-                  employee.employment_status === 'terminated' ? 'bg-red-500' :
-                  'bg-slate-500'
-                }`}>
+                    employee.employment_status === 'terminated' ? 'bg-red-500' :
+                      'bg-slate-500'
+                  }`}>
                   {employee.employment_status?.toUpperCase()}
                 </span>
               </p>
@@ -204,11 +225,10 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-white text-blue-600 shadow-md'
-                    : 'text-slate-600 hover:bg-white/50'
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${activeTab === tab.id
+                  ? 'bg-white text-blue-600 shadow-md'
+                  : 'text-slate-600 hover:bg-white/50'
+                  }`}
               >
                 <tab.icon className="h-4 w-4" />
                 <span className="text-sm">{tab.label}</span>
@@ -325,13 +345,15 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
 
           {activeTab === 'documents' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Section icon={FileText} title="India Documents">
-                <InfoRow label="PAN Number" value={employee.pan_number || 'N/A'} />
-                <InfoRow label="Aadhaar Number" value={employee.aadhaar_number || 'N/A'} />
-                <InfoRow label="UAN Number" value={employee.uan_number || 'N/A'} />
-                <InfoRow label="ESI Number" value={employee.esi_number || 'N/A'} />
-                <InfoRow label="PF Account" value={employee.pf_account_number || 'N/A'} />
-              </Section>
+              {isIndia && (
+                <Section icon={FileText} title="India Documents">
+                  <InfoRow label="PAN Number" value={employee.pan_number || 'N/A'} />
+                  <InfoRow label="Aadhaar Number" value={employee.aadhaar_number || 'N/A'} />
+                  <InfoRow label="UAN Number" value={employee.uan_number || 'N/A'} />
+                  <InfoRow label="ESI Number" value={employee.esi_number || 'N/A'} />
+                  <InfoRow label="PF Account" value={employee.pf_account_number || 'N/A'} />
+                </Section>
+              )}
 
               <Section icon={Plane} title="Passport & Visa">
                 <InfoRow label="Passport Number" value={employee.passport_number || 'N/A'} />
@@ -509,6 +531,14 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
             </div>
           </div>
         </div>
+      )}
+
+
+      {alertModal && (
+        <AlertModal
+          {...alertModal}
+          onClose={() => setAlertModal(null)}
+        />
       )}
     </div>
   );

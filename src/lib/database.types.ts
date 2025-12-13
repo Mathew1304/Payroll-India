@@ -104,6 +104,9 @@ export interface Database {
           city: string | null;
           state: string | null;
           pincode: string | null;
+          nationality: string | null;
+          religion: string | null;
+          place_of_birth: string | null;
           department_id: string | null;
           designation_id: string | null;
           branch_id: string | null;
@@ -115,16 +118,127 @@ export interface Database {
           confirmation_date: string | null;
           resignation_date: string | null;
           last_working_date: string | null;
+          contract_start_date: string | null;
+          contract_end_date: string | null;
+          contract_duration_months: number | null;
+          notice_period_days: number | null;
           pan_number: string | null;
+          pan_expiry: string | null;
           aadhaar_number: string | null;
           uan_number: string | null;
           esi_number: string | null;
+          passport_number: string | null;
+          passport_expiry: string | null;
+          passport_issue_date: string | null;
+          passport_issue_place: string | null;
+          visa_number: string | null;
+          visa_expiry: string | null;
+          visa_issue_date: string | null;
+          visa_sponsor: string | null;
+          driving_license_number: string | null;
+          driving_license_expiry: string | null;
+
+          // Qatar Fields
+          qatar_id: string | null;
+          qatar_id_expiry: string | null;
+          residence_permit_number: string | null;
+          residence_permit_expiry: string | null;
+          work_permit_number: string | null;
+          work_permit_expiry: string | null;
+          health_card_number: string | null;
+          health_card_expiry: string | null;
+          labor_card_number: string | null;
+          labor_card_expiry: string | null;
+          sponsor_name: string | null;
+          sponsor_id: string | null;
+          medical_fitness_certificate: string | null;
+          medical_fitness_expiry: string | null;
+          police_clearance_certificate: string | null;
+          police_clearance_expiry: string | null;
+
+          // Saudi Fields
+          iqama_number: string | null;
+          iqama_expiry: string | null;
+          gosi_number: string | null;
+          border_number: string | null;
+          muqeem_id: string | null;
+          kafala_sponsor_name: string | null;
+          kafala_sponsor_id: string | null;
+          jawazat_number: string | null;
+          absher_id: string | null;
+          medical_insurance_number: string | null;
+          medical_insurance_provider: string | null;
+          medical_insurance_expiry: string | null;
+
+          // Banking & Tax
           bank_name: string | null;
           bank_account_number: string | null;
           bank_ifsc_code: string | null;
           bank_branch: string | null;
+          bank_iban: string | null;
+          professional_tax_number: string | null;
+          pf_account_number: string | null;
+          pf_uan: string | null;
+          gratuity_nominee_name: string | null;
+          gratuity_nominee_relationship: string | null;
+          lwf_number: string | null;
+
+          // Allowances & Benefits
           ctc_annual: number | null;
           basic_salary: number | null;
+          accommodation_provided: boolean | null;
+          accommodation_address: string | null;
+          accommodation_type: string | null;
+          accommodation_allowance: number | null;
+          transportation_provided: boolean | null;
+          transportation_allowance: number | null;
+          food_allowance: number | null;
+          other_allowances: Json | null;
+          insurance_policy_number: string | null;
+          insurance_provider: string | null;
+          insurance_coverage_amount: number | null;
+          insurance_expiry: string | null;
+          dependents_covered: number | null;
+          end_of_service_benefit_eligible: boolean | null;
+          annual_leave_days: number | null;
+          sick_leave_days: number | null;
+
+          // Personal & Professional
+          father_name: string | null;
+          mother_name: string | null;
+          spouse_name: string | null;
+          number_of_children: number | null;
+          emergency_contact_name: string | null;
+          emergency_contact_relationship: string | null;
+          emergency_contact_phone: string | null;
+          emergency_contact_alternate: string | null;
+          highest_qualification: string | null;
+          institution: string | null;
+          year_of_completion: number | null;
+          specialization: string | null;
+          additional_qualifications: Json | null;
+          previous_employer: string | null;
+          previous_designation: string | null;
+          previous_employment_from: string | null;
+          previous_employment_to: string | null;
+          previous_salary: number | null;
+          reason_for_leaving: string | null;
+          total_experience_years: number | null;
+          skills: Json | null;
+          certifications: Json | null;
+          languages_known: Json | null;
+          medical_conditions: string | null;
+          allergies: string | null;
+          disabilities: string | null;
+          hobbies: string | null;
+          linkedin_url: string | null;
+          github_url: string | null;
+          portfolio_url: string | null;
+          professional_summary: string | null;
+          work_location: string | null;
+          job_grade: string | null;
+          job_level: string | null;
+
           is_active: boolean;
           created_by: string | null;
           created_at: string;
@@ -133,34 +247,7 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['employees']['Row'], 'id' | 'employee_code' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['employees']['Insert']>;
       };
-      attendance_records: {
-        Row: {
-          id: string;
-          employee_id: string;
-          attendance_date: string;
-          shift_id: string | null;
-          check_in_time: string | null;
-          check_out_time: string | null;
-          check_in_latitude: number | null;
-          check_in_longitude: number | null;
-          check_out_latitude: number | null;
-          check_out_longitude: number | null;
-          status: AttendanceStatus;
-          is_late: boolean;
-          late_by_minutes: number;
-          early_leave: boolean;
-          early_leave_minutes: number;
-          overtime_minutes: number;
-          worked_hours: number;
-          remarks: string | null;
-          is_manual_entry: boolean;
-          marked_by: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Omit<Database['public']['Tables']['attendance_records']['Row'], 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Database['public']['Tables']['attendance_records']['Insert']>;
-      };
+
       leave_applications: {
         Row: {
           id: string;
@@ -576,6 +663,86 @@ export interface Database {
         };
         Insert: Omit<Database['public']['Tables']['attendance_anomalies']['Row'], 'id' | 'created_at'>;
         Update: Partial<Database['public']['Tables']['attendance_anomalies']['Row']>;
+      };
+      employee_invitations: {
+        Row: {
+          id: string;
+          organization_id: string;
+          employee_id: string;
+          email: string;
+          invitation_code: string;
+          onboarding_token: string;
+          invitation_type: string;
+          invited_by: string;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['employee_invitations']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['employee_invitations']['Row']>;
+      };
+      salary_components: {
+        Row: {
+          id: string;
+          organization_id: string;
+          employee_id: string;
+          basic_salary: number;
+          housing_allowance: number;
+          food_allowance: number;
+          transport_allowance: number;
+          mobile_allowance: number;
+          utility_allowance: number;
+          other_allowances: number;
+          effective_from: string;
+          effective_to: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['salary_components']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['salary_components']['Row']>;
+      };
+      qatar_salary_components: {
+        Row: {
+          id: string;
+          organization_id: string;
+          employee_id: string;
+          basic_salary: number;
+          housing_allowance: number;
+          food_allowance: number;
+          transport_allowance: number;
+          mobile_allowance: number;
+          utility_allowance: number;
+          other_allowances: number;
+          effective_from: string;
+          effective_to: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['qatar_salary_components']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['qatar_salary_components']['Row']>;
+      };
+      saudi_salary_components: {
+        Row: {
+          id: string;
+          organization_id: string;
+          employee_id: string;
+          basic_salary: number;
+          housing_allowance: number;
+          food_allowance: number;
+          transport_allowance: number;
+          mobile_allowance: number;
+          utility_allowance: number;
+          other_allowances: number;
+          effective_from: string;
+          effective_to: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['saudi_salary_components']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['saudi_salary_components']['Row']>;
       };
     };
     Views: {};

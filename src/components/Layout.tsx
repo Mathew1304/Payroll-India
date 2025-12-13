@@ -16,7 +16,7 @@ interface LayoutProps {
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { user, organization, membership, signOut } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const [notificationCount, setNotificationCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -311,9 +311,17 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       )}
 
       <div className="flex pt-16">
+        {/* Mobile Backdrop */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-10 lg:hidden backdrop-blur-sm transition-opacity"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         <aside
           className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-            } fixed left-0 z-20 w-72 h-[calc(100vh-4rem)] bg-theme-bg-secondary/80 backdrop-blur-xl border-r border-theme-border/50 transition-transform duration-300 ease-in-out overflow-y-auto shadow-xl`}
+            } fixed left-0 z-20 w-72 h-[calc(100vh-4rem)] bg-theme-bg-secondary/95 backdrop-blur-xl border-r border-theme-border/50 transition-transform duration-300 ease-in-out overflow-y-auto shadow-xl`}
         >
           <div className="p-4">
             <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 mb-6 shadow-md border border-slate-700/50">
@@ -339,7 +347,10 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => onNavigate(item.id)}
+                    onClick={() => {
+                      onNavigate(item.id);
+                      if (window.innerWidth < 1024) setSidebarOpen(false);
+                    }}
                     className={`group relative flex items-center w-full px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive
                       ? 'bg-gradient-to-r ' + item.color + ' text-white shadow-lg shadow-' + item.color.split('-')[1] + '-500/30'
                       : 'text-theme-text-secondary hover:bg-theme-bg-primary'
@@ -351,7 +362,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                       }`}>
                       <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-theme-text-secondary group-hover:text-theme-text-primary'}`} />
                     </div>
-                    <span className="flex-1">{t(item.labelKey)}</span>
+                    <span className="flex-1 text-left">{t(item.labelKey)}</span>
                     {isActive && (
                       <div className={`absolute ${i18n.language === 'ar' ? 'left-4' : 'right-4'} h-2 w-2 bg-white rounded-full shadow-lg`}></div>
                     )}
@@ -378,7 +389,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         </aside>
 
         <main
-          className={`${sidebarOpen ? 'ml-72' : 'ml-0'
+          className={`${sidebarOpen ? 'lg:ml-72' : 'lg:ml-0'
             } flex-1 transition-all duration-300 ease-in-out p-6 w-full`}
         >
           {children}

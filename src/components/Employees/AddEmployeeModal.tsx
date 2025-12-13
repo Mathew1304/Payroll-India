@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Save, User, Briefcase, Building, Banknote, FileText, Calendar, Mail, Send, CheckCircle, AlertCircle, Users as FamilyIcon, GraduationCap, Heart, Globe, Lock, Copy, Eye, EyeOff, DollarSign } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { Gender, MaritalStatus, EmploymentType, EmploymentStatus } from '../../lib/database.types';
 
 interface AddEmployeeModalProps {
   onClose: () => void;
@@ -11,7 +12,8 @@ interface AddEmployeeModalProps {
   branches: any[];
 }
 
-interface AlertModal {
+
+interface AddEmployeeAlertState {
   type: 'success' | 'error' | 'info';
   title: string;
   message: string;
@@ -22,13 +24,14 @@ interface AlertModal {
   };
 }
 
+
 type TabType = 'personal' | 'employment' | 'family' | 'education' | 'documents' | 'health' | 'professional' | 'salary';
 
 export function AddEmployeeModal({ onClose, onSuccess, departments, designations, branches }: AddEmployeeModalProps) {
   const { organization } = useAuth();
   const [loading, setLoading] = useState(false);
   const [currentTab, setCurrentTab] = useState<TabType>('personal');
-  const [alertModal, setAlertModal] = useState<AlertModal | null>(null);
+  const [alertModal, setAlertModal] = useState<AddEmployeeAlertState | null>(null);
   const [sendInvitation, setSendInvitation] = useState(true);
   const [invitationType, setInvitationType] = useState<'basic' | 'full_onboarding'>('full_onboarding');
   const [createLogin, setCreateLogin] = useState(false);
@@ -251,6 +254,10 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         department_id: formData.department_id || null,
         designation_id: formData.designation_id || null,
         branch_id: formData.branch_id || null,
+        gender: formData.gender as Gender,
+        marital_status: formData.marital_status as MaritalStatus,
+        employment_status: formData.employment_status as EmploymentStatus,
+        employment_type: formData.employment_type as EmploymentType,
 
         // Unique fields - convert empty string to null to avoid unique constraint violations
         company_email: formData.company_email || null,

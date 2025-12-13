@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Calendar, FileText, Clock, CheckCircle, XCircle, Users, TrendingUp, Settings, Download, Filter } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { AlertModal, AlertModalProps } from '../../components/UI/AlertModal';
 
 interface LeaveStats {
     totalRequests: number;
@@ -67,6 +68,7 @@ export function AdminLeavePage() {
     });
     const [showCreateLeaveType, setShowCreateLeaveType] = useState(false);
     const [editingLeaveType, setEditingLeaveType] = useState<LeaveType | null>(null);
+    const [alertModal, setAlertModal] = useState<AlertModalProps | null>(null);
 
     useEffect(() => {
         loadData();
@@ -94,7 +96,8 @@ export function AdminLeavePage() {
         try {
             const { data: applications } = await supabase
                 .from('leave_applications')
-                .select('*')
+                .select('*, employees!inner(organization_id)')
+                .eq('employees.organization_id', organization.id)
                 .order('applied_at', { ascending: false });
 
             const today = new Date().toISOString().split('T')[0];
@@ -143,9 +146,10 @@ export function AdminLeavePage() {
                 .from('leave_applications')
                 .select(`
           *,
-          employees (first_name, last_name, employee_code, departments(name)),
+          employees!inner (first_name, last_name, employee_code, organization_id, departments(name)),
           leave_types (name, code)
         `)
+                .eq('employees.organization_id', organization.id)
                 .order('applied_at', { ascending: false })
                 .limit(100);
 
@@ -184,7 +188,12 @@ export function AdminLeavePage() {
 
     const handleApplyFilters = () => {
         // In a real implementation, you would filter the leave applications based on the filters state
-        alert('Filters applied! (Full implementation pending)');
+        setAlertModal({
+            type: 'info',
+            title: 'Filters Applied',
+            message: 'Filters applied! (Full implementation pending)',
+            onClose: () => setAlertModal(null)
+        });
         loadLeaveApplications();
     };
 
@@ -217,8 +226,10 @@ export function AdminLeavePage() {
                 .from('leave_applications')
                 .select(`
           leave_type_id,
+          employees!inner (organization_id),
           leave_types (name, code)
-        `);
+        `)
+                .eq('employees.organization_id', organization.id);
 
             const distribution = applications?.reduce((acc: any, app: any) => {
                 const typeName = app.leave_types?.name || 'Unknown';
@@ -234,6 +245,7 @@ export function AdminLeavePage() {
             setLeaveDistribution(distributionArray);
         } catch (error) {
             console.error('Error loading distribution:', error);
+            setLeaveDistribution([]);
         }
     };
 
@@ -265,7 +277,12 @@ export function AdminLeavePage() {
             await loadStats();
         } catch (error: any) {
             console.error('Error approving leave:', error);
-            alert('Failed to approve leave application');
+            setAlertModal({
+                type: 'error',
+                title: 'Error',
+                message: 'Failed to approve leave application',
+                onClose: () => setAlertModal(null)
+            });
         }
     };
 
@@ -292,7 +309,12 @@ export function AdminLeavePage() {
             await loadStats();
         } catch (error: any) {
             console.error('Error rejecting leave:', error);
-            alert('Failed to reject leave application');
+            setAlertModal({
+                type: 'error',
+                title: 'Error',
+                message: 'Failed to reject leave application',
+                onClose: () => setAlertModal(null)
+            });
         }
     };
 
@@ -411,25 +433,31 @@ export function AdminLeavePage() {
                         </div>
                     </div>
                     <div className="space-y-3">
-                        {leaveDistribution.map((item, idx) => (
-                            <div key={idx} className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                                    <span className="text-sm font-medium text-slate-700">{item.name}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-32 bg-slate-100 rounded-full h-2">
-                                        <div
-                                            className="bg-blue-500 h-2 rounded-full"
-                                            style={{ width: `${(item.count / Math.max(...leaveDistribution.map(d => d.count))) * 100}%` }}
-                                        ></div>
-                                    </div>
-                                    <span className="text-sm font-bold text-slate-900 w-8 text-right">{item.count}</span>
-                                </div>
+                        {leaveTypes.length === 0 ? (
+                            <div className="text-center py-8">
+                                <p className="text-sm text-slate-500">No leave types configured yet</p>
+                                <p className="text-xs text-slate-400 mt-1">Create leave types to see distribution</p>
                             </div>
-                        ))}
-                        {leaveDistribution.length === 0 && (
-                            <p className="text-sm text-slate-500 text-center py-4">No data available</p>
+                        ) : leaveDistribution.length === 0 ? (
+                            <p className="text-sm text-slate-500 text-center py-4">No leave applications yet</p>
+                        ) : (
+                            leaveDistribution.map((item, idx) => (
+                                <div key={idx} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                        <span className="text-sm font-medium text-slate-700">{item.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-32 bg-slate-100 rounded-full h-2">
+                                            <div
+                                                className="bg-blue-500 h-2 rounded-full"
+                                                style={{ width: `${(item.count / Math.max(...leaveDistribution.map(d => d.count))) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                        <span className="text-sm font-bold text-slate-900 w-8 text-right">{item.count}</span>
+                                    </div>
+                                </div>
+                            ))
                         )}
                     </div>
                 </div>
@@ -679,6 +707,13 @@ export function AdminLeavePage() {
                     }}
                 />
             )}
+
+            {alertModal && (
+                <AlertModal
+                    {...alertModal}
+                    onClose={() => setAlertModal(null)}
+                />
+            )}
         </div>
     );
 }
@@ -696,6 +731,7 @@ function CreateLeaveTypeModal({ onClose, onSuccess }: { onClose: () => void; onS
         is_active: true
     });
     const [loading, setLoading] = useState(false);
+    const [alertModal, setAlertModal] = useState<AlertModalProps | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -711,13 +747,30 @@ function CreateLeaveTypeModal({ onClose, onSuccess }: { onClose: () => void; onS
                     organization_id: organization.id
                 }]);
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === '23505' || error.status === 409) {
+                    throw new Error('A leave type with this code or name already exists.');
+                }
+                throw error;
+            }
 
-            alert('Leave type created successfully!');
-            onSuccess();
+            setAlertModal({
+                type: 'success',
+                title: 'Success',
+                message: 'Leave type created successfully!',
+                onClose: () => {
+                    setAlertModal(null);
+                    onSuccess();
+                }
+            });
         } catch (error: any) {
             console.error('Error creating leave type:', error);
-            alert('Failed to create leave type: ' + error.message);
+            setAlertModal({
+                type: 'error',
+                title: 'Error',
+                message: 'Failed to create leave type: ' + error.message,
+                onClose: () => setAlertModal(null)
+            });
         } finally {
             setLoading(false);
         }
@@ -858,6 +911,7 @@ function EditLeaveTypeModal({ leaveType, onClose, onSuccess }: { leaveType: Leav
         is_active: leaveType.is_active
     });
     const [loading, setLoading] = useState(false);
+    const [alertModal, setAlertModal] = useState<AlertModalProps | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -873,11 +927,23 @@ function EditLeaveTypeModal({ leaveType, onClose, onSuccess }: { leaveType: Leav
 
             if (error) throw error;
 
-            alert('Leave type updated successfully!');
-            onSuccess();
+            setAlertModal({
+                type: 'success',
+                title: 'Success',
+                message: 'Leave type updated successfully!',
+                onClose: () => {
+                    setAlertModal(null);
+                    onSuccess();
+                }
+            });
         } catch (error: any) {
             console.error('Error updating leave type:', error);
-            alert('Failed to update leave type: ' + error.message);
+            setAlertModal({
+                type: 'error',
+                title: 'Error',
+                message: 'Failed to update leave type: ' + error.message,
+                onClose: () => setAlertModal(null)
+            });
         } finally {
             setLoading(false);
         }
@@ -1000,6 +1066,13 @@ function EditLeaveTypeModal({ leaveType, onClose, onSuccess }: { leaveType: Leav
                     </div>
                 </form>
             </div>
+
+            {alertModal && (
+                <AlertModal
+                    {...alertModal}
+                    onClose={() => setAlertModal(null)}
+                />
+            )}
         </div>
     );
 }
