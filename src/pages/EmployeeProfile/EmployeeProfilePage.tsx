@@ -45,7 +45,7 @@ interface LeaveStats {
 }
 
 export function EmployeeProfilePage() {
-  const { membership, organization, user } = useAuth();
+  const { membership, organization, user, profile } = useAuth();
   const [employee, setEmployee] = useState<any>(null);
   const [admin, setAdmin] = useState<any>(null); // Admin profile from organization_admins
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -69,11 +69,11 @@ export function EmployeeProfilePage() {
   const country = organization?.country || 'India';
 
   useEffect(() => {
-    if (membership?.role && ['admin', 'hr'].includes(membership.role)) {
+    if (profile?.role && ['admin', 'hr'].includes(profile.role)) {
       setIsAdmin(true);
     }
     loadData();
-  }, [membership, user]);
+  }, [profile, user]);
 
   const loadData = async () => {
     if (!user) return;
@@ -90,7 +90,7 @@ export function EmployeeProfilePage() {
       // Check if user is admin (has admin_id in organization_members)
       if (membership?.admin_id) {
         await loadAdminData();
-      } else if (membership?.employee_id) {
+      } else if (profile?.employee_id) {
         await loadEmployeeData();
         await loadAttendanceStats();
         await loadLeaveStats();
@@ -103,7 +103,7 @@ export function EmployeeProfilePage() {
   };
 
   const loadEmployeeData = async () => {
-    if (!membership?.employee_id) return;
+    if (!profile?.employee_id) return;
 
     try {
       const { data: empData } = await supabase
@@ -114,7 +114,7 @@ export function EmployeeProfilePage() {
           designations!designation_id (title),
           branches!branch_id (name, city)
         `)
-        .eq('id', membership.employee_id)
+        .eq('id', profile.employee_id)
         .single();
 
       setEmployee(empData);
@@ -126,7 +126,7 @@ export function EmployeeProfilePage() {
           *,
           salary_components (name, code, type)
         `)
-        .eq('employee_id', membership.employee_id)
+        .eq('employee_id', profile.employee_id)
         .eq('is_active', true)
         .order('salary_components(type)', { ascending: false });
 
@@ -135,7 +135,7 @@ export function EmployeeProfilePage() {
       const { data: offerData } = await supabase
         .from('offer_letters')
         .select('*')
-        .eq('employee_id', membership.employee_id)
+        .eq('employee_id', profile.employee_id)
         .order('created_at', { ascending: false });
 
       setOfferLetters(offerData || []);
@@ -162,7 +162,7 @@ export function EmployeeProfilePage() {
   };
 
   const loadAttendanceStats = async () => {
-    if (!membership?.employee_id) return;
+    if (!profile?.employee_id) return;
 
     try {
       const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
@@ -171,7 +171,7 @@ export function EmployeeProfilePage() {
       const { data } = await supabase
         .from('attendance_records')
         .select('*')
-        .eq('employee_id', membership.employee_id)
+        .eq('employee_id', profile.employee_id)
         .gte('attendance_date', startOfMonth)
         .lte('attendance_date', today);
 
@@ -197,19 +197,19 @@ export function EmployeeProfilePage() {
   };
 
   const loadLeaveStats = async () => {
-    if (!membership?.employee_id) return;
+    if (!profile?.employee_id) return;
 
     try {
       const { data: balances } = await supabase
         .from('leave_balances')
         .select('*')
-        .eq('employee_id', membership.employee_id)
+        .eq('employee_id', profile.employee_id)
         .eq('year', new Date().getFullYear());
 
       const { data: applications } = await supabase
         .from('leave_applications')
         .select('*')
-        .eq('employee_id', membership.employee_id);
+        .eq('employee_id', profile.employee_id);
 
       const available = balances?.reduce((sum, b) => sum + Number(b.available_leaves), 0) || 0;
       const taken = applications?.filter(a => a.status === 'approved').reduce((sum, a) => sum + Number(a.total_days), 0) || 0;
@@ -279,7 +279,7 @@ export function EmployeeProfilePage() {
     }
 
     // Handle employee profile update
-    if (!membership?.employee_id) return;
+    if (!profile?.employee_id) return;
 
     try {
       const { error } = await supabase
@@ -337,7 +337,7 @@ export function EmployeeProfilePage() {
           branch: editFormData.branch || null,
           updated_at: new Date().toISOString()
         })
-        .eq('id', membership.employee_id);
+        .eq('id', profile.employee_id);
 
       if (error) throw error;
 

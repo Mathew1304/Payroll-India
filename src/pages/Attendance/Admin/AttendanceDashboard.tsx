@@ -34,6 +34,8 @@ interface EmployeeStatus {
     status: string;
     work_type: string | null;
     check_in_time: string | null;
+    check_out_time: string | null;
+    duration: string | null;
     department_name: string | null;
 }
 
@@ -137,16 +139,33 @@ export function AttendanceDashboard() {
             });
 
             // Process live employee status
-            const liveData = (liveStatusResult.data || []).map((record: any) => ({
-                id: record.employee_id,
-                first_name: record.employees.first_name,
-                last_name: record.employees.last_name,
-                employee_code: record.employees.employee_code,
-                status: record.status,
-                work_type: record.work_type,
-                check_in_time: record.check_in_time,
-                department_name: record.employees.departments?.name || 'N/A'
-            }));
+            const liveData = (liveStatusResult.data || []).map((record: any) => {
+                let duration = '-';
+                if (record.check_in_time) {
+                    const start = new Date(record.check_in_time);
+                    const end = record.check_out_time ? new Date(record.check_out_time) : new Date();
+
+                    if (start <= end) {
+                        const diff = Math.floor((end.getTime() - start.getTime()) / 60000); // minutes
+                        const hours = Math.floor(diff / 60);
+                        const mins = diff % 60;
+                        duration = `${hours}h ${mins}m`;
+                    }
+                }
+
+                return {
+                    id: record.employee_id,
+                    first_name: record.employees.first_name,
+                    last_name: record.employees.last_name,
+                    employee_code: record.employees.employee_code,
+                    status: record.status,
+                    work_type: record.work_type,
+                    check_in_time: record.check_in_time,
+                    check_out_time: record.check_out_time,
+                    duration: duration,
+                    department_name: record.employees.departments?.name || 'N/A'
+                };
+            });
 
             setLiveEmployees(liveData);
             setLastUpdated(new Date());
@@ -350,12 +369,14 @@ export function AttendanceDashboard() {
                                 <th className="text-left py-3 px-6 text-xs font-semibold text-slate-600 uppercase">Status</th>
                                 <th className="text-left py-3 px-6 text-xs font-semibold text-slate-600 uppercase">Work Type</th>
                                 <th className="text-left py-3 px-6 text-xs font-semibold text-slate-600 uppercase">Check-in Time</th>
+                                <th className="text-left py-3 px-6 text-xs font-semibold text-slate-600 uppercase">Check-out Time</th>
+                                <th className="text-left py-3 px-6 text-xs font-semibold text-slate-600 uppercase">Time Logged In</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {liveEmployees.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="py-12 text-center text-slate-500">
+                                    <td colSpan={7} className="py-12 text-center text-slate-500">
                                         <Users className="h-12 w-12 text-slate-300 mx-auto mb-2" />
                                         <p>No check-ins yet today</p>
                                     </td>
@@ -392,6 +413,12 @@ export function AttendanceDashboard() {
                                         </td>
                                         <td className="py-4 px-6 text-sm text-slate-700">
                                             {emp.check_in_time ? format(new Date(emp.check_in_time), 'HH:mm') : '-'}
+                                        </td>
+                                        <td className="py-4 px-6 text-sm text-slate-700">
+                                            {emp.check_out_time ? format(new Date(emp.check_out_time), 'HH:mm') : '-'}
+                                        </td>
+                                        <td className="py-4 px-6 text-sm font-medium text-blue-600">
+                                            {emp.duration}
                                         </td>
                                     </tr>
                                 ))

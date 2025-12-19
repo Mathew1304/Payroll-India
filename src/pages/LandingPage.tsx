@@ -349,7 +349,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             Simple, Transparent Pricing
           </h2>
           <p className={`text-xl ${isDark ? 'text-slate-300' : 'text-slate-600'} mb-12`}>
-            Choose the plan that fits your Qatar business needs
+            Choose the plan that fits your Indian business needs
           </p>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">

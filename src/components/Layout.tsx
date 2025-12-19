@@ -208,14 +208,14 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             </div>
 
             <div className="flex items-center gap-3">
-              <button
+              {/* <button
                 onClick={toggleLanguage}
                 className="flex items-center gap-2 p-2 px-3 rounded-xl text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-bg-primary transition-all"
                 title={i18n.language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
               >
                 <Languages className="h-5 w-5" />
                 <span className="text-sm font-medium">{i18n.language === 'en' ? 'EN' : 'العربية'}</span>
-              </button>
+              </button> */}
 
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
