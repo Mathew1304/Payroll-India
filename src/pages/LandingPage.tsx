@@ -31,37 +31,37 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
     {
       icon: Users,
       title: 'Smart Employee Management',
-      description: 'Comprehensive employee profiles with Qatar ID integration, residence permits, and visa expiry tracking.',
+      description: 'Comprehensive employee profiles with Aadhaar/PAN integration, document management, and compliance tracking.',
       color: 'from-blue-500 to-cyan-500'
     },
     {
       icon: Clock,
       title: 'Location-Based Attendance',
-      description: 'GPS-powered attendance tracking compliant with Qatar Labor Law, with real-time check-ins and location verification.',
+      description: 'GPS-powered attendance tracking with real-time check-ins, geofencing, and selfie verification.',
       color: 'from-violet-500 to-purple-500'
     },
     {
       icon: DollarSign,
-      title: 'WPS Compliant Payroll',
-      description: 'Full WPS/SIF file generation, Qatar Labor Law compliant salary calculations, and automated end-of-service benefits.',
+      title: 'Indian Payroll & Taxes',
+      description: 'Automated salary calculation with PF, ESI, TDS, PT support. Generate compliance reports and bank transfer files.',
       color: 'from-emerald-500 to-teal-500'
     },
     {
       icon: Calendar,
       title: 'Leave Management',
-      description: 'Qatar Labor Law compliant leave tracking with annual, sick, and emergency leave management.',
+      description: 'Comprehensive leave tracking with CL, EL, SL management and automated balance calculations.',
       color: 'from-orange-500 to-red-500'
     },
     {
       icon: BarChart3,
       title: 'Analytics & Reports',
-      description: 'Real-time insights with WPS compliance reports, payroll summaries, and Qatar-specific labor analytics.',
+      description: 'Real-time insights with statutory compliance reports, payroll summaries, and workforce analytics.',
       color: 'from-pink-500 to-rose-500'
     },
     {
       icon: Shield,
-      title: 'Qatar Compliance',
-      description: 'Full compliance with Qatar Labor Law, Ministry of Labor regulations, and WPS requirements.',
+      title: 'Statutory Compliance',
+      description: 'Full compliance with Indian Labor Laws, PF, ESI, Professional Tax, and Income Tax regulations.',
       color: 'from-indigo-500 to-blue-500'
     }
   ];
@@ -75,28 +75,28 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
 
   const testimonials = [
     {
-      name: 'Ahmed Al-Kuwari',
+      name: 'Rajesh Kumar',
       role: 'HR Director',
-      company: 'Qatar Construction Group',
-      image: 'AK',
+      company: 'TechFlow India',
+      image: 'RK',
       rating: 5,
-      text: 'LogHR made WPS compliance effortless. The automatic SIF file generation saves us hours every month, and the end-of-service calculations are accurate to the last Riyal.'
+      text: 'LogHR made payroll processing effortless. The automated PF and TDS calculations save us hours every month.'
     },
     {
-      name: 'Fatima Al-Mansouri',
+      name: 'Priya Sharma',
       role: 'Operations Manager',
-      company: 'Doha Trading LLC',
-      image: 'FM',
+      company: 'Innovate Solutions',
+      image: 'PS',
       rating: 5,
-      text: 'The Qatar ID and visa expiry tracking features are invaluable. We never miss renewal deadlines, and the Ministry of Labor compliance reports are exactly what we need.'
+      text: 'The document tracking features are invaluable. we never miss statutory filing deadlines thanks to the alerts.'
     },
     {
-      name: 'Mohammed Al-Thani',
+      name: 'Amit Patel',
       role: 'CEO',
-      company: 'Gulf Tech Solutions',
-      image: 'MT',
+      company: 'Growth Systems',
+      image: 'AP',
       rating: 5,
-      text: 'Scaled from 15 to 300+ employees across Qatar. The WPS system is flawless, and our payroll processing time reduced from days to hours.'
+      text: 'Scaled from 15 to 300+ employees across India. The system is flawless, and our payroll processing is now seamless.'
     }
   ];
 
@@ -149,16 +149,16 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             <div className="space-y-8 animate-fadeIn">
               <div className={`inline-flex items-center gap-2 px-4 py-2 ${isDark ? 'bg-blue-900/30 border-blue-700' : 'bg-blue-50 border-blue-200'} border rounded-full`}>
                 <Sparkles className="h-4 w-4 text-blue-400" />
-                <span className={`text-sm font-semibold ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>WPS Compliant HRMS for Qatar</span>
+                <span className={`text-sm font-semibold ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>HRMS & Payroll for India</span>
               </div>
               <h1 className={`text-5xl md:text-6xl font-bold ${isDark ? 'text-white' : 'text-slate-900'} leading-tight`}>
-                Qatar's #1 HR &
+                India's #1 HR &
                 <span className="block bg-gradient-to-r from-blue-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
                   Payroll Platform
                 </span>
               </h1>
               <p className={`text-xl ${isDark ? 'text-slate-300' : 'text-slate-600'} leading-relaxed`}>
-                Complete WPS-compliant payroll, Qatar Labor Law adherence, and intelligent HRMS designed for businesses in Qatar. From attendance to end-of-service benefits.
+                Complete statutory-compliant payroll, Indian Labor Law adherence, and intelligent HRMS designed for businesses in India. From attendance to Full & Final settlement.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
@@ -189,7 +189,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                       <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                     ))}
                   </div>
-                  <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Trusted by 5,000+ users in Qatar & GCC</p>
+                  <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Trusted by 5,000+ users in India</p>
                 </div>
               </div>
             </div>
@@ -275,13 +275,13 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
           <div className="text-center mb-16">
             <div className={`inline-flex items-center gap-2 px-4 py-2 ${isDark ? 'bg-blue-900/30 border-blue-700' : 'bg-blue-50 border-blue-200'} border rounded-full mb-6`}>
               <Zap className="h-4 w-4 text-blue-400" />
-              <span className={`text-sm font-semibold ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>Qatar-Focused Features</span>
+              <span className={`text-sm font-semibold ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>India-Focused Features</span>
             </div>
             <h2 className={`text-4xl md:text-5xl font-bold ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>
-              Everything You Need for Qatar Compliance
+              Everything You Need for Payroll Compliance
             </h2>
             <p className={`text-xl ${isDark ? 'text-slate-300' : 'text-slate-600'} max-w-3xl mx-auto`}>
-              Built for Qatar businesses. WPS compliant. Ministry of Labor approved.
+              Built for Indian businesses. PF, ESI, TDS, PT compliant.
             </p>
           </div>
 
@@ -354,8 +354,8 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
-              { name: 'Starter', price: '499 QAR', users: 'Up to 25 employees', features: ['Core HRMS', 'GPS Attendance', 'Leave Management', 'Qatar ID Tracking', 'Email Support'] },
-              { name: 'Professional', price: '999 QAR', users: 'Up to 100 employees', features: ['Everything in Starter', 'WPS Payroll & SIF Files', 'End of Service Benefits', 'Reports & Analytics', 'Priority Support'], popular: true },
+              { name: 'Starter', price: '₹499', users: 'Up to 25 employees', features: ['Core HRMS', 'GPS Attendance', 'Leave Management', 'Statutory Reports', 'Email Support'] },
+              { name: 'Professional', price: '₹999', users: 'Up to 100 employees', features: ['Everything in Starter', 'Payroll with Taxes', 'PF & ESI Calculation', 'Reports & Analytics', 'Priority Support'], popular: true },
               { name: 'Enterprise', price: 'Custom', users: 'Unlimited employees', features: ['Everything in Professional', 'Multi-location Support', 'Custom Integrations', 'Dedicated Account Manager', '24/7 Priority Support'] }
             ].map((plan, i) => (
               <div key={i} className={`relative rounded-2xl p-8 border-2 ${plan.popular ? 'border-blue-600 shadow-2xl scale-105' : isDark ? 'border-slate-700' : 'border-slate-200'} ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
@@ -381,8 +381,8 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 <button
                   onClick={onGetStarted}
                   className={`w-full py-3 rounded-xl font-bold transition-all ${plan.popular
-                      ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white hover:shadow-xl'
-                      : isDark ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
+                    ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white hover:shadow-xl'
+                    : isDark ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
                     }`}
                 >
                   Get Started
@@ -396,10 +396,10 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Ready to Transform Your Qatar HR Operations?
+            Ready to Transform Your HR Operations?
           </h2>
           <p className="text-xl text-slate-300 mb-8">
-            Join hundreds of Qatar companies already using LogHR for WPS-compliant payroll and workforce management.
+            Join hundreds of companies already using LogHR for compliant payroll and workforce management.
           </p>
           <button
             onClick={onGetStarted}
@@ -408,7 +408,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             Start Your Free Trial
             <ArrowRight className="h-5 w-5" />
           </button>
-          <p className="text-sm text-slate-400 mt-4">No credit card required. 14-day free trial. Qatar-based support.</p>
+          <p className="text-sm text-slate-400 mt-4">No credit card required. 14-day free trial. India-based support.</p>
         </div>
       </section>
 
@@ -423,7 +423,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
                 <span className="text-xl font-bold text-white">LogHr</span>
               </div>
               <p className="text-slate-400 text-sm">
-                Qatar's premier WPS-compliant HRMS platform for modern businesses.
+                India's premier statutory-compliant HRMS platform for modern businesses.
               </p>
             </div>
             {[
@@ -446,7 +446,7 @@ export function LandingPage({ onGetStarted, onLogin }: LandingPageProps) {
             ))}
           </div>
           <div className={`border-t ${isDark ? 'border-slate-900' : 'border-slate-800'} pt-8 flex flex-col md:flex-row justify-between items-center gap-4`}>
-            <p className="text-slate-400 text-sm">© 2025 LogHR. All rights reserved. | Built for Qatar businesses.</p>
+            <p className="text-slate-400 text-sm">© 2025 LogHR. All rights reserved. | Built for Indian businesses.</p>
             <div className="flex gap-4">
               {[Globe, Shield, Sparkles].map((Icon, i) => (
                 <a key={i} href="#" className={`h-10 w-10 ${isDark ? 'bg-slate-900 hover:bg-slate-800' : 'bg-slate-800 hover:bg-slate-700'} rounded-lg flex items-center justify-center text-slate-400 hover:text-white transition-colors`}>
