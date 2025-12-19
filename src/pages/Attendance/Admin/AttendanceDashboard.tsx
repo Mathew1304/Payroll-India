@@ -101,19 +101,26 @@ export function AttendanceDashboard() {
                     .from('attendance_records')
                     .select(`
                         *,
-                        employees!inner (
+                        employees (
                             id,
                             first_name,
                             last_name,
-                            employee_code,
-                            departments (name)
+                            employee_code
                         )
                     `)
                     .eq('organization_id', organization!.id)
                     .eq('date', today)
+                    .not('check_in_time', 'is', null)
                     .order('check_in_time', { ascending: false })
-                    .limit(10)
+                    .limit(50)
             ]);
+
+            console.log('Dashboard Data Load:', {
+                attendance: attendanceResult,
+                live: liveStatusResult,
+                today,
+                orgId: organization!.id
+            });
 
             const records = attendanceResult.data || [];
             const employeeCount = employeeResult.count || 0;

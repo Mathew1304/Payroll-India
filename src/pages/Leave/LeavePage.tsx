@@ -23,15 +23,15 @@ interface LeaveBalance {
 
 interface LeaveApplication {
   id: string;
-  from_date: string;
-  to_date: string;
-  total_days: number;
+  start_date: string;
+  end_date: string;
+  days: number;
   reason: string;
   status: string;
-  applied_at: string;
+  created_at: string;
   approved_by: string | null;
-  approved_date: string | null;
-  rejected_reason: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
   leave_types: LeaveType;
 }
 
@@ -51,8 +51,8 @@ interface ApplyLeaveForm {
 }
 
 export function LeavePage() {
-  const { membership, organization } = useAuth();
-  const isAdmin = membership?.role && ['admin', 'hr'].includes(membership.role);
+  const { profile, organization } = useAuth();
+  const isAdmin = profile?.role && ['admin', 'hr', 'super_admin'].includes(profile.role);
 
   // If admin/HR, show admin dashboard
   if (isAdmin) {
@@ -64,7 +64,7 @@ export function LeavePage() {
 }
 
 function EmployeeLeavePage() {
-  const { membership, organization } = useAuth();
+  const { profile, organization } = useAuth();
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([]);
@@ -82,11 +82,11 @@ function EmployeeLeavePage() {
     contact_number: ''
   });
 
-  const isManager = membership?.role && ['admin', 'hr', 'manager'].includes(membership.role);
+  const isManager = profile?.role && ['admin', 'hr', 'manager', 'super_admin'].includes(profile.role);
 
   useEffect(() => {
     loadLeaveData();
-  }, [membership, organization]);
+  }, [profile, organization]);
 
   const loadLeaveData = async () => {
     try {
@@ -119,7 +119,7 @@ function EmployeeLeavePage() {
   };
 
   const loadLeaveBalances = async () => {
-    if (!membership?.employee_id) return;
+    if (!profile?.employee_id) return;
     try {
       const currentYear = new Date().getFullYear();
       const { data } = await supabase
@@ -128,16 +128,27 @@ function EmployeeLeavePage() {
           *,
           leave_types (*)
         `)
-        .eq('employee_id', membership.employee_id)
+        .eq('employee_id', profile.employee_id)
         .eq('year', currentYear);
-      setLeaveBalances(data || []);
+
+      const mappedBalances: LeaveBalance[] = (data || []).map((b: any) => ({
+        id: b.id,
+        leave_type_id: b.leave_type_id,
+        total_quota: b.accrued || 0,
+        used_leaves: b.used || 0,
+        pending_leaves: 0, // Pending leaves logic would need separate calculation if not in DB
+        available_leaves: b.closing_balance || 0,
+        leave_types: b.leave_types
+      }));
+
+      setLeaveBalances(mappedBalances);
     } catch (error) {
       console.error('Error loading leave balances:', error);
     }
   };
 
   const loadLeaveApplications = async () => {
-    if (!membership?.employee_id) return;
+    if (!profile?.employee_id) return;
     try {
       const { data } = await supabase
         .from('leave_applications')
@@ -145,8 +156,8 @@ function EmployeeLeavePage() {
           *,
           leave_types (*)
         `)
-        .eq('employee_id', membership.employee_id)
-        .order('applied_at', { ascending: false })
+        .eq('employee_id', profile.employee_id)
+        .order('created_at', { ascending: false })
         .limit(20);
       setLeaveApplications(data || []);
     } catch (error) {
@@ -165,7 +176,7 @@ function EmployeeLeavePage() {
           employees (first_name, last_name, employee_code)
         `)
         .eq('status', 'pending')
-        .order('applied_at', { ascending: false });
+        .order('created_at', { ascending: false });
       setPendingApplications(data || []);
     } catch (error) {
       console.error('Error loading pending applications:', error);
@@ -215,7 +226,7 @@ function EmployeeLeavePage() {
       return;
     }
 
-    if (!membership?.employee_id) return;
+    if (!profile?.employee_id) return;
 
     try {
       const days = calculateDays();
@@ -224,15 +235,15 @@ function EmployeeLeavePage() {
       const { error: insertError } = await supabase
         .from('leave_applications')
         .insert({
-          employee_id: membership.employee_id,
+          organization_id: organization?.id,
+          employee_id: profile.employee_id,
           leave_type_id: formData.leave_type_id,
-          from_date: formData.from_date,
-          to_date: formData.to_date,
-          total_days: days,
+          start_date: formData.from_date,
+          end_date: formData.to_date,
+          days: days,
           reason: formData.reason,
           is_half_day: formData.half_day,
-          status: 'pending',
-          applied_at: new Date().toISOString()
+          status: 'pending'
         });
 
       if (insertError) throw insertError;
@@ -266,15 +277,15 @@ function EmployeeLeavePage() {
   };
 
   const handleApprove = async (applicationId: string) => {
-    if (!membership?.user_id) return;
+    if (!profile?.user_id) return;
 
     try {
       const { error } = await supabase
         .from('leave_applications')
         .update({
           status: 'approved',
-          approved_by: membership.user_id,
-          approved_date: new Date().toISOString()
+          approved_by: profile.user_id,
+          approved_at: new Date().toISOString()
         })
         .eq('id', applicationId);
 
@@ -299,16 +310,16 @@ function EmployeeLeavePage() {
   };
 
   const handleReject = async (applicationId: string, reason: string) => {
-    if (!membership?.user_id) return;
+    if (!profile?.user_id) return;
 
     try {
       const { error } = await supabase
         .from('leave_applications')
         .update({
           status: 'rejected',
-          approved_by: membership.user_id,
-          approved_date: new Date().toISOString(),
-          rejected_reason: reason
+          approved_by: profile.user_id,
+          approved_at: new Date().toISOString(),
+          rejection_reason: reason
         })
         .eq('id', applicationId);
 
@@ -728,30 +739,30 @@ function LeaveApplicationCard({ application }: { application: LeaveApplication }
         <div>
           <h3 className="font-bold text-slate-900 text-lg">{application.leave_types.name}</h3>
           <p className="text-sm text-slate-600 mt-1">
-            {new Date(application.from_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {new Date(application.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             {' → '}
-            {new Date(application.to_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {new Date(application.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
         <div className="text-right">
           {getStatusBadge(application.status)}
-          <p className="text-sm font-bold text-slate-900 mt-2">{application.total_days} day(s)</p>
+          <p className="text-sm font-bold text-slate-900 mt-2">{application.days} day(s)</p>
         </div>
       </div>
       <div className="p-3 bg-slate-50 rounded-lg">
         <p className="text-sm text-slate-700"><strong>Reason:</strong> {application.reason}</p>
       </div>
       <div className="flex items-center justify-between mt-3 text-xs text-slate-500">
-        <span>Applied: {new Date(application.applied_at).toLocaleDateString()}</span>
-        {application.approved_date && (
+        <span>Applied: {new Date(application.created_at).toLocaleDateString()}</span>
+        {application.approved_at && (
           <span>
-            {application.status === 'approved' ? 'Approved' : 'Rejected'}: {new Date(application.approved_date).toLocaleDateString()}
+            {application.status === 'approved' ? 'Approved' : 'Rejected'}: {new Date(application.approved_at).toLocaleDateString()}
           </span>
         )}
       </div>
-      {application.rejected_reason && (
+      {application.rejection_reason && (
         <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-900"><strong>Rejection Reason:</strong> {application.rejected_reason}</p>
+          <p className="text-sm text-red-900"><strong>Rejection Reason:</strong> {application.rejection_reason}</p>
         </div>
       )}
     </div>

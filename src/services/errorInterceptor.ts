@@ -98,8 +98,13 @@ export function setupGlobalErrorHandler() {
     };
 }
 
+// DISABLED: Custom fetch wrapper - causing performance issues with excessive logging
 // Custom fetch wrapper for Supabase and global use
 export const fetchWithInterceptor = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    // Just use original fetch without interception to prevent performance issues
+    return originalFetch(input, init);
+
+    /* ORIGINAL CODE - DISABLED
     try {
         // Use the captured originalFetch to avoid recursion
         const response = await originalFetch(input, init);
@@ -160,7 +165,8 @@ export const fetchWithInterceptor = async (input: RequestInfo | URL, init?: Requ
         }
         throw error;
     }
+    */
 };
 
-// Override global fetch immediately as well, for non-Supabase calls
-window.fetch = fetchWithInterceptor;
+// DISABLED: Override global fetch - causing performance issues
+// window.fetch = fetchWithInterceptor;

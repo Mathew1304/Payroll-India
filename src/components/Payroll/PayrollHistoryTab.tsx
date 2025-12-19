@@ -17,6 +17,8 @@ export function PayrollHistoryTab({ employeeId }: PayrollHistoryTabProps) {
     const [selectedPayslip, setSelectedPayslip] = useState<any>(null);
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const currency = organization?.country === 'India' ? 'INR' : 'QAR';
+    const currencySymbol = organization?.country === 'India' ? '₹' : 'QAR';
 
     useEffect(() => {
         loadPayrollRecords();
@@ -31,8 +33,11 @@ export function PayrollHistoryTab({ employeeId }: PayrollHistoryTabProps) {
 
         setLoading(true);
         try {
+            // Determine table based on country
+            const tableName = organization.country === 'India' ? 'india_payroll_records' : 'qatar_payroll_records';
+
             const { data, error } = await supabase
-                .from('qatar_payroll_records')
+                .from(tableName)
                 .select('*')
                 .eq('employee_id', employeeId)
                 .eq('organization_id', organization.id)
@@ -212,15 +217,15 @@ export function PayrollHistoryTab({ employeeId }: PayrollHistoryTabProps) {
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
                                         <div>
                                             <p className="text-xs text-slate-500">Gross Salary</p>
-                                            <p className="text-sm font-semibold text-slate-900">{Number(record.gross_salary).toLocaleString()} QAR</p>
+                                            <p className="text-sm font-semibold text-slate-900">{currencySymbol}{Number(record.gross_salary).toLocaleString('en-IN')}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">Deductions</p>
-                                            <p className="text-sm font-semibold text-red-600">-{Number(record.total_deductions).toLocaleString()} QAR</p>
+                                            <p className="text-sm font-semibold text-red-600">-{currencySymbol}{Number(record.total_deductions).toLocaleString('en-IN')}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">Net Salary</p>
-                                            <p className="text-lg font-bold text-emerald-600">{Number(record.net_salary).toLocaleString()} QAR</p>
+                                            <p className="text-lg font-bold text-emerald-600">{currencySymbol}{Number(record.net_salary).toLocaleString('en-IN')}</p>
                                         </div>
                                         <div>
                                             <p className="text-xs text-slate-500">Working Days</p>
@@ -282,33 +287,33 @@ export function PayrollHistoryTab({ employeeId }: PayrollHistoryTabProps) {
                                 <div className="space-y-2 bg-emerald-50 rounded-lg p-4">
                                     <div className="flex justify-between text-sm">
                                         <span className="text-slate-700">Basic Salary</span>
-                                        <span className="font-semibold">{Number(selectedPayslip.basic_salary).toLocaleString()} QAR</span>
+                                        <span className="font-semibold">{currencySymbol}{Number(selectedPayslip.basic_salary).toLocaleString('en-IN')}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-slate-700">Housing All owance</span>
-                                        <span className="font-semibold">{Number(selectedPayslip.housing_allowance).toLocaleString()} QAR</span>
+                                        <span className="font-semibold">{currencySymbol}{Number(selectedPayslip.housing_allowance || 0).toLocaleString('en-IN')}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-slate-700">Transport Allowance</span>
-                                        <span className="font-semibold">{Number(selectedPayslip.transport_allowance).toLocaleString()} QAR</span>
+                                        <span className="font-semibold">{currencySymbol}{Number(selectedPayslip.transport_allowance || 0).toLocaleString('en-IN')}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-slate-700">Food Allowance</span>
-                                        <span className="font-semibold">{Number(selectedPayslip.food_allowance).toLocaleString()} QAR</span>
+                                        <span className="font-semibold">{currencySymbol}{Number(selectedPayslip.food_allowance || 0).toLocaleString('en-IN')}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-slate-700">Other Allowances</span>
-                                        <span className="font-semibold">{(Number(selectedPayslip.mobile_allowance) + Number(selectedPayslip.utility_allowance) + Number(selectedPayslip.other_allowances)).toLocaleString()} QAR</span>
+                                        <span className="font-semibold">{currencySymbol}{(Number(selectedPayslip.mobile_allowance || 0) + Number(selectedPayslip.utility_allowance || 0) + Number(selectedPayslip.other_allowances || 0)).toLocaleString('en-IN')}</span>
                                     </div>
                                     {selectedPayslip.overtime_amount > 0 && (
                                         <div className="flex justify-between text-sm">
                                             <span className="text-slate-700">Overtime</span>
-                                            <span className="font-semibold">{Number(selectedPayslip.overtime_amount).toLocaleString()} QAR</span>
+                                            <span className="font-semibold">{currencySymbol}{Number(selectedPayslip.overtime_amount).toLocaleString('en-IN')}</span>
                                         </div>
                                     )}
                                     <div className="flex justify-between text-base font-bold border-t-2 border-emerald-200 pt-2 mt-2">
                                         <span className="text-emerald-900">Gross Salary</span>
-                                        <span className="text-emerald-600">{Number(selectedPayslip.gross_salary).toLocaleString()} QAR</span>
+                                        <span className="text-emerald-600">{currencySymbol}{Number(selectedPayslip.gross_salary).toLocaleString('en-IN')}</span>
                                     </div>
                                 </div>
                             </div>
@@ -323,25 +328,25 @@ export function PayrollHistoryTab({ employeeId }: PayrollHistoryTabProps) {
                                     {selectedPayslip.absence_deduction > 0 && (
                                         <div className="flex justify-between text-sm">
                                             <span className="text-slate-700">Absence Deduction</span>
-                                            <span className="font-semibold text-red-600">-{Number(selectedPayslip.absence_deduction).toLocaleString()} QAR</span>
+                                            <span className="font-semibold text-red-600">-{currencySymbol}{Number(selectedPayslip.absence_deduction).toLocaleString('en-IN')}</span>
                                         </div>
                                     )}
                                     {selectedPayslip.loan_deduction > 0 && (
                                         <div className="flex justify-between text-sm">
                                             <span className="text-slate-700">Loan Deduction</span>
-                                            <span className="font-semibold text-red-600">-{Number(selectedPayslip.loan_deduction).toLocaleString()} QAR</span>
+                                            <span className="font-semibold text-red-600">-{currencySymbol}{Number(selectedPayslip.loan_deduction).toLocaleString('en-IN')}</span>
                                         </div>
                                     )}
                                     {selectedPayslip.advance_deduction > 0 && (
                                         <div className="flex justify-between text-sm">
                                             <span className="text-slate-700">Advance Recovery</span>
-                                            <span className="font-semibold text-red-600">-{Number(selectedPayslip.advance_deduction).toLocaleString()} QAR</span>
+                                            <span className="font-semibold text-red-600">-{currencySymbol}{Number(selectedPayslip.advance_deduction).toLocaleString('en-IN')}</span>
                                         </div>
                                     )}
                                     {selectedPayslip.other_deductions > 0 && (
                                         <div className="flex justify-between text-sm">
                                             <span className="text-slate-700">Other Deductions</span>
-                                            <span className="font-semibold text-red-600">-{Number(selectedPayslip.other_deductions).toLocaleString()} QAR</span>
+                                            <span className="font-semibold text-red-600">-{currencySymbol}{Number(selectedPayslip.other_deductions || 0).toLocaleString('en-IN')}</span>
                                         </div>
                                     )}
                                     {selectedPayslip.total_deductions === 0 && (
@@ -350,7 +355,7 @@ export function PayrollHistoryTab({ employeeId }: PayrollHistoryTabProps) {
                                     {selectedPayslip.total_deductions > 0 && (
                                         <div className="flex justify-between text-base font-bold border-t-2 border-red-200 pt-2 mt-2">
                                             <span className="text-red-900">Total Deductions</span>
-                                            <span className="text-red-600">-{Number(selectedPayslip.total_deductions).toLocaleString()} QAR</span>
+                                            <span className="text-red-600">-{currencySymbol}{Number(selectedPayslip.total_deductions).toLocaleString('en-IN')}</span>
                                         </div>
                                     )}
                                 </div>
@@ -360,7 +365,7 @@ export function PayrollHistoryTab({ employeeId }: PayrollHistoryTabProps) {
                             <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl p-6">
                                 <div className="flex justify-between items-center">
                                     <span className="text-emerald-100 text-lg">Net Salary</span>
-                                    <span className="text-3xl font-bold text-white">{Number(selectedPayslip.net_salary).toLocaleString()} QAR</span>
+                                    <span className="text-3xl font-bold text-white">{currencySymbol}{Number(selectedPayslip.net_salary).toLocaleString('en-IN')}</span>
                                 </div>
                             </div>
 

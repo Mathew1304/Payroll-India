@@ -6,7 +6,9 @@ import type { UserRole } from '../lib/database.types';
 interface UserProfile {
   id: string;
   user_id: string | null;
-  current_organization_id: string | null;
+  organization_id: string | null;
+  employee_id: string | null;
+  role: UserRole;
   is_active: boolean;
 }
 
@@ -88,8 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profileError) throw profileError;
       setProfile(profileData);
 
-      if (profileData?.current_organization_id) {
-        await loadOrganizationData(profileData.current_organization_id, userId);
+      if (profileData?.organization_id) {
+        await loadOrganizationData(profileData.organization_id, userId);
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
@@ -123,16 +125,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setOrganization({ ...orgData, features });
 
-      const { data: memberData, error: memberError } = await supabase
-        .from('organization_members')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (memberError) throw memberError;
-      setMembership(memberData);
+      // Note: membership data is not needed since role is in user_profiles
+      // The organization_members table doesn't exist in this schema
+      setMembership(null);
     } catch (error) {
       console.error('Error loading organization:', error);
     }
@@ -194,13 +189,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase
         .from('user_profiles')
-        .update({ current_organization_id: organizationId })
+        .update({ organization_id: organizationId })
         .eq('user_id', user.id);
 
       if (error) throw error;
 
       await loadOrganizationData(organizationId, user.id);
-      setProfile(prev => prev ? { ...prev, current_organization_id: organizationId } : null);
+      setProfile(prev => prev ? { ...prev, organization_id: organizationId } : null);
     } catch (error) {
       console.error('Error switching organization:', error);
       throw error;

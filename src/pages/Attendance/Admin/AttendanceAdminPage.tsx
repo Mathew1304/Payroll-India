@@ -20,9 +20,6 @@ export function AttendanceAdminPage() {
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'locations', label: 'Office Locations', icon: MapPin },
-        { id: 'schedules', label: 'Schedules', icon: Calendar },
-        { id: 'reports', label: 'Reports', icon: FileText },
-        { id: 'settings', label: 'Settings', icon: Settings },
     ];
 
     return (

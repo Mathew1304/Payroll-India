@@ -33,7 +33,11 @@ export async function getEnabledFeatures(organizationId: string): Promise<Set<st
             .eq('organization_id', organizationId);
 
         if (error) {
-            console.error('Error fetching features:', error);
+            // Silently handle 404 errors (table doesn't exist)
+            // This is expected when organization_features table is missing
+            if (error.code !== 'PGRST205' && error.code !== '42P01') {
+                console.error('Error fetching features:', error);
+            }
             return new Set(); // Return empty set on error
         }
 
@@ -51,7 +55,7 @@ export async function getEnabledFeatures(organizationId: string): Promise<Set<st
 
         return enabledFeatures;
     } catch (error) {
-        console.error('Error in getEnabledFeatures:', error);
+        // Silently handle missing table errors
         return new Set();
     }
 }

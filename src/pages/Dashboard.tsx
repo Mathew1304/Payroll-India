@@ -3,6 +3,7 @@ import { Users, Clock, Calendar, TrendingUp, Banknote, AlertCircle, CheckCircle,
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { EmployeeDashboard } from './EmployeeDashboard';
+import { format } from 'date-fns';
 
 interface DashboardStats {
   totalEmployees: number;
@@ -19,8 +20,12 @@ interface DashboardStats {
   departmentCount: number;
 }
 
-export function Dashboard() {
-  const { organization, membership } = useAuth();
+interface DashboardProps {
+  onNavigate?: (page: string) => void;
+}
+
+export function Dashboard({ onNavigate }: DashboardProps) {
+  const { organization, profile } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalEmployees: 0,
     activeEmployees: 0,
@@ -45,135 +50,184 @@ export function Dashboard() {
   useEffect(() => {
     if (organization?.id) {
       loadDashboardData();
-    }
-  }, [organization, membership]);
 
-  if (membership?.role === 'employee') {
-    return <EmployeeDashboard />;
+      // Subscribe to Realtime changes
+      const channels = [
+        supabase.channel('dashboard-attendance')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records', filter: `organization_id=eq.${organization.id}` }, () => {
+            loadAttendanceStats();
+          })
+          .subscribe(),
+        supabase.channel('dashboard-leaves')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_applications', filter: `organization_id=eq.${organization.id}` }, () => {
+            loadLeaveStats();
+          })
+          .subscribe(),
+        supabase.channel('dashboard-employees')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'employees', filter: `organization_id=eq.${organization.id}` }, () => {
+            loadEmployeeStats();
+          })
+          .subscribe()
+      ];
+
+      return () => {
+        channels.forEach(channel => supabase.removeChannel(channel));
+      };
+    }
+  }, [organization, profile]);
+
+  if (profile?.role === 'employee') {
+    return <EmployeeDashboard onNavigate={onNavigate || (() => { })} />;
   }
 
   async function loadDashboardData() {
     try {
-      if (membership?.role && ['admin', 'hr', 'finance', 'manager'].includes(membership.role)) {
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-
-        const [
-          employeesData,
-          leavesData,
-          attendanceData,
-          tasksData,
-          payrollData,
-          expensesData,
-          departmentsData
-        ] = await Promise.all([
-          supabase
-            .from('employees')
-            .select('id, first_name, last_name, employment_status, department_id, date_of_birth, date_of_joining, is_active')
-            .eq('organization_id', organization!.id)
-            .eq('is_active', true),
-          supabase
-            .from('leave_applications')
-            .select('id, status')
-            .eq('organization_id', organization!.id)
-            .eq('status', 'pending'),
-          supabase
-            .from('attendance_records')
-            .select('id')
-            .eq('organization_id', organization!.id)
-            .eq('status', 'present')
-            .gte('check_in_time', todayStr),
-          supabase
-            .from('tasks')
-            .select('id, status')
-            .eq('organization_id', organization!.id)
-            .gte('created_at', firstDayOfMonth),
-          organization?.country === 'Qatar'
-            ? supabase
-              .from('qatar_payroll_records')
-              .select('net_salary')
-              .eq('organization_id', organization!.id)
-              .eq('pay_period_month', today.getMonth() + 1)
-              .eq('pay_period_year', today.getFullYear())
-            : organization?.country === 'Saudi Arabia'
-              ? supabase
-                .from('saudi_payroll_records')
-                .select('net_salary')
-                .eq('organization_id', organization!.id)
-                .eq('pay_period_month', today.getMonth() + 1)
-                .eq('pay_period_year', today.getFullYear())
-              : { data: null },
-          supabase
-            .from('expense_claims')
-            .select('id')
-            .eq('organization_id', organization!.id)
-            .eq('status', 'pending'),
-          supabase
-            .from('departments')
-            .select('id')
-            .eq('organization_id', organization!.id)
+      if (profile?.role && ['admin', 'hr', 'finance', 'manager'].includes(profile.role)) {
+        await Promise.all([
+          loadEmployeeStats(),
+          loadLeaveStats(),
+          loadAttendanceStats(),
+          loadTaskStats(),
+          loadPayrollStats(),
+          loadExpenseStats(),
+          loadDepartmentStats(),
+          loadRecentActivities(),
+          loadLeaveBalances(),
+          loadSalaryDues()
         ]);
-
-        const activeEmployees = employeesData.data?.filter(e => e.employment_status === 'active') || [];
-        const completedCount = tasksData.data?.filter(t => t.status === 'completed').length || 0;
-        const totalPayroll = payrollData.data?.reduce((sum, r) => sum + Number(r.net_salary), 0) || 0;
-
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-        const recentHires = employeesData.data?.filter(e =>
-          e.date_of_joining && new Date(e.date_of_joining) >= thirtyDaysAgo
-        ).length || 0;
-
-        const birthdaysInNext7Days = employeesData.data?.filter(e => {
-          if (!e.date_of_birth) return false;
-          const dob = new Date(e.date_of_birth);
-          const next7Days = new Date(today);
-          next7Days.setDate(today.getDate() + 7);
-
-          const thisYearBirthday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-          return thisYearBirthday >= today && thisYearBirthday <= next7Days;
-        }) || [];
-
-        const deptCounts = activeEmployees.reduce((acc: any, emp) => {
-          const dept = emp.department || 'Unassigned';
-          acc[dept] = (acc[dept] || 0) + 1;
-          return acc;
-        }, {});
-
-        const deptStats = Object.entries(deptCounts).map(([name, count]) => ({
-          name,
-          count
-        })).sort((a: any, b: any) => b.count - a.count).slice(0, 5);
-
-        setStats({
-          totalEmployees: employeesData.data?.length || 0,
-          activeEmployees: activeEmployees.length,
-          pendingLeaves: leavesData.data?.length || 0,
-          todayAttendance: attendanceData.data?.length || 0,
-          monthlyTasks: tasksData.data?.length || 0,
-          completedTasks: completedCount,
-          totalPayroll: totalPayroll,
-          pendingExpenses: expensesData.data?.length || 0,
-          upcomingBirthdays: birthdaysInNext7Days.length,
-          expiringDocuments: 0,
-          recentHires: recentHires,
-          departmentCount: departmentsData.data?.length || 0,
-        });
-
-        setUpcomingBirthdays(birthdaysInNext7Days.slice(0, 3));
-        setDepartmentStats(deptStats);
-
-        await loadRecentActivities();
-        await loadLeaveBalances();
-        await loadSalaryDues();
       }
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  // individual loaders for granular updates
+  async function loadEmployeeStats() {
+    const { data: employeesData } = await supabase
+      .from('employees')
+      .select('id, first_name, last_name, employment_status, department_id, date_of_birth, date_of_joining, is_active')
+      .eq('organization_id', organization!.id)
+      .eq('is_active', true);
+
+    if (employeesData) {
+      const activeEmployees = employeesData.filter(e => e.employment_status === 'active');
+      const today = new Date();
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+      const recentHires = employeesData.filter(e =>
+        e.date_of_joining && new Date(e.date_of_joining) >= thirtyDaysAgo
+      ).length;
+
+      const birthdaysInNext7Days = employeesData.filter(e => {
+        if (!e.date_of_birth) return false;
+        const dob = new Date(e.date_of_birth);
+        const next7Days = new Date(today);
+        next7Days.setDate(today.getDate() + 7);
+        const thisYearBirthday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+        return thisYearBirthday >= today && thisYearBirthday <= next7Days;
+      }) || [];
+
+      setStats(prev => ({
+        ...prev,
+        totalEmployees: employeesData.length,
+        activeEmployees: activeEmployees.length,
+        recentHires,
+        upcomingBirthdays: birthdaysInNext7Days.length
+      }));
+      setUpcomingBirthdays(birthdaysInNext7Days.slice(0, 3));
+    }
+  }
+
+  async function loadLeaveStats() {
+    const { count } = await supabase
+      .from('leave_applications')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organization!.id)
+      .eq('status', 'pending');
+
+    setStats(prev => ({ ...prev, pendingLeaves: count || 0 }));
+  }
+
+  async function loadAttendanceStats() {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const { count } = await supabase
+      .from('attendance_records')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organization!.id)
+      .eq('date', today)
+      .in('status', ['Present', 'Late', 'Half Day']); // Count all present types
+
+    setStats(prev => ({ ...prev, todayAttendance: count || 0 }));
+  }
+
+  async function loadTaskStats() {
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+
+    const { data } = await supabase
+      .from('tasks')
+      .select('id, status')
+      .eq('organization_id', organization!.id)
+      .gte('created_at', firstDayOfMonth);
+
+    if (data) {
+      const completed = data.filter(t => t.status === 'completed').length;
+      setStats(prev => ({ ...prev, monthlyTasks: data.length, completedTasks: completed }));
+    }
+  }
+
+  async function loadPayrollStats() {
+    const today = new Date();
+    let query = supabase.from('india_payroll_records').select('net_salary');
+
+    if (organization?.country === 'Qatar') query = supabase.from('qatar_payroll_records').select('net_salary');
+    else if (organization?.country === 'Saudi Arabia') query = supabase.from('saudi_payroll_records').select('net_salary');
+
+    const { data } = await query
+      .eq('organization_id', organization!.id)
+      .eq('pay_period_month', today.getMonth() + 1)
+      .eq('pay_period_year', today.getFullYear());
+
+    if (data) {
+      const total = data.reduce((sum, r: any) => sum + Number(r.net_salary), 0);
+      setStats(prev => ({ ...prev, totalPayroll: total }));
+    }
+  }
+
+  async function loadExpenseStats() {
+    const { count } = await supabase
+      .from('expense_claims')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organization!.id)
+      .eq('status', 'pending');
+    setStats(prev => ({ ...prev, pendingExpenses: count || 0 }));
+  }
+
+  async function loadDepartmentStats() {
+    const { data } = await supabase
+      .from('employees')
+      .select('department:departments(name)')
+      .eq('organization_id', organization!.id)
+      .eq('is_active', true)
+      .eq('employment_status', 'active'); // Only count active employees in departments
+
+    if (data) {
+      const deptCounts: any = {};
+      data.forEach((emp: any) => {
+        const deptName = emp.department?.name || 'Unassigned';
+        deptCounts[deptName] = (deptCounts[deptName] || 0) + 1;
+      });
+
+      const stats = Object.entries(deptCounts).map(([name, count]) => ({ name, count }))
+        .sort((a: any, b: any) => b.count - a.count)
+        .slice(0, 5);
+
+      setDepartmentStats(stats);
+      setStats(prev => ({ ...prev, departmentCount: Object.keys(deptCounts).length }));
+    }
+  }
 
   async function loadRecentActivities() {
     const { data } = await supabase
@@ -195,30 +249,54 @@ export function Dashboard() {
   };
 
   async function loadLeaveBalances() {
+    // Fetch actual leave balances
+    const year = new Date().getFullYear();
     const { data } = await supabase
-      .from('employees')
-      .select('id, first_name, last_name, is_active')
+      .from('leave_balances')
+      .select(`
+        closing_balance,
+        leave_types (name),
+        employees (first_name, last_name, is_active)
+      `)
       .eq('organization_id', organization!.id)
-      .eq('is_active', true)
-      .eq('employment_status', 'active')
-      .limit(5);
+      .eq('year', year)
+      // .eq('employees.is_active', true) // Nested filtering doesn't work simply in one go usually, filtering in JS
+      .limit(50);
 
-    if (data) {
-      setLeaveBalances(data.map(emp => ({
-        name: `${emp.first_name} ${emp.last_name}`,
-        annual: Math.floor(Math.random() * 15) + 10,
-        sick: Math.floor(Math.random() * 8) + 2
-      })));
+    if (data && data.length > 0) {
+      // Group by employee
+      const employeeMap: any = {};
+      data.forEach((record: any) => {
+        if (!record.employees) return; // Skip orphaned records
+        const name = `${record.employees.first_name} ${record.employees.last_name}`;
+        if (!employeeMap[name]) {
+          employeeMap[name] = { name, annual: 0, sick: 0 };
+        }
+
+        const typeName = record.leave_types?.name?.toLowerCase() || '';
+        if (typeName.includes('annual') || typeName.includes('earned') || typeName.includes('privilege')) {
+          employeeMap[name].annual = record.closing_balance;
+        } else if (typeName.includes('sick') || typeName.includes('casual')) {
+          // For simplicity grouping sick/casual, or strictly sick
+          if (typeName.includes('sick')) employeeMap[name].sick = record.closing_balance;
+        }
+      });
+      setLeaveBalances(Object.values(employeeMap).slice(0, 4));
+    } else {
+      // Fallback if no balances initialized yet: Show empty state or safe default
+      setLeaveBalances([]);
     }
   };
 
   async function loadSalaryDues() {
     const today = new Date();
+    let tableName = 'india_payroll_records';
+    if (organization?.country === 'Qatar') tableName = 'qatar_payroll_records';
+    else if (organization?.country === 'Saudi Arabia') tableName = 'saudi_payroll_records';
 
-    if (organization?.country === 'Qatar') {
-      const { data } = await supabase
-        .from('qatar_payroll_records')
-        .select(`
+    const { data } = await supabase
+      .from(tableName as any)
+      .select(`
           id,
           net_salary,
           status,
@@ -226,32 +304,13 @@ export function Dashboard() {
           pay_period_year,
           employee:employees(first_name, last_name)
         `)
-        .eq('organization_id', organization!.id)
-        .eq('pay_period_month', today.getMonth() + 1)
-        .eq('pay_period_year', today.getFullYear())
-        .in('status', ['approved', 'draft'])
-        .limit(5);
+      .eq('organization_id', organization!.id)
+      .eq('pay_period_month', today.getMonth() + 1)
+      .eq('pay_period_year', today.getFullYear())
+      .in('status', ['approved', 'draft'])
+      .limit(5);
 
-      if (data) setSalaryDues(data);
-    } else if (organization?.country === 'Saudi Arabia') {
-      const { data } = await supabase
-        .from('saudi_payroll_records')
-        .select(`
-          id,
-          net_salary,
-          status,
-          pay_period_month,
-          pay_period_year,
-          employee:employees(first_name, last_name)
-        `)
-        .eq('organization_id', organization!.id)
-        .eq('pay_period_month', today.getMonth() + 1)
-        .eq('pay_period_year', today.getFullYear())
-        .in('status', ['approved', 'draft'])
-        .limit(5);
-
-      if (data) setSalaryDues(data);
-    }
+    if (data) setSalaryDues(data);
   };
 
   if (loading) {
@@ -343,7 +402,7 @@ export function Dashboard() {
                 <h3 className="text-lg font-bold text-slate-900">Department Stats</h3>
               </div>
               <div className="space-y-3">
-                {departmentStats.map((dept, idx) => (
+                {departmentStats.map((dept: any, idx) => (
                   <div key={idx}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-slate-700">{dept.name}</span>
@@ -434,21 +493,25 @@ export function Dashboard() {
               <h3 className="text-base font-bold text-slate-900">Leave Balance</h3>
             </div>
             <div className="space-y-3">
-              {leaveBalances.slice(0, 4).map((emp, idx) => (
-                <div key={idx} className="p-3 bg-slate-50 rounded-lg">
-                  <p className="text-sm font-semibold text-slate-900 mb-2">{emp.name}</p>
-                  <div className="flex gap-2">
-                    <div className="flex-1 bg-blue-100 rounded px-2 py-1 text-center">
-                      <p className="text-xs text-blue-700">Annual</p>
-                      <p className="text-sm font-bold text-blue-900">{emp.annual}</p>
-                    </div>
-                    <div className="flex-1 bg-emerald-100 rounded px-2 py-1 text-center">
-                      <p className="text-xs text-emerald-700">Sick</p>
-                      <p className="text-sm font-bold text-emerald-900">{emp.sick}</p>
+              {leaveBalances.length > 0 ? (
+                leaveBalances.slice(0, 4).map((emp: any, idx: number) => (
+                  <div key={idx} className="p-3 bg-slate-50 rounded-lg">
+                    <p className="text-sm font-semibold text-slate-900 mb-2">{emp.name}</p>
+                    <div className="flex gap-2">
+                      <div className="flex-1 bg-blue-100 rounded px-2 py-1 text-center">
+                        <p className="text-xs text-blue-700">Annual</p>
+                        <p className="text-sm font-bold text-blue-900">{emp.annual}</p>
+                      </div>
+                      <div className="flex-1 bg-emerald-100 rounded px-2 py-1 text-center">
+                        <p className="text-xs text-emerald-700">Sick</p>
+                        <p className="text-sm font-bold text-emerald-900">{emp.sick}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">No leave balances available</p>
+              )}
             </div>
           </div>
 

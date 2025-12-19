@@ -396,13 +396,23 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
 
       dateFields.forEach(field => {
         if (row[field] && row[field].trim() !== '') {
-          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-          if (!dateRegex.test(row[field])) {
+          const dateValue = row[field].trim();
+          const yyyymmddRegex = /^\d{4}-\d{2}-\d{2}$/;
+          const ddmmyyyyRegex = /^\d{2}-\d{2}-\d{4}$/;
+
+          if (yyyymmddRegex.test(dateValue)) {
+            // Already in correct format (YYYY-MM-DD)
+            // Do nothing, keep as is
+          } else if (ddmmyyyyRegex.test(dateValue)) {
+            // Convert DD-MM-YYYY to YYYY-MM-DD
+            const parts = dateValue.split('-');
+            row[field] = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          } else {
             const error = {
               row: rowNum,
               field,
               message: `Invalid date format for ${field.replace('_', ' ')}`,
-              expected: 'YYYY-MM-DD (e.g., 2024-12-31)',
+              expected: 'YYYY-MM-DD or DD-MM-YYYY (e.g., 2024-12-31 or 31-12-2024)',
               actual: row[field]
             };
             errors.push(error);
@@ -457,8 +467,15 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
             throw new Error(`Duplicate employee found: ${existing.company_email || existing.mobile_number} already exists`);
           }
 
+          // Generate employee code
+          const today = new Date();
+          const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+          const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+          const employeeCode = `EMP-${dateStr}-${randomNum}`;
+
           const employeeData: any = {
             organization_id: organization.id,
+            employee_code: employeeCode,
             first_name: row.first_name?.trim(),
             middle_name: row.middle_name?.trim() || null,
             last_name: row.last_name?.trim(),
@@ -468,18 +485,12 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
             personal_email: row.personal_email?.trim() || null,
             company_email: row.company_email?.trim(),
             mobile_number: row.mobile_number?.trim(),
-            alternate_number: row.alternate_number?.trim() || null,
             current_address: row.current_address?.trim() || null,
             permanent_address: row.permanent_address?.trim() || null,
-            city: row.city?.trim() || null,
-            state: row.state?.trim() || null,
-            pincode: row.pincode?.trim() || null,
             employment_type: row.employment_type?.toLowerCase() || 'full_time',
             employment_status: row.employment_status?.toLowerCase() || 'active',
             date_of_joining: row.date_of_joining || null,
             probation_end_date: row.probation_end_date || null,
-            ctc_annual: row.ctc_annual ? parseFloat(row.ctc_annual) : null,
-            basic_salary: row.basic_salary ? parseFloat(row.basic_salary) : null,
             bank_name: row.bank_name?.trim() || null,
             bank_account_number: row.bank_account_number?.trim() || null,
             bank_branch: row.bank_branch?.trim() || null
@@ -504,7 +515,6 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
             employeeData.aadhaar_number = row.aadhaar_number?.trim() || null;
             employeeData.uan_number = row.uan_number?.trim() || null;
             employeeData.esi_number = row.esi_number?.trim() || null;
-            employeeData.bank_ifsc_code = row.bank_ifsc_code?.trim() || null;
           }
 
           const { data: rawData, error } = await supabase
@@ -580,19 +590,28 @@ export function BulkImportEmployeesModal({ onClose, onSuccess }: BulkImportEmplo
     }
 
     try {
-      await supabase
-        .from('employee_import_history')
-        .insert({
-          organization_id: organization.id,
-          uploaded_by: user?.id || null,
-          file_name: file?.name || 'unknown.csv',
-          total_rows: parsedData.length,
-          successful_imports: successCount,
-          failed_imports: failedCount,
-          imported_employees: importedEmployees,
-          failed_rows: failedRows,
-          country: organization.country
-        } as any);
+      // 3. Create import history record
+      const totalRows = parsedData.length;
+      const errorCount = failedRows.length;
+      const errorLog = failedRows.length > 0 ? JSON.stringify(failedRows) : null;
+
+      const { error: historyError } = await supabase
+        .from('import_history')
+        .insert([{
+          organization_id: organization!.id,
+          import_type: 'employees',
+          file_name: file!.name,
+          total_rows: totalRows,
+          successful_rows: successCount,
+          failed_rows: errorCount,
+          status: errorCount > 0 ? 'partial' : 'completed',
+          error_log: errorLog,
+          imported_by: user!.id
+        }]);
+
+      if (historyError) {
+        console.error('Error saving import history:', historyError);
+      }
     } catch (error) {
       console.error('Error saving import history:', error);
     }

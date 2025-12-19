@@ -15,7 +15,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const { user, organization, membership, signOut } = useAuth();
+  const { user, organization, profile, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const [notificationCount, setNotificationCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -54,21 +54,21 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
 
   useEffect(() => {
-    if (membership?.employee_id) {
+    if (profile?.employee_id) {
       loadNotifications();
       const interval = setInterval(loadNotifications, 30000);
       return () => clearInterval(interval);
     }
-  }, [membership]);
+  }, [profile]);
 
   const loadNotifications = async () => {
-    if (!membership?.employee_id) return;
+    if (!profile?.employee_id) return;
 
     try {
       const { data, error } = await supabase
         .from('employee_notifications')
         .select('*')
-        .eq('employee_id', membership.employee_id)
+        .eq('employee_id', profile.employee_id)
         .eq('is_read', false)
         .order('created_at', { ascending: false })
         .limit(10);
@@ -76,9 +76,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       if (!error && data) {
         setNotifications(data);
         setNotificationCount(data.length);
+      } else if (error && error.code !== 'PGRST204' && error.code !== 'PGRST205') {
+        // Only log errors that are not "table not found" (PGRST204/PGRST205)
+        console.error('Error loading notifications:', error);
       }
     } catch (error) {
-      console.error('Error loading notifications:', error);
+      // Silently ignore - notifications are optional
     }
   };
 
@@ -105,16 +108,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'payroll', labelKey: 'menu.payroll', icon: Banknote, color: 'from-emerald-500 to-emerald-600', roles: ['admin', 'hr', 'finance'] },
     { id: 'my-payroll', labelKey: 'menu.myPayroll', icon: Banknote, color: 'from-emerald-500 to-emerald-600', roles: ['employee'] },
     { id: 'reports', labelKey: 'menu.reports', icon: FileText, color: 'from-violet-500 to-violet-600', roles: ['admin', 'hr', 'finance'] },
-    { id: 'tasks', labelKey: 'menu.tasks', icon: CheckSquare, color: 'from-purple-500 to-purple-600', roles: ['admin', 'hr', 'manager', 'employee'] },
-    { id: 'work-reports', labelKey: 'menu.workReports', icon: ClipboardList, color: 'from-sky-500 to-sky-600', roles: ['admin', 'hr', 'manager', 'employee'] },
+    // { id: 'work-reports', labelKey: 'menu.workReports', icon: ClipboardList, color: 'from-sky-500 to-sky-600', roles: ['admin', 'hr', 'manager', 'employee'] }, // HIDDEN
     { id: 'employees', labelKey: 'menu.employees', icon: Users, color: 'from-teal-500 to-teal-600', roles: ['admin', 'hr', 'manager'] },
     { id: 'attendance-admin', labelKey: 'menu.attendance', icon: Clock, color: 'from-amber-500 to-amber-600', roles: ['admin', 'hr', 'manager'] },
     { id: 'attendance-employee', labelKey: 'menu.attendance', icon: Clock, color: 'from-amber-500 to-amber-600', roles: ['employee'] },
     { id: 'leave', labelKey: 'menu.leave', icon: Calendar, color: 'from-cyan-500 to-cyan-600', roles: ['admin', 'hr', 'manager', 'employee'] },
-    { id: 'expenses', labelKey: 'menu.expenses', icon: Receipt, color: 'from-orange-500 to-orange-600', roles: ['admin', 'hr', 'finance', 'manager', 'employee'] },
-    { id: 'performance', labelKey: 'menu.performance', icon: Award, color: 'from-yellow-500 to-yellow-600', roles: ['admin', 'hr', 'manager', 'employee'] },
-    { id: 'training', labelKey: 'menu.training', icon: BookOpen, color: 'from-green-500 to-green-600', roles: ['admin', 'hr', 'manager', 'employee'] },
-    { id: 'helpdesk', labelKey: 'menu.helpdesk', icon: Headphones, color: 'from-pink-500 to-pink-600', roles: ['admin', 'hr', 'manager', 'employee'] },
+    // { id: 'helpdesk', labelKey: 'menu.helpdesk', icon: Headphones, color: 'from-pink-500 to-pink-600', roles: ['admin', 'hr', 'manager', 'employee'] }, // HIDDEN
     { id: 'announcements', labelKey: 'menu.announcements', icon: Megaphone, color: 'from-fuchsia-500 to-fuchsia-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'help', labelKey: 'menu.help', icon: HelpCircle, color: 'from-blue-500 to-blue-600', roles: ['admin', 'hr', 'manager', 'finance'] },
     { id: 'settings', labelKey: 'menu.settings', icon: Settings, color: 'from-slate-500 to-slate-600', roles: ['admin', 'hr'] },
@@ -140,12 +139,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   ] as const;
 
   const filteredMenuItems = menuItems.filter(item => {
-    const hasRole = membership && item.roles.includes(membership.role);
+    const hasRole = profile && item.roles.includes(profile.role);
 
     // Feature Check Logic:
     // 1. Check if item.id matches or starts with any managed feature
     // 2. If it's a managed feature, check if it's in the enabled set.
-    // 3. If features haven't loaded yet, loosely allow (or hide? defaulting to true for smoother UX)
+    // 3. If features haven't loaded yet OR if no features are enabled (table missing), show all items
     // 4. If it's NOT a managed feature (like Help, Profile, etc.), always allow it.
 
     let isFeatureVisible = true;
@@ -159,7 +158,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     if (matchedFeature) {
       // This is a managed feature, check if enabled
       if (featuresLoaded) {
-        isFeatureVisible = enabledFeatures.has(matchedFeature);
+        // If features loaded but the set is empty, it means the table is missing/broken
+        // In this case, show all features by default
+        if (enabledFeatures.size === 0) {
+          isFeatureVisible = true; // Show all when feature system is broken
+        } else {
+          isFeatureVisible = enabledFeatures.has(matchedFeature);
+        }
       } else {
         // Fallback to previous context logic during load to prevent flickering
         isFeatureVisible = organization?.features?.[matchedFeature] !== false;
@@ -229,7 +234,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                   <p className="text-sm font-semibold text-theme-text-primary">{user?.email}</p>
                   <p className="text-xs text-theme-text-secondary capitalize flex items-center justify-end gap-1">
                     <span className="h-1.5 w-1.5 bg-green-500 rounded-full"></span>
-                    {membership?.role}
+                    {profile?.role}
                   </p>
                 </div>
                 <button
@@ -331,7 +336,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-slate-400 text-xs font-medium">{organization?.name || 'Organization'}</p>
-                  <p className="text-white font-semibold text-sm truncate">{membership?.role || 'User'}</p>
+                  <p className="text-white font-semibold text-sm truncate">{profile?.role || 'User'}</p>
                 </div>
               </div>
             </div>

@@ -52,7 +52,7 @@ export function ImportHistoryModal({ onClose }: ImportHistoryModalProps) {
     try {
       // 1. Fetch import history first
       const { data: historyData, error: historyError } = await supabase
-        .from('employee_import_history')
+        .from('import_history')
         .select('*')
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: false })
@@ -61,7 +61,6 @@ export function ImportHistoryModal({ onClose }: ImportHistoryModalProps) {
       if (historyError) throw historyError;
       if (!historyData) return;
 
-      // 2. Collect all unique uploader IDs
       const uploaderIds = Array.from(new Set(
         historyData
           .map(item => item.uploaded_by)

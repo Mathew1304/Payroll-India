@@ -9,7 +9,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 export function AttendanceHistory() {
-    const { user } = useAuth();
+    const { profile } = useAuth();
     const [records, setRecords] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [dateRange, setDateRange] = useState({
@@ -18,10 +18,10 @@ export function AttendanceHistory() {
     });
 
     useEffect(() => {
-        if (user?.id) {
+        if (profile?.employee_id) {
             loadHistory();
         }
-    }, [user?.id, dateRange]);
+    }, [profile?.employee_id, dateRange]);
 
     const loadHistory = async () => {
         setLoading(true);
@@ -30,9 +30,9 @@ export function AttendanceHistory() {
                 .from('attendance_records')
                 .select(`
           *,
-          location:office_locations(name)
+          location:check_in_location_id(name)
         `)
-                .eq('employee_id', user!.id)
+                .eq('employee_id', profile!.employee_id)
                 .gte('date', dateRange.start)
                 .lte('date', dateRange.end)
                 .order('date', { ascending: false });

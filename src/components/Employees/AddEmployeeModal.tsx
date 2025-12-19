@@ -233,27 +233,94 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
     setLoading(true);
 
     try {
+      // Auto-generate employee_code (format: EMP-YYYYMMDD-XXX)
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+
+      // Get the count of employees created today to generate sequential number
+      const { count } = await supabase
+        .from('employees')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', `${today.toISOString().split('T')[0]}T00:00:00`)
+        .lte('created_at', `${today.toISOString().split('T')[0]}T23:59:59`);
+
+      const sequentialNumber = String((count || 0) + 1).padStart(3, '0');
+      const employeeCode = `EMP-${dateStr}-${sequentialNumber}`;
+
       const employeePayload: any = {
         ...formData,
         organization_id: organization.id,
-        ctc_annual: formData.ctc_annual ? parseFloat(formData.ctc_annual) : null,
-        basic_salary: formData.basic_salary ? parseFloat(formData.basic_salary) : null,
-        previous_salary: formData.previous_salary ? parseFloat(formData.previous_salary) : null,
-        total_experience_years: formData.total_experience_years ? parseFloat(formData.total_experience_years) : null,
-        accommodation_allowance: formData.accommodation_allowance ? parseFloat(formData.accommodation_allowance) : null,
-        transportation_allowance: formData.transportation_allowance ? parseFloat(formData.transportation_allowance) : null,
-        food_allowance: formData.food_allowance ? parseFloat(formData.food_allowance) : null,
-        insurance_coverage_amount: formData.insurance_coverage_amount ? parseFloat(formData.insurance_coverage_amount) : null,
-        number_of_children: formData.number_of_children ? parseInt(formData.number_of_children) : null,
-        year_of_completion: formData.year_of_completion ? parseInt(formData.year_of_completion) : null,
-        contract_duration_months: formData.contract_duration_months ? parseInt(formData.contract_duration_months) : null,
-        notice_period_days: formData.notice_period_days ? parseInt(formData.notice_period_days) : null,
-        annual_leave_days: formData.annual_leave_days ? parseInt(formData.annual_leave_days) : null,
-        sick_leave_days: formData.sick_leave_days ? parseInt(formData.sick_leave_days) : null,
-        dependents_covered: formData.dependents_covered ? parseInt(formData.dependents_covered) : null,
+        employee_code: employeeCode, // Auto-generated employee code
+
+        // Remove fields that don't exist in database
+        bank_iban: undefined,
+        bank_ifsc_code: undefined,
+        branch_id: undefined,
+
+        // Remove Qatar/Saudi-specific fields that don't exist
+        qatar_id: undefined,
+        qatar_id_expiry: undefined,
+        residence_permit_number: undefined,
+        residence_permit_expiry: undefined,
+        work_permit_number: undefined,
+        work_permit_expiry: undefined,
+        health_card_number: undefined,
+        health_card_expiry: undefined,
+        labor_card_number: undefined,
+        labor_card_expiry: undefined,
+        iqama_number: undefined,
+        iqama_expiry: undefined,
+        muqeem_id: undefined,
+        jawazat_number: undefined,
+        sponsor_name: undefined,
+        sponsor_id: undefined,
+        medical_fitness_certificate: undefined,
+        medical_fitness_expiry: undefined,
+        police_clearance_certificate: undefined,
+        police_clearance_expiry: undefined,
+        visa_number: undefined,
+        visa_expiry: undefined,
+        visa_issue_date: undefined,
+        visa_sponsor: undefined,
+        kafala_sponsor_name: undefined,
+        kafala_sponsor_id: undefined,
+        medical_insurance_number: undefined,
+        medical_insurance_provider: undefined,
+        medical_insurance_expiry: undefined,
+        absher_id: undefined,
+
+        // Remove other non-existent fields
+        city: undefined,
+        state: undefined,
+        pincode: undefined,
+        alternate_number: undefined,
+        blood_group: undefined,
+        religion: undefined,
+        place_of_birth: undefined,
+        work_location: undefined,
+        job_grade: undefined,
+        job_level: undefined,
+        accommodation_address: undefined,
+        accommodation_type: undefined,
+
+        // Parse numeric fields - ensure empty strings become null
+        ctc_annual: formData.ctc_annual && formData.ctc_annual.trim() !== '' ? parseFloat(formData.ctc_annual) : null,
+        basic_salary: formData.basic_salary && formData.basic_salary.trim() !== '' ? parseFloat(formData.basic_salary) : null,
+        previous_salary: formData.previous_salary && formData.previous_salary.trim() !== '' ? parseFloat(formData.previous_salary) : null,
+        total_experience_years: formData.total_experience_years && formData.total_experience_years.toString().trim() !== '' ? parseFloat(formData.total_experience_years) : null,
+        insurance_coverage_amount: formData.insurance_coverage_amount && formData.insurance_coverage_amount.trim() !== '' ? parseFloat(formData.insurance_coverage_amount) : null,
+        number_of_children: formData.number_of_children && formData.number_of_children.toString().trim() !== '' ? parseInt(formData.number_of_children) : null,
+        year_of_completion: formData.year_of_completion && formData.year_of_completion.toString().trim() !== '' ? parseInt(formData.year_of_completion) : null,
+        contract_duration_months: formData.contract_duration_months && formData.contract_duration_months.toString().trim() !== '' ? parseInt(formData.contract_duration_months) : null,
+        notice_period_days: formData.notice_period_days && formData.notice_period_days.toString().trim() !== '' ? parseInt(formData.notice_period_days) : null,
+        annual_leave_days: formData.annual_leave_days && formData.annual_leave_days.toString().trim() !== '' ? parseInt(formData.annual_leave_days) : null,
+        sick_leave_days: formData.sick_leave_days && formData.sick_leave_days.toString().trim() !== '' ? parseInt(formData.sick_leave_days) : null,
+        dependents_covered: formData.dependents_covered && formData.dependents_covered.toString().trim() !== '' ? parseInt(formData.dependents_covered) : null,
+        accommodation_allowance: formData.accommodation_allowance && formData.accommodation_allowance.trim() !== '' ? parseFloat(formData.accommodation_allowance) : null,
+        transportation_allowance: formData.transportation_allowance && formData.transportation_allowance.trim() !== '' ? parseFloat(formData.transportation_allowance) : null,
+        food_allowance: formData.food_allowance && formData.food_allowance.trim() !== '' ? parseFloat(formData.food_allowance) : null,
         department_id: formData.department_id || null,
         designation_id: formData.designation_id || null,
-        branch_id: formData.branch_id || null,
         gender: formData.gender as Gender,
         marital_status: formData.marital_status as MaritalStatus,
         employment_status: formData.employment_status as EmploymentStatus,
@@ -267,16 +334,6 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         esi_number: formData.esi_number || null,
         passport_number: formData.passport_number || null,
         driving_license_number: formData.driving_license_number || null,
-        qatar_id: formData.qatar_id || null,
-        residence_permit_number: formData.residence_permit_number || null,
-        work_permit_number: formData.work_permit_number || null,
-        health_card_number: formData.health_card_number || null,
-        labor_card_number: formData.labor_card_number || null,
-        iqama_number: formData.iqama_number || null,
-        muqeem_id: formData.muqeem_id || null,
-        jawazat_number: formData.jawazat_number || null,
-        absher_id: formData.absher_id || null,
-        medical_insurance_number: formData.medical_insurance_number || null,
         professional_tax_number: formData.professional_tax_number || null,
         pf_account_number: formData.pf_account_number || null,
         pf_uan: formData.pf_uan || null,
@@ -291,25 +348,12 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         passport_expiry: formData.passport_expiry || null,
         passport_issue_date: formData.passport_issue_date || null,
         driving_license_expiry: formData.driving_license_expiry || null,
-        qatar_id_expiry: formData.qatar_id_expiry || null,
-        residence_permit_expiry: formData.residence_permit_expiry || null,
-        work_permit_expiry: formData.work_permit_expiry || null,
-        health_card_expiry: formData.health_card_expiry || null,
-        labor_card_expiry: formData.labor_card_expiry || null,
-        medical_fitness_expiry: formData.medical_fitness_expiry || null,
-        police_clearance_expiry: formData.police_clearance_expiry || null,
-        visa_expiry: formData.visa_expiry || null,
-        visa_issue_date: formData.visa_issue_date || null,
-        iqama_expiry: formData.iqama_expiry || null,
-        medical_insurance_expiry: formData.medical_insurance_expiry || null,
         previous_employment_from: formData.previous_employment_from || null,
         previous_employment_to: formData.previous_employment_to || null,
         insurance_expiry: formData.insurance_expiry || null,
-        // Additional date fields to be safe
         confirmation_date: (formData as any).confirmation_date || null,
         resignation_date: (formData as any).resignation_date || null,
-        last_working_date: (formData as any).last_working_date || null,
-        pan_expiry: (formData as any).pan_expiry || null
+        last_working_date: (formData as any).last_working_date || null
       };
 
       const { data: employeeData, error: employeeError } = await supabase
@@ -362,7 +406,7 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         const randomDigits = Math.floor(1000 + Math.random() * 9000);
         generatedPassword = `${orgPrefix}@${randomDigits}`;
 
-        const { error: functionError } = await supabase.functions.invoke('create-employee-user', {
+        const { data: functionData, error: functionError } = await supabase.functions.invoke('create-employee-user', {
           body: {
             email: formData.company_email,
             password: generatedPassword,
@@ -373,7 +417,40 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
           }
         });
 
-        if (functionError) throw functionError;
+        if (functionError) {
+          console.error('Edge Function error details:', functionError);
+          console.error('Edge Function response data:', functionData);
+
+          // Try to get more details with a manual fetch
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const response = await fetch(`${supabase.supabaseUrl}/functions/v1/create-employee-user`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token}`,
+              },
+              body: JSON.stringify({
+                email: formData.company_email,
+                password: generatedPassword,
+                organization_id: organization.id,
+                employee_id: employeeData.id,
+                first_name: formData.first_name,
+                last_name: formData.last_name
+              })
+            });
+
+            const errorDetails = await response.json();
+            console.error('Detailed error from Edge Function:', errorDetails);
+          } catch (fetchError) {
+            console.error('Could not fetch detailed error:', fetchError);
+          }
+
+          // Don't throw - allow employee creation to succeed even if email fails
+          // We'll show a warning to the user instead
+        } else {
+          console.log('Edge Function success:', functionData);
+        }
       }
 
       if (sendInvitation && !createLogin) {

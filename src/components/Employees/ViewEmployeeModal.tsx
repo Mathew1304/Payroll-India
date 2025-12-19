@@ -35,8 +35,7 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
         .select(`
           *,
           departments!department_id (name),
-          designations!designation_id (title),
-          branches!branch_id (name, city),
+          designations!designation_id (name),
           manager:employees!reporting_manager_id (first_name, last_name, employee_code)
         `)
         .eq('id', employeeId)
@@ -190,7 +189,7 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
               <p className="text-blue-100 flex items-center gap-2">
                 <span className="font-semibold">{employee.employee_code}</span>
                 <span>•</span>
-                <span>{employee.designations?.title || 'N/A'}</span>
+                <span>{employee.designations?.name || 'N/A'}</span>
                 <span>•</span>
                 <span className={`px-2 py-0.5 text-xs rounded-full ${employee.employment_status === 'active' ? 'bg-emerald-500' :
                   employee.employment_status === 'probation' ? 'bg-amber-500' :
@@ -282,8 +281,7 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Section icon={Briefcase} title="Employment Details">
                 <InfoRow label="Department" value={employee.departments?.name || 'N/A'} />
-                <InfoRow label="Designation" value={employee.designations?.title || 'N/A'} />
-                <InfoRow label="Branch" value={employee.branches?.name || 'N/A'} />
+                <InfoRow label="Designation" value={employee.designations?.name || 'N/A'} />
                 <InfoRow label="Employment Type" value={employee.employment_type || 'N/A'} />
                 <InfoRow label="Employment Status" value={employee.employment_status || 'N/A'} />
                 <InfoRow label="Date of Joining" value={formatDate(employee.date_of_joining)} />

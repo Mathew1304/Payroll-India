@@ -48,7 +48,7 @@ export function QuickInviteModal({ onClose, onSuccess }: QuickInviteModalProps) 
         .select('*')
         .eq('organization_id', organization.id)
         .eq('is_active', true)
-        .order('title')
+        .order('name')
     ]);
 
     if (deptResult.data) setDepartments(deptResult.data);
@@ -99,7 +99,7 @@ export function QuickInviteModal({ onClose, onSuccess }: QuickInviteModalProps) 
           invitation_code: inviteCodeData,
           onboarding_token: onboardingToken,
           invitation_type: 'full_onboarding',
-          invited_by: user!.id
+          created_by: user!.id
         });
 
       if (inviteError) throw inviteError;
@@ -299,7 +299,7 @@ export function QuickInviteModal({ onClose, onSuccess }: QuickInviteModalProps) 
               <option value="">Select Designation</option>
               {designations.map((desig) => (
                 <option key={desig.id} value={desig.id}>
-                  {desig.title}
+                  {desig.name}
                 </option>
               ))}
             </select>

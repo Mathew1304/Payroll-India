@@ -9,7 +9,7 @@ interface RegisterPageProps {
 export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
   const [formData, setFormData] = useState({
     organizationName: '',
-    country: 'Qatar',
+    country: 'India', // Fixed to India - no other countries
     email: '',
     password: '',
     confirmPassword: ''
@@ -138,30 +138,8 @@ export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
               </div>
             </div>
 
-            <div>
-              <label htmlFor="country" className="block text-sm font-medium text-slate-700 mb-2">
-                Country
-              </label>
-              <select
-                id="country"
-                name="country"
-                required
-                value={formData.country}
-                onChange={handleChange}
-                className="block w-full px-3 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-              >
-                <option value="Qatar">Qatar</option>
-                <option value="UAE">UAE</option>
-                <option value="Saudi Arabia">Saudi Arabia</option>
-                <option value="Kuwait">Kuwait</option>
-                <option value="Bahrain">Bahrain</option>
-                <option value="Oman">Oman</option>
-                <option value="Other">Other</option>
-              </select>
-              <p className="text-xs text-slate-500 mt-1">
-                This determines the payroll and compliance workflow
-              </p>
-            </div>
+            {/* Country is fixed to India */}
+            <input type="hidden" name="country" value="India" />
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">

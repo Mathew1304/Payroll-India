@@ -39,9 +39,9 @@ export function HelpPage() {
         />
         <QuickLinkCard
           icon={Download}
-          title={t('help.quickLinks.wpsCompliance.title')}
-          description={t('help.quickLinks.wpsCompliance.description')}
-          onClick={() => setExpandedSection('wps-guide')}
+          title="Statutory Compliance"
+          description="Learn about PF, ESI, and Professional Tax"
+          onClick={() => setExpandedSection('statutory-compliance')}
         />
       </div>
 
@@ -63,8 +63,11 @@ export function HelpPage() {
                 <p className="text-sm text-slate-700 mb-2">Your organization was created during registration. Make sure your organization profile is complete with:</p>
                 <ul className="list-disc list-inside text-sm text-slate-700 space-y-1 ml-4">
                   <li>Company Name</li>
-                  <li>Country (Qatar)</li>
-                  <li>Establishment ID (from Ministry of Labour)</li>
+                  <li>Country (India)</li>
+                  <li>PAN Number (Company PAN)</li>
+                  <li>TAN Number (Tax Deduction Account Number)</li>
+                  <li>PF Registration Number (if applicable)</li>
+                  <li>ESI Registration Number (if applicable)</li>
                   <li>Company Email and Contact Information</li>
                 </ul>
               </div>
@@ -74,9 +77,10 @@ export function HelpPage() {
                 <p className="text-sm text-slate-700 mb-2">Navigate to <strong>Employees</strong> page and add your team:</p>
                 <ul className="list-disc list-inside text-sm text-slate-700 space-y-1 ml-4">
                   <li><strong>Individual Add:</strong> Click "Add Employee" button</li>
-                  <li><strong>Bulk Import:</strong> Click "Bulk Import" and download the Excel template</li>
-                  <li>Required fields: Name, Employee Code, Qatar ID, IBAN Number</li>
-                  <li>Optional: Phone, Email, Department, Position, Hire Date</li>
+                  <li><strong>Bulk Import:</strong> Click "Bulk Import" and download the CSV template</li>
+                  <li>Required fields: Name, Employee Code, Date of Birth, Date of Joining</li>
+                  <li>Important: PAN Number, Aadhaar Number, UAN (for PF), Bank Account Details</li>
+                  <li>Optional: Phone, Email, Department, Designation, ESI Number</li>
                 </ul>
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-xs text-blue-900 font-medium">
@@ -96,7 +100,7 @@ export function HelpPage() {
                 </ul>
                 <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                   <p className="text-xs text-amber-900 font-medium">
-                    <strong>Important:</strong> As per Qatar Labour Law, Basic Salary should be at least 60% of total salary for WPS compliance.
+                    <strong>Important:</strong> Basic Salary is used for PF calculation. Ensure it's set correctly as PF contribution is 12% of Basic + DA.
                   </p>
                 </div>
               </div>
@@ -120,10 +124,10 @@ export function HelpPage() {
                   {[
                     { step: 1, title: 'Select Pay Period', desc: 'Choose month and year from dropdowns' },
                     { step: 2, title: 'Process Payroll', desc: 'Click "Process Payroll" button' },
-                    { step: 3, title: 'Review Records', desc: 'Check all employee payroll records' },
-                    { step: 4, title: 'Generate WPS File', desc: 'Go to WPS tab and download SIF file' },
-                    { step: 5, title: 'Submit to Bank', desc: 'Upload WPS file to your bank portal' },
-                    { step: 6, title: 'Mark as Paid', desc: 'After bank confirms, mark as paid with bank reference' },
+                    { step: 3, title: 'Review Records', desc: 'Check all employee payroll records with PF/ESI/PT deductions' },
+                    { step: 4, title: 'Generate Reports', desc: 'Download PF, ESI, and Professional Tax reports' },
+                    { step: 5, title: 'Submit to Authorities', desc: 'File PF returns online, pay ESI & PT' },
+                    { step: 6, title: 'Mark as Paid', desc: 'After bank transfer, mark as paid with UTR reference' },
                   ].map(({ step, title, desc }) => (
                     <div key={step} className="flex items-start gap-3 bg-white rounded-lg p-3 border border-emerald-200">
                       <div className="flex-shrink-0 w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
@@ -143,28 +147,30 @@ export function HelpPage() {
                 <p className="text-sm text-slate-700 mb-2">When you click "Process Payroll", the system:</p>
                 <ul className="list-disc list-inside text-sm text-slate-700 space-y-1 ml-4">
                   <li>Retrieves all active salary components</li>
-                  <li>Calculates gross salary (Basic + All Allowances)</li>
-                  <li>Applies any overtime payments</li>
-                  <li>Deducts absences, loans, advances, penalties</li>
-                  <li>Calculates net salary (Gross - Deductions)</li>
-                  <li>Creates payroll records with status "Approved"</li>
-                  <li>Generates individual payslips for each employee</li>
+                  <li>Calculates gross salary (Basic + DA + HRA + Other Allowances)</li>
+                  <li>Calculates PF deduction (12% of Basic + DA, max ₹1,800)</li>
+                  <li>Calculates ESI deduction (0.75% of gross, if gross ≤ ₹21,000)</li>
+                  <li>Calculates Professional Tax (state-specific slabs)</li>
+                  <li>Deducts TDS, loans, advances, LOP (Loss of Pay)</li>
+                  <li>Calculates net salary (Gross - All Deductions)</li>
+                  <li>Creates payroll records with statutory compliance</li>
+                  <li>Generates individual payslips with PF/ESI/PT details</li>
                 </ul>
               </div>
 
               <div>
                 <h4 className="font-bold text-slate-900 mb-2">Marking Employees as Paid</h4>
-                <p className="text-sm text-slate-700 mb-2">After submitting WPS file to bank and transferring salaries:</p>
+                <p className="text-sm text-slate-700 mb-2">After transferring salaries via NEFT/RTGS/IMPS:</p>
                 <ol className="list-decimal list-inside text-sm text-slate-700 space-y-1 ml-4">
                   <li>Go to Payroll → Monthly Payroll tab</li>
                   <li>Click "Mark as Paid" button</li>
-                  <li>Enter Bank Reference Number (from your bank's bulk transfer)</li>
+                  <li>Enter UTR Number (Unique Transaction Reference from bank)</li>
                   <li>Select Payment Date</li>
                   <li>Confirm to mark all employees as PAID</li>
                 </ol>
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-xs text-blue-900">
-                    <strong>Bank Reference Number</strong> is the transaction reference provided by your bank when you submit the bulk salary transfer. This helps with reconciliation and audit trails.
+                    <strong>UTR Number</strong> is the unique transaction reference provided by your bank for NEFT/RTGS transfers. This is essential for reconciliation and audit purposes.
                   </p>
                 </div>
               </div>
@@ -183,115 +189,97 @@ export function HelpPage() {
           </FAQSection>
 
           <FAQSection
-            id="wps-guide"
-            title={t('help.sections.wpsGuide.title')}
+            id="statutory-compliance"
+            title="Statutory Compliance (PF, ESI, PT)"
             icon={Shield}
-            expanded={expandedSection === 'wps-guide'}
-            onToggle={() => toggleSection('wps-guide')}
+            expanded={expandedSection === 'statutory-compliance'}
+            onToggle={() => toggleSection('statutory-compliance')}
           >
             <div className="space-y-6">
               <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-4">
-                <h4 className="font-bold text-blue-900 mb-2">What is WPS?</h4>
+                <h4 className="font-bold text-blue-900 mb-2">What are Statutory Compliances?</h4>
                 <p className="text-sm text-blue-800 leading-relaxed">
-                  The Wage Protection System (WPS) is a mandatory electronic salary transfer system in Qatar,
-                  governed by the Ministry of Labour. It ensures that all employees receive their salaries
-                  on time and in full. Every company must submit a Salary Information File (SIF) to their
-                  bank each month, which then reports to the Ministry.
+                  In India, employers must comply with various labour laws including Provident Fund (PF),
+                  Employee State Insurance (ESI), and Professional Tax (PT). These are mandatory deductions
+                  from employee salaries that must be deposited with respective authorities monthly.
+                  Non-compliance can result in penalties and legal action.
                 </p>
               </div>
 
               <div>
-                <h4 className="font-bold text-slate-900 mb-2">Why is WPS Important?</h4>
+                <h4 className="font-bold text-slate-900 mb-2">Why is Statutory Compliance Important?</h4>
                 <ul className="list-disc list-inside text-sm text-slate-700 space-y-2 ml-4">
-                  <li><strong>Legal Requirement:</strong> Mandatory for all companies in Qatar</li>
-                  <li><strong>Protects Workers:</strong> Ensures timely salary payment</li>
-                  <li><strong>Prevents Violations:</strong> Ministry can track late/non-payment</li>
-                  <li><strong>Visa Processing:</strong> WPS compliance required for work visas</li>
-                  <li><strong>Company Reputation:</strong> Non-compliance leads to penalties and blacklisting</li>
+                  <li><strong>Legal Requirement:</strong> Mandatory under Indian labour laws</li>
+                  <li><strong>Employee Benefits:</strong> Provides social security and retirement benefits</li>
+                  <li><strong>Avoid Penalties:</strong> Late payment attracts interest and penalties</li>
+                  <li><strong>Audit Requirements:</strong> Required for company audits and compliance</li>
+                  <li><strong>Employee Trust:</strong> Ensures employees receive their entitled benefits</li>
                 </ul>
               </div>
 
               <div>
-                <h4 className="font-bold text-slate-900 mb-2">Generating WPS Files</h4>
+                <h4 className="font-bold text-slate-900 mb-2">Understanding Statutory Deductions</h4>
                 <div className="space-y-3">
                   <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                    <p className="font-bold text-slate-900 text-sm mb-2">Step 1: Pre-Validation</p>
-                    <p className="text-xs text-slate-700 mb-2">Before generating WPS file, click "Run Validation" to check:</p>
+                    <p className="font-bold text-slate-900 text-sm mb-2">Provident Fund (PF)</p>
+                    <p className="text-xs text-slate-700 mb-2">Applicable to organizations with 20+ employees:</p>
                     <ul className="list-disc list-inside text-xs text-slate-700 space-y-1 ml-4">
-                      <li>All employees have valid Qatar ID (QID)</li>
-                      <li>All employees have valid IBAN numbers</li>
-                      <li>Basic salary is at least 60% of total salary</li>
-                      <li>No missing mandatory fields</li>
+                      <li>Employee contribution: 12% of (Basic + DA)</li>
+                      <li>Employer contribution: 12% of (Basic + DA)</li>
+                      <li>Maximum ceiling: ₹15,000 per month</li>
+                      <li>Due date: 15th of following month</li>
+                      <li>File ECR (Electronic Challan cum Return) on EPFO portal</li>
                     </ul>
-                    <p className="text-xs text-amber-800 mt-2">
-                      ⚠️ Fix all validation errors before generating WPS file
-                    </p>
                   </div>
 
                   <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                    <p className="font-bold text-slate-900 text-sm mb-2">Step 2: Enter Establishment ID</p>
-                    <p className="text-xs text-slate-700">
-                      Your Establishment ID is your company's unique identifier with Qatar Ministry of Labour.
-                      This is provided when you register your company. Example: 12345678
-                    </p>
+                    <p className="font-bold text-slate-900 text-sm mb-2">Employee State Insurance (ESI)</p>
+                    <p className="text-xs text-slate-700 mb-2">Applicable if employee gross salary ≤ ₹21,000:</p>
+                    <ul className="list-disc list-inside text-xs text-slate-700 space-y-1 ml-4">
+                      <li>Employee contribution: 0.75% of gross salary</li>
+                      <li>Employer contribution: 3.25% of gross salary</li>
+                      <li>Due date: 15th of following month</li>
+                      <li>File returns on ESIC portal</li>
+                    </ul>
                   </div>
 
                   <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                    <p className="font-bold text-slate-900 text-sm mb-2">Step 3: Choose File Format</p>
-                    <div className="space-y-2 text-xs">
-                      <div className="bg-white rounded p-2 border border-emerald-200">
-                        <p className="font-bold text-emerald-900">SIF Format (Recommended)</p>
-                        <p className="text-slate-700">Standard Salary Information File accepted by all Qatar banks</p>
-                      </div>
-                      <div className="bg-white rounded p-2 border border-blue-200">
-                        <p className="font-bold text-blue-900">TXT Format</p>
-                        <p className="text-slate-700">Simple text format with pipe-delimited fields</p>
-                      </div>
-                      <div className="bg-white rounded p-2 border border-violet-200">
-                        <p className="font-bold text-violet-900">CSV Format</p>
-                        <p className="text-slate-700">Excel-compatible format for viewing in spreadsheets</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                    <p className="font-bold text-slate-900 text-sm mb-2">Step 4: Download & Submit</p>
-                    <p className="text-xs text-slate-700 mb-2">
-                      Click the appropriate format button to download the WPS file. Then:
-                    </p>
-                    <ol className="list-decimal list-inside text-xs text-slate-700 space-y-1 ml-4">
-                      <li>Log in to your bank's corporate portal</li>
-                      <li>Navigate to WPS/Salary Transfer section</li>
-                      <li>Upload the downloaded SIF file</li>
-                      <li>Review the summary shown by the bank</li>
-                      <li>Submit for processing</li>
-                      <li>Save the bank reference number</li>
-                    </ol>
+                    <p className="font-bold text-slate-900 text-sm mb-2">Professional Tax (PT)</p>
+                    <p className="text-xs text-slate-700 mb-2">State-specific tax (varies by state):</p>
+                    <ul className="list-disc list-inside text-xs text-slate-700 space-y-1 ml-4">
+                      <li>Deducted from employee salary based on state slabs</li>
+                      <li>Example: Maharashtra - ₹200/month (₹2,500/year)</li>
+                      <li>Due date: Varies by state (usually 15th-30th)</li>
+                      <li>File returns with state commercial tax department</li>
+                    </ul>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h4 className="font-bold text-slate-900 mb-2">WPS File Format Explained</h4>
+                <h4 className="font-bold text-slate-900 mb-2">Filing Statutory Returns</h4>
                 <div className="bg-slate-900 text-green-400 p-3 rounded-lg font-mono text-xs mb-2">
-                  <div>HDR,12345678,202412,3,15000.00</div>
-                  <div>D,28012345678,QA12ABCD00012345678901234,5000,1500,0,0,6500</div>
-                  <div>D,28098765432,QA12WXYZ00098765432109876,4000,1200,0,0,5200</div>
-                  <div>D,28055566677,QA12PQRS00055566677788899,3000,800,0,100,3700</div>
-                  <div>FTR,15000.00</div>
+                  <div>PF ECR Filing → EPFO Portal (epfindia.gov.in)</div>
+                  <div>ESI Returns → ESIC Portal (esic.in)</div>
+                  <div>PT Returns → State Commercial Tax Portal</div>
+                  <div>TDS Returns → Income Tax Portal (incometax.gov.in)</div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="bg-blue-50 rounded p-2 border border-blue-200">
-                    <p className="font-bold text-blue-900">HDR (Header)</p>
-                    <p className="text-blue-700">Employer ID, Month, Count, Total</p>
+                    <p className="font-bold text-blue-900">Monthly</p>
+                    <p className="text-blue-700">PF, ESI, PT payments</p>
                   </div>
                   <div className="bg-violet-50 rounded p-2 border border-violet-200">
-                    <p className="font-bold text-violet-900">D (Detail)</p>
-                    <p className="text-violet-700">QID, IBAN, Basic, Allowances, OT, Deductions, Net</p>
+                    <p className="font-bold text-violet-900">Quarterly</p>
+                    <p className="text-violet-700">TDS Returns (Form 24Q)</p>
                   </div>
                   <div className="bg-emerald-50 rounded p-2 border border-emerald-200">
-                    <p className="font-bold text-emerald-900">FTR (Footer)</p>
-                    <p className="text-emerald-700">Total Net Salary (for verification)</p>
+                    <p className="font-bold text-emerald-900">Annually</p>
+                    <p className="text-emerald-700">Form 16, Annual Returns</p>
+                  </div>
+                  <div className="bg-amber-50 rounded p-2 border border-amber-200">
+                    <p className="font-bold text-amber-900">As Required</p>
+                    <p className="text-amber-700">Form 12BB, IT Declarations</p>
                   </div>
                 </div>
               </div>
@@ -302,10 +290,11 @@ export function HelpPage() {
                   Important Deadlines & Penalties
                 </h4>
                 <div className="space-y-2 text-sm text-red-800">
-                  <p><strong>Deadline:</strong> Salaries must be paid by the 7th of each month for the previous month</p>
-                  <p><strong>Late Payment Penalty:</strong> QAR 5,000 - 10,000 per violation</p>
-                  <p><strong>Non-Compliance:</strong> Company may be blacklisted, work visas blocked</p>
-                  <p><strong>Repeated Violations:</strong> Legal action, business license suspension</p>
+                  <p><strong>PF/ESI Deadline:</strong> 15th of following month</p>
+                  <p><strong>Late Payment Penalty:</strong> 12% p.a. interest + damages</p>
+                  <p><strong>TDS Deadline:</strong> 7th of following month (payment), Quarterly (returns)</p>
+                  <p><strong>Non-Compliance:</strong> Penalties, prosecution under respective acts</p>
+                  <p><strong>Audit Issues:</strong> Can lead to disallowance of expenses</p>
                 </div>
               </div>
             </div>
@@ -320,28 +309,28 @@ export function HelpPage() {
           >
             <div className="space-y-4">
               <IssueCard
-                issue="Validation Error: Missing Qatar ID or IBAN"
-                solution="Go to Employees page, edit the employee profile, and add the missing Qatar ID and IBAN number. Both are mandatory for WPS compliance."
+                issue="Validation Error: Missing PAN or Aadhaar"
+                solution="Go to Employees page, edit the employee profile, and add the missing PAN and Aadhaar number. Both are mandatory for statutory compliance and tax purposes."
               />
               <IssueCard
                 issue="Error: Payroll already processed for this month"
-                solution="Each month can only be processed once. If you need to reprocess, contact support or manually delete existing records first (not recommended - instead, edit individual records)."
+                solution="Each month can only be processed once. If you need to reprocess, you can edit individual payroll records or contact support for assistance with bulk corrections."
               />
               <IssueCard
-                issue="WPS file rejected by bank"
-                solution="Common reasons: Invalid IBAN format, Qatar ID format incorrect (should be 11 digits), Basic Salary less than 60% of total. Run validation in system before generating WPS file."
+                issue="PF/ESI calculation incorrect"
+                solution="Common reasons: Basic salary not set correctly, DA not included in PF calculation, ESI threshold (₹21,000) exceeded. Verify salary components in employee profile."
               />
               <IssueCard
                 issue="Employee not showing in payroll"
-                solution="Check: 1) Employee status is 'Active', 2) Salary component has been configured for this employee, 3) Employee's is_active flag is true."
+                solution="Check: 1) Employee status is 'Active', 2) Salary component has been configured, 3) Employee has valid joining date, 4) Employee's is_active flag is true."
               />
               <IssueCard
                 issue="Cannot download payslip"
                 solution="Ensure payroll has been processed for the selected month. Payslips are only available after processing payroll."
               />
               <IssueCard
-                issue="Total salary doesn't match on WPS file"
-                solution="WPS file shows NET salary (after deductions). Your internal records may show GROSS salary (before deductions). This is normal."
+                issue="Professional Tax amount incorrect"
+                solution="PT is state-specific. Verify the employee's work state and ensure the correct PT slab is configured in system settings. Each state has different PT rates."
               />
             </div>
           </FAQSection>
@@ -357,32 +346,32 @@ export function HelpPage() {
               <BestPracticeCard
                 icon={Calendar}
                 title="Process Payroll Early"
-                description="Process payroll by the 1st of each month to allow time for reviews and corrections before the 7th deadline."
+                description="Process payroll by the 1st of each month to allow time for reviews, corrections, and timely PF/ESI payments before the 15th deadline."
               />
               <BestPracticeCard
                 icon={Users}
                 title="Keep Employee Data Updated"
-                description="Regularly verify Qatar IDs, IBANs, and contact information. Outdated information causes WPS rejections."
+                description="Regularly verify PAN, Aadhaar, UAN, Bank Account details. Outdated information causes statutory compliance issues and payment failures."
               />
               <BestPracticeCard
                 icon={FileText}
-                title="Maintain Salary Records"
-                description="Keep payslips for at least 5 years as required by Qatar Labour Law. Download and archive monthly."
+                title="Maintain Payroll Records"
+                description="Keep payslips and statutory returns for at least 7 years as required by Indian tax laws. Download and archive monthly for audit purposes."
               />
               <BestPracticeCard
                 icon={Shield}
-                title="Run Validation Before WPS"
-                description="Always click 'Run Validation' before generating WPS files to catch errors early and avoid bank rejections."
+                title="File Returns on Time"
+                description="Always file PF ECR, ESI returns, and PT payments before the 15th. Late filing attracts penalties and interest charges."
               />
               <BestPracticeCard
                 icon={CheckCircle}
-                title="Document Bank References"
-                description="Save all bank reference numbers when marking payroll as paid. Essential for audits and dispute resolution."
+                title="Document UTR Numbers"
+                description="Save all bank UTR numbers when marking payroll as paid. Essential for reconciliation, audits, and employee queries."
               />
               <BestPracticeCard
                 icon={Download}
-                title="Backup WPS Files"
-                description="Keep copies of all submitted WPS files organized by month and year for compliance and auditing purposes."
+                title="Issue Form 16 Annually"
+                description="Generate and issue Form 16 to all employees by June 15th each year. This is mandatory for employees with TDS deductions."
               />
             </div>
           </FAQSection>
@@ -402,13 +391,13 @@ export function HelpPage() {
                 </p>
                 <div className="space-y-2 text-sm">
                   <p className="text-blue-900">
-                    <strong>Email:</strong> support@loghr.qa
+                    <strong>Email:</strong> support@loghr.in
                   </p>
                   <p className="text-blue-900">
                     <strong>Response Time:</strong> Within 24 hours
                   </p>
                   <p className="text-blue-900">
-                    <strong>Available:</strong> Sunday - Thursday, 9 AM - 5 PM Qatar Time
+                    <strong>Available:</strong> Monday - Friday, 9 AM - 6 PM IST
                   </p>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 export interface PayslipData {
-  country: 'Qatar' | 'Saudi Arabia';
-  currency: 'QAR' | 'SAR';
+  country: 'Qatar' | 'Saudi Arabia' | 'India';
+  currency: 'QAR' | 'SAR' | 'INR';
 
   companyName: string;
   companyAddress?: string;
@@ -340,7 +340,7 @@ export function generatePayslipHTML(data: PayslipData): string {
     <div class="net-salary">
       <h2>NET SALARY</h2>
       <div class="amount">${data.netSalary.toLocaleString()} ${data.currency}</div>
-      <div class="words">${numberToWords(data.netSalary)} ${data.currency === 'QAR' ? 'Qatari Riyals' : 'Saudi Riyals'} Only</div>
+      <div class="words">${numberToWords(data.netSalary)} ${data.currency === 'QAR' ? 'Qatari Riyals' : data.currency === 'SAR' ? 'Saudi Riyals' : 'Indian Rupees'} Only</div>
     </div>
 
     <div class="footer">
@@ -349,7 +349,9 @@ export function generatePayslipHTML(data: PayslipData): string {
       <p class="note">
         ${data.country === 'Qatar' ?
       'This payslip is WPS compliant as per Qatar Labour Law.' :
-      'This payslip is compliant with Saudi Labour Law and GOSI regulations.'}
+      data.country === 'Saudi Arabia' ?
+      'This payslip is compliant with Saudi Labour Law and GOSI regulations.' :
+      'This payslip is compliant with Indian Labour Law and statutory requirements (PF, ESI, PT, TDS).'}
       </p>
     </div>
   </div>

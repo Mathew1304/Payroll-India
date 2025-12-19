@@ -28,7 +28,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 export function CheckInCard() {
-    const { user, organization, membership } = useAuth();
+    const { user, organization, profile } = useAuth();
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState<'checked-out' | 'checked-in'>('checked-out');
     const [currentRecord, setCurrentRecord] = useState<any>(null);
@@ -37,6 +37,7 @@ export function CheckInCard() {
     const [distance, setDistance] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [checkInMode, setCheckInMode] = useState<'location' | 'web'>('location');
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -44,14 +45,16 @@ export function CheckInCard() {
     }, []);
 
     useEffect(() => {
-        if (organization?.id && membership?.employee_id) {
+        if (organization?.id && profile?.employee_id) {
             loadStatus();
-            watchLocation();
+            if (checkInMode === 'location') {
+                watchLocation();
+            }
         }
-    }, [organization?.id, membership?.employee_id]);
+    }, [organization?.id, profile?.employee_id, checkInMode]);
 
     const loadStatus = async () => {
-        if (!membership?.employee_id) {
+        if (!profile?.employee_id) {
             setError('Employee profile not found');
             setLoading(false);
             return;
@@ -62,7 +65,7 @@ export function CheckInCard() {
             const { data, error } = await supabase
                 .from('attendance_records')
                 .select('*')
-                .eq('employee_id', membership.employee_id)
+                .eq('employee_id', profile.employee_id)
                 .eq('date', today)
                 .single();
 
@@ -134,49 +137,78 @@ export function CheckInCard() {
     };
 
     const handleCheckIn = async () => {
-        if (!membership?.employee_id) {
+        if (!profile?.employee_id) {
             alert('Employee profile not found. Please contact HR.');
             return;
         }
 
-        if (!location || !nearestOffice) {
-            alert('Waiting for location data...');
-            return;
-        }
-
-        // Check if within radius
-        if (distance! > nearestOffice.radius_meters) {
-            if (!confirm(`You are ${Math.round(distance!)}m away from ${nearestOffice.name}. This will be marked as a Remote check-in. Continue?`)) {
+        if (checkInMode === 'location') {
+            // Location-based check-in
+            if (!location || !nearestOffice) {
+                alert('Waiting for location data...');
                 return;
             }
-        }
 
-        try {
-            const today = format(new Date(), 'yyyy-MM-dd');
-            const payload = {
-                organization_id: organization!.id,
-                employee_id: membership.employee_id,
-                date: today,
-                check_in_time: new Date().toISOString(),
-                check_in_location_id: distance! <= nearestOffice.radius_meters ? nearestOffice.id : null,
-                check_in_latitude: location.lat,
-                check_in_longitude: location.lng,
-                status: 'Present',
-                work_type: distance! <= nearestOffice.radius_meters ? 'In Office' : 'Remote',
-                gps_verified: distance! <= nearestOffice.radius_meters
-            };
+            // Check if within radius
+            if (distance! > nearestOffice.radius_meters) {
+                if (!confirm(`You are ${Math.round(distance!)}m away from ${nearestOffice.name}. This will be marked as a Remote check-in. Continue?`)) {
+                    return;
+                }
+            }
 
-            const { error } = await supabase
-                .from('attendance_records')
-                .insert([payload] as any);
+            try {
+                const today = format(new Date(), 'yyyy-MM-dd');
+                const payload = {
+                    organization_id: organization!.id,
+                    employee_id: profile.employee_id,
+                    date: today,
+                    check_in_time: new Date().toISOString(),
+                    check_in_location_id: distance! <= nearestOffice.radius_meters ? nearestOffice.id : null,
+                    check_in_latitude: location.lat,
+                    check_in_longitude: location.lng,
+                    status: 'Present',
+                    work_type: distance! <= nearestOffice.radius_meters ? 'In Office' : 'Remote',
+                    gps_verified: distance! <= nearestOffice.radius_meters
+                };
 
-            if (error) throw error;
+                const { error } = await supabase
+                    .from('attendance_records')
+                    .insert([payload] as any);
 
-            setStatus('checked-in');
-            await loadStatus();
-        } catch (err: any) {
-            console.error('Error checking in:', err);
-            alert(`Failed to check in: ${err.message || 'Unknown error'}`);
+                if (error) throw error;
+
+                setStatus('checked-in');
+                await loadStatus();
+            } catch (err: any) {
+                console.error('Error checking in:', err);
+                alert(`Failed to check in: ${err.message || 'Unknown error'}`);
+            }
+        } else {
+            // Web check-in (no GPS)
+            try {
+                const today = format(new Date(), 'yyyy-MM-dd');
+                const payload = {
+                    organization_id: organization!.id,
+                    employee_id: profile.employee_id,
+                    date: today,
+                    check_in_time: new Date().toISOString(),
+                    status: 'Present',
+                    work_type: 'Remote',
+                    gps_verified: false
+                };
+
+                const { error } = await supabase
+                    .from('attendance_records')
+                    .insert([payload] as any);
+
+                if (error) throw error;
+
+                setStatus('checked-in');
+                await loadStatus();
+            } catch (err: any) {
+                console.error('Error checking in:', err);
+                alert(`Failed to check in: ${err.message || 'Unknown error'}`);
+            }
         }
     };
 
@@ -212,7 +244,7 @@ export function CheckInCard() {
     };
 
     // Check if user is an employee (not admin)
-    const isEmployee = membership?.employee_id != null;
+    const isEmployee = profile?.employee_id != null;
 
     if (loading) return <div className="p-8 text-center text-slate-500">Loading attendance status...</div>;
 
@@ -259,38 +291,85 @@ export function CheckInCard() {
 
                 {/* Status & Location */}
                 <div className="p-6 space-y-6">
-                    {/* Location Status */}
-                    <div className={`p-4 rounded-xl border ${error ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
-                        <div className="flex items-start gap-3">
-                            <div className={`p-2 rounded-full ${error ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                                {error ? <AlertTriangle className="h-5 w-5" /> : <Navigation className="h-5 w-5" />}
+                    {/* Mode Toggle */}
+                    <div className="flex gap-2 p-1 bg-slate-100 rounded-lg">
+                        <button
+                            onClick={() => setCheckInMode('location')}
+                            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${checkInMode === 'location'
+                                ? 'bg-white text-blue-600 shadow-sm'
+                                : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <MapPin className="h-4 w-4" />
+                                Location-based
                             </div>
-                            <div>
-                                <h3 className="font-medium text-slate-900">
-                                    {error ? 'Location Error' : (nearestOffice ? nearestOffice.name : 'Detecting Location...')}
-                                </h3>
-                                {!error && distance !== null && (
-                                    <p className="text-sm text-slate-500 mt-1">
-                                        {isWithinRange
-                                            ? <span className="text-green-600 font-medium flex items-center gap-1"><CheckCircle className="h-3 w-3" /> You are in office range</span>
-                                            : <span className="text-orange-600 font-medium flex items-center gap-1"><XCircle className="h-3 w-3" /> {Math.round(distance)}m away from office</span>
-                                        }
-                                    </p>
-                                )}
-                                {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+                        </button>
+                        <button
+                            onClick={() => setCheckInMode('web')}
+                            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${checkInMode === 'web'
+                                ? 'bg-white text-blue-600 shadow-sm'
+                                : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                Web Check-in
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* Location Status - Only show for location mode */}
+                    {checkInMode === 'location' && (
+                        <div className={`p-4 rounded-xl border ${error ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                            <div className="flex items-start gap-3">
+                                <div className={`p-2 rounded-full ${error ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                                    {error ? <AlertTriangle className="h-5 w-5" /> : <Navigation className="h-5 w-5" />}
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-slate-900">
+                                        {error ? 'Location Error' : (nearestOffice ? nearestOffice.name : 'Detecting Location...')}
+                                    </h3>
+                                    {!error && distance !== null && (
+                                        <p className="text-sm text-slate-500 mt-1">
+                                            {isWithinRange
+                                                ? <span className="text-green-600 font-medium flex items-center gap-1"><CheckCircle className="h-3 w-3" /> You are in office range</span>
+                                                : <span className="text-orange-600 font-medium flex items-center gap-1"><XCircle className="h-3 w-3" /> {Math.round(distance)}m away from office</span>
+                                            }
+                                        </p>
+                                    )}
+                                    {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* Web Check-in Info */}
+                    {checkInMode === 'web' && (
+                        <div className="p-4 rounded-xl border bg-blue-50 border-blue-200">
+                            <div className="flex items-start gap-3">
+                                <div className="p-2 rounded-full bg-blue-100 text-blue-600">
+                                    <Clock className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-blue-900">Web Check-in Mode</h3>
+                                    <p className="text-sm text-blue-700 mt-1">
+                                        Simple check-in without GPS verification. Suitable for remote work.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Action Button */}
                     <div className="flex justify-center">
                         {status === 'checked-out' ? (
                             <button
                                 onClick={handleCheckIn}
-                                disabled={!!error || !location}
+                                disabled={checkInMode === 'location' && (!!error || !location)}
                                 className={`
                   w-48 h-48 rounded-full border-8 flex flex-col items-center justify-center transition-all transform hover:scale-105 active:scale-95
-                  ${!error && location
+                  ${(checkInMode === 'web' || (!error && location))
                                         ? 'bg-green-500 border-green-200 text-white shadow-green-200 shadow-xl'
                                         : 'bg-slate-300 border-slate-100 text-slate-500 cursor-not-allowed'
                                     }

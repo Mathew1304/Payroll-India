@@ -11,12 +11,33 @@ interface ErrorLogData {
 
 export async function logErrorToSupabase(error: Error | string, data?: Partial<ErrorLogData>) {
     try {
+        // DISABLED: Supabase error logging to prevent 404 errors
+        // The log_error RPC function doesn't exist in the database
+        // Only log to console for now
+
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        if (import.meta.env.DEV) {
+            console.group('%c Error Log', 'color: orange; font-weight: bold');
+            console.error('Message:', errorMessage);
+            if (errorStack) console.error('Stack:', errorStack);
+            if (data?.errorType) console.error('Type:', data.errorType);
+            if (data?.severity) console.error('Severity:', data.severity);
+            if (data?.pageUrl) console.error('Page:', data.pageUrl);
+            if (data?.metadata) console.error('Metadata:', data.metadata);
+            console.groupEnd();
+        }
+
+        // TODO: Create the log_error RPC function in Supabase if database logging is needed
+        // Then uncomment the code below:
+
+        /*
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseAnonKey) return;
 
-        // Get current session from main client (safe, no network request usually)
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
         const token = session?.access_token;
@@ -33,8 +54,6 @@ export async function logErrorToSupabase(error: Error | string, data?: Partial<E
 
         if (user && token) {
             try {
-                // 1. Get user profile to find organization
-                // GET /rest/v1/user_profiles?user_id=eq.ID&select=current_organization_id
                 const profileRes = await fetch(
                     `${supabaseUrl}/rest/v1/user_profiles?user_id=eq.${user.id}&select=current_organization_id`,
                     { headers }
@@ -47,8 +66,6 @@ export async function logErrorToSupabase(error: Error | string, data?: Partial<E
                     if (profile?.current_organization_id) {
                         organizationId = profile.current_organization_id;
 
-                        // 2. Get organization name
-                        // GET /rest/v1/organizations?id=eq.ID&select=name
                         const orgRes = await fetch(
                             `${supabaseUrl}/rest/v1/organizations?id=eq.${organizationId}&select=name`,
                             { headers }
@@ -61,20 +78,14 @@ export async function logErrorToSupabase(error: Error | string, data?: Partial<E
                     }
                 }
 
-                // Try to get name from metadata
                 if (user.user_metadata?.full_name) {
                     userName = user.user_metadata.full_name;
                 }
             } catch (e) {
-                // Ignore context fetching errors
                 console.warn('Failed to fetch context for error log', e);
             }
         }
 
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorStack = error instanceof Error ? error.stack : undefined;
-
-        // Sanitize metadata
         const safeMetadata = data?.metadata ? JSON.parse(JSON.stringify(data.metadata, (key, value) => {
             if (typeof value === 'object' && value !== null) {
                 if (value instanceof HTMLElement) return '[HTMLElement]';
@@ -98,8 +109,6 @@ export async function logErrorToSupabase(error: Error | string, data?: Partial<E
             p_metadata: safeMetadata
         };
 
-        // Call RPC log_error
-        // POST /rest/v1/rpc/log_error
         const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/log_error`, {
             method: 'POST',
             headers,
@@ -110,11 +119,13 @@ export async function logErrorToSupabase(error: Error | string, data?: Partial<E
             throw new Error(`RPC failed: ${rpcRes.status} ${rpcRes.statusText}`);
         }
 
-        if (import.meta.env.DEV) {
-            console.log('%c Error logged to database successfully', 'color: green; font-weight: bold');
-        }
+        console.log('%c Error logged to database successfully', 'color: green; font-weight: bold');
+        */
     } catch (logError) {
-        console.warn('Failed to log error to database:', logError);
+        // Silently fail - don't create more errors
+        if (import.meta.env.DEV) {
+            console.warn('Error logger failed:', logError);
+        }
     }
 }
 

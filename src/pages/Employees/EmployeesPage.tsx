@@ -24,7 +24,7 @@ interface Employee {
   employment_type: string;
   date_of_joining: string;
   departments: { name: string } | null;
-  designations: { title: string } | null;
+  designations: { name: string } | null;
 }
 
 export function EmployeesPage() {
@@ -82,7 +82,7 @@ export function EmployeesPage() {
           date_of_joining,
           is_active,
           departments!employees_department_id_fkey (name),
-          designations!employees_designation_id_fkey (title)
+          designations!employees_designation_id_fkey (name)
         `)
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: false });
@@ -360,7 +360,7 @@ export function EmployeesPage() {
                       <span className="text-sm text-slate-700">{employee.departments?.name || 'N/A'}</span>
                     </td>
                     <td className="p-4">
-                      <span className="text-sm text-slate-700">{employee.designations?.title || 'N/A'}</span>
+                      <span className="text-sm text-slate-700">{employee.designations?.name || 'N/A'}</span>
                     </td>
                     <td className="p-4">
                       <div className="space-y-1">

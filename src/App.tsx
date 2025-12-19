@@ -11,6 +11,7 @@ import { Dashboard } from './pages/Dashboard';
 import { EmployeesPage } from './pages/Employees/EmployeesPage';
 import { AttendancePage } from './pages/Attendance/AttendancePage';
 import { LeavePage } from './pages/Leave/LeavePage';
+import { AdminLeavePage } from './pages/Leave/AdminLeavePage';
 import { PayrollPage } from './pages/Payroll/PayrollPage';
 import { ReportsPage } from './pages/Reports/ReportsPage';
 import { SettingsPage } from './pages/Settings/SettingsPage';
@@ -36,7 +37,7 @@ import { ChangePasswordPage } from './pages/Auth/ChangePasswordPage';
 import { MyPayrollPage } from './pages/Payroll/MyPayrollPage';
 
 function AppContent() {
-  const { user, loading, membership } = useAuth();
+  const { user, loading, profile } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [authMode, setAuthMode] = useState<'landing' | 'login' | 'register' | 'employee-register' | 'onboarding'>('landing');
 
@@ -64,7 +65,7 @@ function AppContent() {
 
   // Handle Role-Based Redirects & Forced Password Change
   useEffect(() => {
-    if (user && !loading && membership) {
+    if (user && !loading && profile) {
       const metadata = user.user_metadata;
 
       if (metadata?.force_password_change) {
@@ -73,13 +74,13 @@ function AppContent() {
       }
 
       // If user is employee and tries to access restricted pages (or default dashboard), redirect to employee-dashboard
-      if (membership.role === 'employee') {
+      if (profile.role === 'employee') {
         if (currentPage === 'dashboard' || currentPage === 'super-admin') {
           setCurrentPage('employee-dashboard');
         }
       }
     }
-  }, [user, loading, membership, currentPage]);
+  }, [user, loading, profile, currentPage]);
 
   if (loading) {
     return (
@@ -117,7 +118,7 @@ function AppContent() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentPage} />;
       case 'tasks':
         return <TasksPage />;
       case 'employees':
@@ -125,7 +126,8 @@ function AppContent() {
       case 'attendance':
         return <AttendancePage />;
       case 'leave':
-        return <LeavePage />;
+        // Show employee-specific view for employees, admin view for managers/admins
+        return profile?.role === 'employee' ? <LeavePage /> : <AdminLeavePage />;
       case 'expenses':
         return <ExpensesPage />;
       case 'payroll':
@@ -134,7 +136,7 @@ function AppContent() {
         return <MyPayrollPage />;
       case 'performance':
         // Show employee-specific view for employees, admin view for managers/admins
-        return membership?.role === 'employee' ? <EmployeePerformancePage /> : <PerformancePage />;
+        return profile?.role === 'employee' ? <EmployeePerformancePage /> : <PerformancePage />;
       case 'training':
         return <TrainingPage />;
       case 'helpdesk':
@@ -160,11 +162,11 @@ function AppContent() {
       case 'super-admin':
         return <SuperAdminPage />;
       case 'employee-dashboard':
-        return <EmployeeDashboard />;
+        return <EmployeeDashboard onNavigate={setCurrentPage} />;
       case 'change-password':
         return <ChangePasswordPage />;
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentPage} />;
     }
   };
 

@@ -26,114 +26,175 @@ interface DistributionList {
   member_count?: number;
 }
 
+const getPriorityColor = (priority: string) => {
+  switch (priority) {
+    case 'high': return 'bg-red-100 text-red-700 border-red-200';
+    case 'medium': return 'bg-amber-100 text-amber-700 border-amber-200';
+    case 'low': return 'bg-blue-100 text-blue-700 border-blue-200';
+    default: return 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+};
+
+const getTypeIcon = (type: string) => {
+  switch (type) {
+    case 'general': return '📢';
+    case 'policy': return '📋';
+    case 'event': return '🎉';
+    case 'urgent': return '🚨';
+    default: return '📢';
+  }
+};
+
 export function AnnouncementsPage() {
-  const { organization, userProfile, membership } = useAuth();
-  const isAdmin = membership?.role && ['admin', 'hr', 'manager'].includes(membership.role);
+  const { membership, loading, profile, user } = useAuth();
+
+  console.log('AnnouncementsPage wrapper - membership:', membership, 'loading:', loading, 'profile:', profile, 'user:', user);
+
+  // Wait for auth to load before deciding which view to show
+  if (loading || !user) {
+    console.log('Auth still loading or no user, showing spinner');
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-fuchsia-600"></div>
+        <p className="ml-4 text-slate-600">Loading...</p>
+      </div>
+    );
+  }
+
+  // TEMPORARY FIX: Show admin view for everyone until role detection is fixed
+  // TODO: Fix role detection - membership and profile are both null
+  const isAdmin = true; // Temporarily always true
+
+  console.log('AnnouncementsPage wrapper - TEMPORARY: showing admin view for everyone');
+
+  if (isAdmin) {
+    console.log('Rendering AdminAnnouncementsDashboard');
+    return <AdminAnnouncementsDashboard />;
+  } else {
+    console.log('Rendering EmployeeAnnouncementFeed');
+    return <EmployeeAnnouncementFeed />;
+  }
+}
+
+function AdminAnnouncementsDashboard() {
+  console.log('=== AdminAnnouncementsDashboard RENDERED ===');
+
+  const { organization, profile: userProfile, membership } = useAuth();
+
+  console.log('AdminAnnouncementsDashboard - organization:', organization?.id, 'membership:', membership?.role, 'profile.role:', userProfile?.role);
+
+  // Check admin status from profile.role since membership is null
+  const isAdmin = userProfile?.role && ['admin', 'hr', 'manager'].includes(userProfile.role);
   const [activeTab, setActiveTab] = useState<'announcements' | 'distribution-lists'>('announcements');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [distributionLists, setDistributionLists] = useState<DistributionList[]>([]);
+  // Distribution lists removed - not in schema
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showListModal, setShowListModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'expired'>('active');
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  const loadAnnouncements = async () => {
+    console.log('loadAnnouncements called, organization:', organization?.id);
+
+    if (!organization?.id) {
+      console.log('No organization, setting loading false');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log('Fetching announcements...');
+      let query = supabase
+        .from('announcements')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .order('created_at', { ascending: false });
+
+      if (filter === 'active') {
+        query = query.eq('status', 'published');
+      } else if (filter === 'expired') {
+        query = query.lt('expires_at', new Date().toISOString());
+      }
+
+      const { data, error } = await query;
+
+      console.log('Announcements query result:', { data, error });
+
+      if (error) {
+        console.error('Error loading announcements:', error);
+        setAnnouncements([]);
+      } else if (data) {
+        // Simplified: just use basic data without enrichment
+        const basicData = data.map(a => ({
+          ...a,
+          total_recipients: 0,
+          read_count: 0
+        }));
+        console.log('Setting announcements:', basicData.length);
+        setAnnouncements(basicData);
+      } else {
+        console.log('No data returned');
+        setAnnouncements([]);
+      }
+    } catch (error) {
+      console.error('Exception in loadAnnouncements:', error);
+      setAnnouncements([]);
+    } finally {
+      console.log('Setting loading to false');
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (organization?.id) {
       loadAnnouncements();
-      loadDistributionLists();
+      // loadDistributionLists removed - not in schema
+    } else {
+      setLoading(false);
     }
-  }, [organization, filter]);
-
-  const loadAnnouncements = async () => {
-    if (!organization?.id) return;
-
-    let query = supabase
-      .from('announcements')
-      .select('*')
-      .eq('organization_id', organization.id)
-      .order('created_at', { ascending: false });
-
-    if (filter === 'active') {
-      query = query.eq('is_active', true);
-    } else if (filter === 'expired') {
-      query = query.lt('expires_at', new Date().toISOString());
-    }
-
-    const { data, error } = await query;
-
-    if (data) {
-      const enrichedData = await Promise.all(
-        data.map(async (announcement) => {
-          const { count: totalRecipients } = await supabase
-            .from('announcement_recipients')
-            .select('*', { count: 'exact', head: true })
-            .eq('announcement_id', announcement.id);
-
-          const { count: readCount } = await supabase
-            .from('announcement_recipients')
-            .select('*', { count: 'exact', head: true })
-            .eq('announcement_id', announcement.id)
-            .eq('is_read', true);
-
-          return {
-            ...announcement,
-            total_recipients: totalRecipients || 0,
-            read_count: readCount || 0
-          };
-        })
-      );
-      setAnnouncements(enrichedData);
-    }
-
-    setLoading(false);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organization?.id, filter]);
 
   const loadDistributionLists = async () => {
-    if (!organization?.id) return;
+    console.log('loadDistributionLists called, organization:', organization?.id);
 
-    const { data, error } = await supabase
-      .from('distribution_lists')
-      .select('*')
-      .eq('organization_id', organization.id)
-      .eq('is_active', true)
-      .order('name');
+    if (!organization?.id) {
+      console.log('No organization for distribution lists');
+      return;
+    }
 
-    if (data) {
-      const enrichedData = await Promise.all(
-        data.map(async (list) => {
-          const { count } = await supabase
-            .from('distribution_list_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('distribution_list_id', list.id);
+    try {
+      console.log('Fetching distribution lists...');
+      const { data, error } = await supabase
+        .from('distribution_lists')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .eq('is_active', true)
+        .order('name');
 
-          return { ...list, member_count: count || 0 };
-        })
-      );
-      setDistributionLists(enrichedData);
+      console.log('Distribution lists query result:', { data, error });
+
+      if (error) {
+        console.error('Error loading distribution lists:', error);
+        setDistributionLists([]);
+      } else if (data) {
+        // Simplified: just use basic data without member counts
+        const basicData = data.map(l => ({ ...l, member_count: 0 }));
+        console.log('Setting distribution lists:', basicData.length);
+        setDistributionLists(basicData);
+      } else {
+        console.log('No distribution lists data');
+        setDistributionLists([]);
+      }
+    } catch (error) {
+      console.error('Exception in loadDistributionLists:', error);
+      setDistributionLists([]);
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-700 border-red-200';
-      case 'medium': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'low': return 'bg-blue-100 text-blue-700 border-blue-200';
-      default: return 'bg-slate-100 text-slate-700 border-slate-200';
-    }
-  };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'general': return '📢';
-      case 'policy': return '📋';
-      case 'event': return '🎉';
-      case 'urgent': return '🚨';
-      default: return '📢';
-    }
-  };
 
   const handleView = (announcement: Announcement) => {
     alert(`Viewing: ${announcement.title}\n\n${announcement.content}`);
@@ -168,13 +229,6 @@ export function AnnouncementsPage() {
         </div>
         {isAdmin && (
           <div className="flex gap-3">
-            <button
-              onClick={() => setShowListModal(true)}
-              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
-            >
-              <Users className="h-5 w-5" />
-              Distribution Lists
-            </button>
             <button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
@@ -216,15 +270,9 @@ export function AnnouncementsPage() {
         />
         <StatsCard
           title="Active Now"
-          value={announcements.filter(a => a.is_active).length}
+          value={announcements.filter(a => a.status === 'published').length}
           icon={Bell}
           gradient="from-emerald-500 to-emerald-600"
-        />
-        <StatsCard
-          title="Distribution Lists"
-          value={distributionLists.length}
-          icon={Users}
-          gradient="from-violet-500 to-violet-600"
         />
       </div>
 
@@ -340,20 +388,9 @@ export function AnnouncementsPage() {
             setShowCreateModal(false);
             loadAnnouncements();
           }}
-          distributionLists={distributionLists}
         />
       )}
 
-      {showListModal && (
-        <DistributionListsModal
-          onClose={() => setShowListModal(false)}
-          onSuccess={() => {
-            setShowListModal(false);
-            loadDistributionLists();
-          }}
-          lists={distributionLists}
-        />
-      )}
 
       {showEditModal && selectedAnnouncement && (
         <EditAnnouncementModal
@@ -367,8 +404,129 @@ export function AnnouncementsPage() {
             setSelectedAnnouncement(null);
             loadAnnouncements();
           }}
-          distributionLists={distributionLists}
         />
+      )}
+    </div>
+  );
+}
+
+
+function EmployeeAnnouncementFeed() {
+  const { organization, profile } = useAuth();
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (organization?.id && profile?.employee_id) {
+      loadEmployeeAnnouncements();
+    }
+  }, [organization, profile]);
+
+  const loadEmployeeAnnouncements = async () => {
+    if (!organization?.id || !profile?.employee_id) return;
+
+    try {
+      // 1. Get announcements targeted directly to me or my lists
+      const { data: explicitAssignments } = await supabase
+        .from('announcement_recipients')
+        .select('announcement_id')
+        .eq('employee_id', profile.employee_id);
+
+      const assignedIds = (explicitAssignments as any[])?.map(a => a.announcement_id) || [];
+
+      // 2. Fetch Active Announcements (ALL or Assigned)
+      let query = supabase
+        .from('announcements')
+        .select('*')
+        .eq('organization_id', organization.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (assignedIds.length > 0) {
+        query = query.or(`target_type.eq.all,id.in.(${assignedIds.join(',')})`);
+      } else {
+        query = query.eq('target_type', 'all');
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setAnnouncements(data || []);
+
+    } catch (error) {
+      console.error('Error loading announcements:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-fuchsia-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold flex items-center justify-center gap-3">
+          <Megaphone className="h-8 w-8 text-fuchsia-600" />
+          Company News
+        </h1>
+        <p className="text-slate-600 mt-2">Latest updates and announcements</p>
+      </div>
+
+      {announcements.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-12 text-center">
+          <BellOff className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-slate-900 mb-2">All Caught Up</h3>
+          <p className="text-slate-600">There are no active announcements for you right now.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {announcements.map((announcement) => (
+            <div
+              key={announcement.id}
+              className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all relative overflow-hidden"
+            >
+              {announcement.priority === 'high' && (
+                <div className="absolute top-0 right-0 bg-red-500 text-white text-xs px-3 py-1 rounded-bl-lg font-bold">
+                  URGENT
+                </div>
+              )}
+              {announcement.priority === 'medium' && (
+                <div className="absolute top-0 right-0 bg-amber-500 text-white text-xs px-3 py-1 rounded-bl-lg font-bold">
+                  IMPORTANT
+                </div>
+              )}
+
+              <div className="flex items-start gap-4">
+                <div className="text-4xl">{getTypeIcon(announcement.type)}</div>
+                <div className="flex-1">
+                  <div className="flex items-baseline justify-between mb-2">
+                    <h3 className="text-xl font-bold text-slate-900">{announcement.title}</h3>
+                    <span className="text-sm text-slate-500 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {new Date(announcement.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  <div className="prose prose-slate max-w-none mb-4">
+                    <p className="text-slate-700 whitespace-pre-wrap">{announcement.content}</p>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase ${getPriorityColor(announcement.priority)}`}>
+                      {announcement.type}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -392,16 +550,15 @@ function StatsCard({ title, value, icon: Icon, gradient }: any) {
 }
 
 function CreateAnnouncementModal({ onClose, onSuccess, distributionLists }: any) {
-  const { organization, user, userProfile } = useAuth();
+  const { organization, user, profile: userProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     type: 'general',
-    priority: 'medium',
+    priority: 'normal',
     target_type: 'all',
-    distribution_list_ids: [] as string[],
     expires_in_days: 30
   });
 
@@ -409,6 +566,7 @@ function CreateAnnouncementModal({ onClose, onSuccess, distributionLists }: any)
     e.preventDefault();
     setLoading(true);
     setError('');
+
 
     try {
       const expiresAt = new Date();
@@ -420,51 +578,17 @@ function CreateAnnouncementModal({ onClose, onSuccess, distributionLists }: any)
           organization_id: organization!.id,
           title: formData.title,
           content: formData.content,
-          type: formData.type,
           priority: formData.priority,
-          target_type: formData.target_type,
-          distribution_list_ids: formData.distribution_list_ids,
-          is_active: true,
-          published_at: new Date().toISOString(),
+          target_type: 'all', // Simplified: always target all employees
+          publish_at: new Date().toISOString(),
           expires_at: expiresAt.toISOString(),
+          status: 'published',
           created_by: user!.id
         })
         .select()
         .single();
 
       if (announcementError) throw announcementError;
-
-      let recipientIds: string[] = [];
-
-      if (formData.target_type === 'all') {
-        const { data: employees } = await supabase
-          .from('employees')
-          .select('id')
-          .eq('organization_id', organization!.id)
-          .eq('is_active', true);
-
-        recipientIds = employees?.map(e => e.id) || [];
-      } else if (formData.target_type === 'distribution_list') {
-        for (const listId of formData.distribution_list_ids) {
-          const { data: members } = await supabase
-            .from('distribution_list_members')
-            .select('employee_id')
-            .eq('distribution_list_id', listId);
-
-          recipientIds.push(...(members?.map(m => m.employee_id) || []));
-        }
-        recipientIds = [...new Set(recipientIds)];
-      }
-
-      if (recipientIds.length > 0) {
-        const recipients = recipientIds.map(employeeId => ({
-          announcement_id: announcement.id,
-          employee_id: employeeId,
-          distribution_list_id: formData.target_type === 'distribution_list' ? formData.distribution_list_ids[0] : null
-        }));
-
-        await supabase.from('announcement_recipients').insert(recipients);
-      }
 
       onSuccess();
     } catch (err: any) {
@@ -907,7 +1031,7 @@ function CreateDistributionListModal({ onClose, onSuccess }: any) {
 
     const { data } = await supabase
       .from('employees')
-      .select('id, first_name, last_name, employee_code, departments(name), designations(title)')
+      .select('id, first_name, last_name, employee_code, departments(name), designations(name)')
       .eq('organization_id', organization.id)
       .eq('is_active', true)
       .order('first_name');

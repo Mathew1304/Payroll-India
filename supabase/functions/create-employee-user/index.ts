@@ -41,67 +41,56 @@ serve(async (req) => {
 
         const userId = userData.user.id
 
-        // 2. Link to Employee Record
-        const { error: updateError } = await supabaseClient
-            .from('employees')
-            .update({
-                user_id: userId,
-                is_active: true
-            })
-            .eq('id', employee_id)
-
-        if (updateError) {
-            // Rollback user creation if linking fails
-            await supabaseClient.auth.admin.deleteUser(userId)
-            throw updateError
-        }
-
-        // 3. Create Organization Member entry
-        const { error: memberError } = await supabaseClient
-            .from('organization_members')
-            .insert({
-                organization_id: organization_id,
-                user_id: userId,
-                role: 'employee',
-                employee_id: employee_id,
-                is_active: true
-            })
-
-        if (memberError) {
-            // Rollback user creation if member creation fails
-            // Note: This might leave the employee record updated with user_id, which is less critical but ideally should be rolled back too.
-            // For simplicity in this edge function, we'll just delete the user.
-            await supabaseClient.auth.admin.deleteUser(userId)
-            throw memberError
-        }
-
-        // 4. Create User Profile
+        // 2. Create User Profile (with employee linkage)
         const { error: profileError } = await supabaseClient
             .from('user_profiles')
             .insert({
                 user_id: userId,
                 role: 'employee',
                 is_active: true,
-                current_organization_id: organization_id
+                organization_id: organization_id,
+                employee_id: employee_id  // Link to employee record
             })
 
         if (profileError) {
-            // Rollback
+            // Rollback user creation if profile creation fails
+            console.error('Profile creation error:', profileError)
             await supabaseClient.auth.admin.deleteUser(userId)
-            throw profileError
+            throw new Error(`Failed to create user profile: ${profileError.message}`)
         }
 
+        // 3. Send welcome email (optional - implement if needed)
+        // You can add email sending logic here using Resend, SendGrid, etc.
+
         return new Response(
-            JSON.stringify({ user: userData.user }),
+            JSON.stringify({ 
+                user: userData.user,
+                message: 'User created successfully',
+                password: password // Return password so frontend can display it
+            }),
             {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 200,
             }
         )
 
-    } catch (error) {
+    } catch (error: any) {
+        console.error('Edge Function Error:', error)
+        
+        // Extract detailed error information
+        const errorResponse = {
+            error: error?.message || 'Unknown error',
+            code: error?.code || '',
+            details: error?.details || '',
+            hint: error?.hint || '',
+            stack: error?.stack || '',
+            fullError: JSON.stringify(error, null, 2)
+        };
+        
+        console.error('Detailed error:', errorResponse);
+        
         return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify(errorResponse),
             {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 400,
