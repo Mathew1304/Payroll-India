@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Sparkles, Clock, Calendar, LogIn, LogOut, TrendingUp, Activity, HelpCircle, Zap, DollarSign } from 'lucide-react';
+import { Sparkles, Clock, Calendar, LogIn, LogOut, TrendingUp, Activity, Zap, IndianRupee } from 'lucide-react';
 import { format, parseISO, differenceInHours, differenceInMinutes } from 'date-fns';
 
 interface AttendanceRecord {
@@ -245,24 +245,11 @@ export function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps) {
             className="flex flex-col items-center gap-3 p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl hover:shadow-md transition-all hover:scale-105 group cursor-pointer"
           >
             <div className="p-3 bg-indigo-500 rounded-xl group-hover:bg-indigo-600 transition-colors pointer-events-none">
-              <DollarSign className="h-6 w-6 text-white" />
+              <IndianRupee className="h-6 w-6 text-white" />
             </div>
             <span className="text-sm font-semibold text-slate-900 pointer-events-none">View Payslips</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              console.log('Navigating to Helpdesk');
-              onNavigate('helpdesk');
-            }}
-            className="flex flex-col items-center gap-3 p-6 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl hover:shadow-md transition-all hover:scale-105 group cursor-pointer"
-          >
-            <div className="p-3 bg-amber-500 rounded-xl group-hover:bg-amber-600 transition-colors pointer-events-none">
-              <HelpCircle className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-sm font-semibold text-slate-900 pointer-events-none">Raise Ticket</span>
-          </button>
 
           <button
             type="button"

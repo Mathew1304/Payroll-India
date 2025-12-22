@@ -159,10 +159,17 @@ export function ViewEmployeeModal({ employeeId, onClose }: ViewEmployeeModalProp
 
   const formatCurrency = (amount: number | null) => {
     if (!amount) return 'N/A';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    const country = organization?.country;
+    const currencyCode = country === 'Qatar' ? 'QAR' : country === 'Saudi Arabia' ? 'SAR' : 'INR';
+    const locale = country === 'India' ? 'en-IN' : 'en-US';
+
+    // For India, use ₹ symbol directly
+    if (country === 'India') {
+      return `₹${amount.toLocaleString('en-IN')}`;
+    }
+
+    // For other countries, show currency code
+    return `${amount.toLocaleString(locale)} ${currencyCode}`;
   };
 
   const tabs = [

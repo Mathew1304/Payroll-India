@@ -1741,15 +1741,15 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear, s
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <p className="text-xs text-slate-500 mb-1">Basic Salary</p>
-                    <p className="text-2xl font-bold text-blue-600">{summary.totalBasicSalary.toLocaleString()} QAR</p>
+                    <p className="text-2xl font-bold text-blue-600">₹{summary.totalBasicSalary.toLocaleString('en-IN')}</p>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <p className="text-xs text-slate-500 mb-1">Allowances</p>
-                    <p className="text-2xl font-bold text-violet-600">{summary.totalAllowances.toLocaleString()} QAR</p>
+                    <p className="text-2xl font-bold text-violet-600">₹{summary.totalAllowances.toLocaleString('en-IN')}</p>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <p className="text-xs text-slate-500 mb-1">Net Salary</p>
-                    <p className="text-2xl font-bold text-emerald-600">{summary.totalNetSalary.toLocaleString()} QAR</p>
+                    <p className="text-2xl font-bold text-emerald-600">₹{summary.totalNetSalary.toLocaleString('en-IN')}</p>
                 </div>
             </div>
 
@@ -1819,7 +1819,7 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear, s
                             </div>
                             <div>
                                 <p className="text-blue-700">Total Amount:</p>
-                                <p className="font-semibold text-blue-900">{summary.totalNetSalary.toLocaleString()} QAR</p>
+                                <p className="font-semibold text-blue-900">₹{summary.totalNetSalary.toLocaleString('en-IN')}</p>
                             </div>
                         </div>
                     </div>

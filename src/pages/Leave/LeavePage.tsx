@@ -433,7 +433,7 @@ function EmployeeLeavePage() {
 
       {showApplyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn overflow-y-auto p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8 animate-scaleIn">
+          <div className="bg-theme-bg-secondary rounded-2xl shadow-2xl max-w-2xl w-full my-8 animate-scaleIn">
             <div className="p-6 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -451,13 +451,13 @@ function EmployeeLeavePage() {
 
             <div className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-theme-text-primary mb-2">
                   Leave Type <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.leave_type_id}
                   onChange={(e) => handleLeaveTypeChange(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+                  className="w-full px-4 py-3 border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-theme-bg-primary text-theme-text-primary"
                 >
                   <option value="">Select leave type</option>
                   {leaveTypes.map(type => {
@@ -481,7 +481,7 @@ function EmployeeLeavePage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-theme-text-primary mb-2">
                     From Date <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -489,11 +489,11 @@ function EmployeeLeavePage() {
                     value={formData.from_date}
                     onChange={(e) => setFormData({ ...formData, from_date: e.target.value })}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-4 py-3 border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-theme-bg-primary text-theme-text-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-theme-text-primary mb-2">
                     To Date <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -501,7 +501,7 @@ function EmployeeLeavePage() {
                     value={formData.to_date}
                     onChange={(e) => setFormData({ ...formData, to_date: e.target.value })}
                     min={formData.from_date || new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-4 py-3 border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-theme-bg-primary text-theme-text-primary"
                   />
                 </div>
               </div>
@@ -523,12 +523,12 @@ function EmployeeLeavePage() {
                     onChange={(e) => setFormData({ ...formData, half_day: e.target.checked })}
                     className="rounded border-slate-300 text-emerald-600 focus:ring-2 focus:ring-emerald-500"
                   />
-                  <span className="text-sm font-semibold text-slate-700">Half Day Leave</span>
+                  <span className="text-sm font-semibold text-theme-text-primary">Half Day Leave</span>
                 </label>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-theme-text-primary mb-2">
                   Contact Number (During Leave)
                 </label>
                 <input
@@ -536,12 +536,12 @@ function EmployeeLeavePage() {
                   value={formData.contact_number}
                   onChange={(e) => setFormData({ ...formData, contact_number: e.target.value })}
                   placeholder="Optional"
-                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-4 py-3 border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-theme-bg-primary text-theme-text-primary"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <label className="block text-sm font-semibold text-theme-text-primary mb-2">
                   Reason for Leave <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -549,9 +549,9 @@ function EmployeeLeavePage() {
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                   rows={4}
                   placeholder="Please provide a detailed reason (minimum 10 characters)"
-                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                  className="w-full px-4 py-3 border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none bg-theme-bg-primary text-theme-text-primary"
                 />
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-theme-text-secondary mt-1">
                   {formData.reason.length}/10 characters minimum
                 </p>
               </div>
@@ -559,7 +559,7 @@ function EmployeeLeavePage() {
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setShowApplyModal(false)}
-                  className="flex-1 py-3 border-2 border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-50 transition-all"
+                  className="flex-1 py-3 border-2 border-theme-border rounded-xl font-semibold text-theme-text-primary hover:bg-theme-bg-primary transition-all"
                 >
                   Cancel
                 </button>
@@ -575,6 +575,7 @@ function EmployeeLeavePage() {
           </div>
         </div>
       )}
+
 
       <div className="space-y-6 animate-fadeIn">
         <div className="flex items-center justify-between">
