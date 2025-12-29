@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { FileText, Download, Calendar, Filter, Users, Clock, DollarSign, TrendingUp, BarChart3, PieChart, FileSpreadsheet, X, CheckCircle, AlertCircle } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { FileText, Download, Calendar, Filter, Users, Clock, DollarSign, BarChart3, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -34,7 +36,7 @@ interface AlertModal {
 }
 
 export function ReportsPage() {
-  const { organization, membership } = useAuth();
+  const { organization } = useAuth();
   const [activeReport, setActiveReport] = useState<string | null>(null);
   const [filters, setFilters] = useState<ReportFilters>({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -84,9 +86,9 @@ export function ReportsPage() {
             departments!department_id (name)
           )
         `)
-        .gte('attendance_date', filters.startDate)
-        .lte('attendance_date', filters.endDate)
-        .order('attendance_date', { ascending: false });
+        .gte('date', filters.startDate)
+        .lte('date', filters.endDate)
+        .order('date', { ascending: false });
 
       if (filters.employeeId) {
         query = query.eq('employee_id', filters.employeeId);
@@ -97,10 +99,10 @@ export function ReportsPage() {
       if (error) throw error;
 
       const stats: AttendanceStats = {
-        totalPresent: data?.filter(r => r.status === 'present').length || 0,
-        totalAbsent: data?.filter(r => r.status === 'absent').length || 0,
-        totalHalfDay: data?.filter(r => r.status === 'half_day').length || 0,
-        totalLate: data?.filter(r => {
+        totalPresent: data?.filter((r: any) => r.status === 'Present').length || 0,
+        totalAbsent: data?.filter((r: any) => r.status === 'Absent').length || 0,
+        totalHalfDay: data?.filter((r: any) => r.status === 'Half Day').length || 0,
+        totalLate: data?.filter((r: any) => {
           if (!r.check_in_time) return false;
           const checkInTime = new Date(r.check_in_time);
           const hours = checkInTime.getHours();
@@ -132,7 +134,7 @@ export function ReportsPage() {
         .from('leave_applications')
         .select(`
           *,
-          employees (
+          employees!leave_applications_employee_id_fkey (
             employee_code,
             first_name,
             last_name,
@@ -144,9 +146,9 @@ export function ReportsPage() {
             code
           )
         `)
-        .gte('from_date', filters.startDate)
-        .lte('to_date', filters.endDate)
-        .order('from_date', { ascending: false });
+        .gte('start_date', filters.startDate)
+        .lte('end_date', filters.endDate)
+        .order('start_date', { ascending: false });
 
       if (filters.employeeId) {
         query = query.eq('employee_id', filters.employeeId);
@@ -179,11 +181,11 @@ export function ReportsPage() {
       if (balanceError) throw balanceError;
 
       const stats: LeaveStats = {
-        totalLeavesTaken: leaveData?.filter(l => l.status === 'approved').reduce((sum, l) => sum + Number(l.total_days), 0) || 0,
-        pendingRequests: leaveData?.filter(l => l.status === 'pending').length || 0,
-        approvedRequests: leaveData?.filter(l => l.status === 'approved').length || 0,
-        rejectedRequests: leaveData?.filter(l => l.status === 'rejected').length || 0,
-        availableBalance: balanceData?.reduce((sum, b) => sum + Number(b.available_leaves), 0) || 0
+        totalLeavesTaken: leaveData?.filter((l: any) => l.status === 'approved').reduce((sum: number, l: any) => sum + Number(l.days), 0) || 0,
+        pendingRequests: leaveData?.filter((l: any) => l.status === 'pending').length || 0,
+        approvedRequests: leaveData?.filter((l: any) => l.status === 'approved').length || 0,
+        rejectedRequests: leaveData?.filter((l: any) => l.status === 'rejected').length || 0,
+        availableBalance: balanceData?.reduce((sum: number, b: any) => sum + Number(b.closing_balance), 0) || 0
       };
 
       setReportData({
@@ -209,21 +211,22 @@ export function ReportsPage() {
     if (!organization?.id) return;
     setLoading(true);
     try {
+      const country = organization.country || 'India';
+      const tableName = country === 'Qatar' ? 'qatar_salary_components' :
+        country === 'India' ? 'india_salary_components' :
+          'salary_components';
+
       let query = supabase
-        .from('salary_structures')
+        .from(tableName)
         .select(`
           *,
-          employees (
+          employee:employees (
+            id,
             employee_code,
             first_name,
             last_name,
             department_id,
             departments!department_id (name)
-          ),
-          component:salary_components (
-            name,
-            code,
-            type
           )
         `)
         .eq('is_active', true);
@@ -235,35 +238,32 @@ export function ReportsPage() {
       const { data, error } = await query;
       if (error) throw error;
 
-      const employeeSalaries = new Map();
-      data?.forEach(record => {
-        const empId = record.employee_id;
-        if (!employeeSalaries.has(empId)) {
-          employeeSalaries.set(empId, {
-            employee: record.employees,
-            earnings: 0,
-            deductions: 0,
-            components: []
-          });
-        }
-        const empData = employeeSalaries.get(empId);
-        empData.components.push({
-          name: record.component.name,
-          code: record.component.code,
-          type: record.component.type,
-          amount: record.amount
-        });
-        if (record.component.type === 'earning') {
-          empData.earnings += Number(record.amount);
-        } else {
-          empData.deductions += Number(record.amount);
-        }
-      });
+      const payrollData = data?.map((record: any) => {
+        const earnings =
+          Number(record.basic_salary || 0) +
+          Number(record.housing_allowance || 0) +
+          Number(record.food_allowance || 0) +
+          Number(record.transport_allowance || 0) +
+          Number(record.mobile_allowance || 0) +
+          Number(record.utility_allowance || 0) +
+          Number(record.other_allowances || 0) +
+          Number(record.dearness_allowance || 0) +
+          Number(record.house_rent_allowance || 0) +
+          Number(record.conveyance_allowance || 0) +
+          Number(record.medical_allowance || 0) +
+          Number(record.special_allowance || 0);
 
-      const payrollData = Array.from(employeeSalaries.values()).map(emp => ({
-        ...emp,
-        netSalary: emp.earnings - emp.deductions
-      }));
+        return {
+          employee: record.employee,
+          earnings,
+          deductions: 0,
+          netSalary: earnings,
+          components: [
+            { name: 'Basic Salary', amount: record.basic_salary },
+            { name: 'Allowances', amount: earnings - Number(record.basic_salary || 0) }
+          ]
+        };
+      }) || [];
 
       const stats = {
         totalEmployees: payrollData.length,
@@ -295,8 +295,7 @@ export function ReportsPage() {
         .select(`
           *,
           departments!department_id (name),
-          designations!designation_id (title),
-          branches!branch_id (name)
+          designations!designation_id (name)
         `)
         .eq('organization_id', organization.id)
         .eq('is_active', true);
@@ -310,9 +309,9 @@ export function ReportsPage() {
 
       const stats = {
         totalEmployees: data?.length || 0,
-        activeEmployees: data?.filter(e => e.status === 'active').length || 0,
-        inactiveEmployees: data?.filter(e => e.status === 'inactive').length || 0,
-        onProbation: data?.filter(e => e.employment_type === 'probation').length || 0
+        activeEmployees: data?.filter((e: any) => e.employment_status === 'active').length || 0,
+        inactiveEmployees: data?.filter((e: any) => e.employment_status === 'inactive').length || 0,
+        onProbation: data?.filter((e: any) => e.employment_status === 'probation').length || 0
       };
 
       setReportData({ employees: data, stats, type: 'employee' });
@@ -358,7 +357,7 @@ export function ReportsPage() {
           const checkIn = r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString() : '-';
           const checkOut = r.check_out_time ? new Date(r.check_out_time).toLocaleTimeString() : '-';
           const location = r.is_within_office_radius ? 'In Office' : 'Remote';
-          csvContent += `${r.employees.employee_code},"${name}",${r.attendance_date},${checkIn},${checkOut},${r.status},${location}\n`;
+          csvContent += `${r.employees.employee_code},"${name}",${r.date},${checkIn},${checkOut},${r.status},${location}\n`;
         });
         break;
 
@@ -367,7 +366,7 @@ export function ReportsPage() {
         csvContent = 'Employee Code,Name,Leave Type,From Date,To Date,Days,Status,Reason\n';
         reportData.applications.forEach((l: any) => {
           const name = `${l.employees.first_name} ${l.employees.last_name}`;
-          csvContent += `${l.employees.employee_code},"${name}",${l.leave_types.name},${l.from_date},${l.to_date},${l.total_days},${l.status},"${l.reason}"\n`;
+          csvContent += `${l.employees.employee_code},"${name}",${l.leave_types.name},${l.start_date},${l.end_date},${l.days},${l.status},"${l.reason}"\n`;
         });
         break;
 
@@ -387,8 +386,8 @@ export function ReportsPage() {
         reportData.employees.forEach((e: any) => {
           const name = `${e.first_name} ${e.last_name}`;
           const dept = e.departments?.name || 'N/A';
-          const desig = e.designations?.title || 'N/A';
-          csvContent += `${e.employee_code},"${name}",${e.company_email},${e.phone_number},"${dept}","${desig}",${e.status},${e.joining_date}\n`;
+          const desig = e.designations?.name || 'N/A';
+          csvContent += `${e.employee_code},"${name}",${e.company_email},${e.mobile_number},"${dept}","${desig}",${e.employment_status},${e.date_of_joining}\n`;
         });
         break;
     }
@@ -406,16 +405,99 @@ export function ReportsPage() {
     });
   };
 
+  const exportToPDF = (reportType: string) => {
+    if (!reportData) return;
+
+    const doc = new jsPDF();
+    const filename = `${reportType.charAt(0).toUpperCase() + reportType.slice(1)}_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+
+    let title = '';
+    let headers: string[][] = [];
+    let data: any[][] = [];
+
+    switch (reportType) {
+      case 'attendance':
+        title = 'Attendance Report';
+        headers = [['Code', 'Name', 'Date', 'In', 'Out', 'Status']];
+        data = reportData.records.map((r: any) => [
+          r.employees.employee_code,
+          `${r.employees.first_name} ${r.employees.last_name}`,
+          r.date,
+          r.check_in_time ? new Date(r.check_in_time).toLocaleTimeString() : '-',
+          r.check_out_time ? new Date(r.check_out_time).toLocaleTimeString() : '-',
+          r.status
+        ]);
+        break;
+      case 'leave':
+        title = 'Leave Report';
+        headers = [['Code', 'Name', 'Type', 'From', 'To', 'Days', 'Status']];
+        data = reportData.applications.map((l: any) => [
+          l.employees.employee_code,
+          `${l.employees.first_name} ${l.employees.last_name}`,
+          l.leave_types.name,
+          l.start_date,
+          l.end_date,
+          l.days,
+          l.status
+        ]);
+        break;
+      case 'payroll':
+        title = 'Payroll Report';
+        headers = [['Code', 'Name', 'Department', 'Earnings', 'Deductions', 'Net']];
+        data = reportData.payroll.map((p: any) => [
+          p.employee.employee_code,
+          `${p.employee.first_name} ${p.employee.last_name}`,
+          p.employee.departments?.name || 'N/A',
+          p.earnings.toFixed(2),
+          p.deductions.toFixed(2),
+          p.netSalary.toFixed(2)
+        ]);
+        break;
+      case 'employee':
+        title = 'Employee Master Report';
+        headers = [['Code', 'Name', 'Department', 'Designation', 'Status', 'Joined']];
+        data = reportData.employees.map((e: any) => [
+          e.employee_code,
+          `${e.first_name} ${e.last_name}`,
+          e.departments?.name || 'N/A',
+          e.designations?.name || 'N/A',
+          e.employment_status,
+          e.date_of_joining
+        ]);
+        break;
+    }
+
+    doc.setFontSize(20);
+    doc.text(title, 14, 22);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+
+    (doc as any).autoTable({
+      startY: 35,
+      head: headers,
+      body: data,
+      theme: 'grid',
+      headStyles: { fillGray: [41, 128, 185], textColor: 255 },
+      alternateRowStyles: { fillGray: [245, 245, 245] }
+    });
+
+    doc.save(filename);
+    setAlertModal({
+      type: 'success',
+      title: 'Export Successful',
+      message: `Report has been exported as ${filename}`
+    });
+  };
+
   return (
     <>
       {alertModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-scaleIn">
-            <div className={`p-6 rounded-t-2xl ${
-              alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
+            <div className={`p-6 rounded-t-2xl ${alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
               alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
-              'bg-gradient-to-r from-blue-500 to-blue-600'
-            }`}>
+                'bg-gradient-to-r from-blue-500 to-blue-600'
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {alertModal.type === 'success' && <CheckCircle className="h-8 w-8 text-white" />}
@@ -435,11 +517,10 @@ export function ReportsPage() {
               <p className="text-slate-700 text-lg">{alertModal.message}</p>
               <button
                 onClick={() => setAlertModal(null)}
-                className={`mt-6 w-full py-3 rounded-xl font-semibold text-white transition-all ${
-                  alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
+                className={`mt-6 w-full py-3 rounded-xl font-semibold text-white transition-all ${alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
                   alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
-                  'bg-blue-500 hover:bg-blue-600'
-                }`}>
+                    'bg-blue-500 hover:bg-blue-600'
+                  }`}>
                 OK
               </button>
             </div>
@@ -509,6 +590,7 @@ export function ReportsPage() {
             iconColor="from-blue-500 to-blue-600"
             onGenerate={generateAttendanceReport}
             onExport={() => exportToCSV('attendance')}
+            onExportPDF={() => exportToPDF('attendance')}
             loading={loading}
             hasData={activeReport === 'attendance'}
           />
@@ -519,6 +601,7 @@ export function ReportsPage() {
             iconColor="from-emerald-500 to-emerald-600"
             onGenerate={generateLeaveReport}
             onExport={() => exportToCSV('leave')}
+            onExportPDF={() => exportToPDF('leave')}
             loading={loading}
             hasData={activeReport === 'leave'}
           />
@@ -529,6 +612,7 @@ export function ReportsPage() {
             iconColor="from-violet-500 to-violet-600"
             onGenerate={generatePayrollReport}
             onExport={() => exportToCSV('payroll')}
+            onExportPDF={() => exportToPDF('payroll')}
             loading={loading}
             hasData={activeReport === 'payroll'}
           />
@@ -539,6 +623,7 @@ export function ReportsPage() {
             iconColor="from-amber-500 to-amber-600"
             onGenerate={generateEmployeeReport}
             onExport={() => exportToCSV('employee')}
+            onExportPDF={() => exportToPDF('employee')}
             loading={loading}
             hasData={activeReport === 'employee'}
           />
@@ -587,7 +672,7 @@ export function ReportsPage() {
                           <p className="text-xs text-slate-500">{record.employees.employee_code}</p>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-slate-700">{new Date(record.attendance_date).toLocaleDateString()}</td>
+                      <td className="py-3 px-4 text-slate-700">{new Date(record.date).toLocaleDateString()}</td>
                       <td className="py-3 px-4 text-slate-700">
                         {record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
@@ -595,18 +680,16 @@ export function ReportsPage() {
                         {record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          record.status === 'present' ? 'bg-emerald-100 text-emerald-700' :
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${record.status === 'present' ? 'bg-emerald-100 text-emerald-700' :
                           record.status === 'absent' ? 'bg-red-100 text-red-700' :
-                          'bg-amber-100 text-amber-700'
-                        }`}>
+                            'bg-amber-100 text-amber-700'
+                          }`}>
                           {record.status}
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          record.is_within_office_radius ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
-                        }`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${record.is_within_office_radius ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                          }`}>
                           {record.is_within_office_radius ? 'In Office' : 'Remote'}
                         </span>
                       </td>
@@ -667,16 +750,15 @@ export function ReportsPage() {
                           {leave.leave_types.code}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-slate-700">{new Date(leave.from_date).toLocaleDateString()}</td>
-                      <td className="py-3 px-4 text-slate-700">{new Date(leave.to_date).toLocaleDateString()}</td>
-                      <td className="py-3 px-4 text-slate-700">{leave.total_days}</td>
+                      <td className="py-3 px-4 text-slate-700">{new Date(leave.start_date).toLocaleDateString()}</td>
+                      <td className="py-3 px-4 text-slate-700">{new Date(leave.end_date).toLocaleDateString()}</td>
+                      <td className="py-3 px-4 text-slate-700">{leave.days}</td>
                       <td className="py-3 px-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          leave.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${leave.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
                           leave.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                          leave.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                          'bg-slate-100 text-slate-700'
-                        }`}>
+                            leave.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                              'bg-slate-100 text-slate-700'
+                          }`}>
                           {leave.status}
                         </span>
                       </td>
@@ -703,9 +785,9 @@ export function ReportsPage() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <StatCard label="Total Employees" value={reportData.stats.totalEmployees} color="text-blue-600" />
-              <StatCard label="Gross Earnings" value={`${reportData.stats.totalEarnings.toLocaleString()} QAR`} color="text-emerald-600" />
-              <StatCard label="Total Deductions" value={`${reportData.stats.totalDeductions.toLocaleString()} QAR`} color="text-red-600" />
-              <StatCard label="Net Payable" value={`${reportData.stats.totalNetSalary.toLocaleString()} QAR`} color="text-violet-600" />
+              <StatCard label="Gross Earnings" value={`${reportData.stats.totalEarnings.toLocaleString()} INR`} color="text-emerald-600" />
+              <StatCard label="Total Deductions" value={`${reportData.stats.totalDeductions.toLocaleString()} INR`} color="text-red-600" />
+              <StatCard label="Net Payable" value={`${reportData.stats.totalNetSalary.toLocaleString()} INR`} color="text-violet-600" />
             </div>
 
             <div className="overflow-x-auto">
@@ -731,9 +813,9 @@ export function ReportsPage() {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-slate-700">{payroll.employee.departments?.name || 'N/A'}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-emerald-600">{payroll.earnings.toLocaleString()} QAR</td>
-                      <td className="py-3 px-4 text-right font-semibold text-red-600">{payroll.deductions.toLocaleString()} QAR</td>
-                      <td className="py-3 px-4 text-right font-bold text-slate-900">{payroll.netSalary.toLocaleString()} QAR</td>
+                      <td className="py-3 px-4 text-right font-semibold text-emerald-600">{payroll.earnings.toLocaleString()} INR</td>
+                      <td className="py-3 px-4 text-right font-semibold text-red-600">{payroll.deductions.toLocaleString()} INR</td>
+                      <td className="py-3 px-4 text-right font-bold text-slate-900">{payroll.netSalary.toLocaleString()} INR</td>
                     </tr>
                   ))}
                 </tbody>
@@ -781,15 +863,14 @@ export function ReportsPage() {
                       <td className="py-3 px-4 text-slate-700">{emp.first_name} {emp.last_name}</td>
                       <td className="py-3 px-4 text-slate-700">{emp.company_email}</td>
                       <td className="py-3 px-4 text-slate-700">{emp.departments?.name || 'N/A'}</td>
-                      <td className="py-3 px-4 text-slate-700">{emp.designations?.title || 'N/A'}</td>
+                      <td className="py-3 px-4 text-slate-700">{emp.designations?.name || 'N/A'}</td>
                       <td className="py-3 px-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          emp.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {emp.status}
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${emp.employment_status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                          {emp.employment_status}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-slate-700">{new Date(emp.joining_date).toLocaleDateString()}</td>
+                      <td className="py-3 px-4 text-slate-700">{emp.date_of_joining ? new Date(emp.date_of_joining).toLocaleDateString() : 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -809,6 +890,7 @@ function ReportCard({
   iconColor,
   onGenerate,
   onExport,
+  onExportPDF,
   loading,
   hasData
 }: {
@@ -818,6 +900,7 @@ function ReportCard({
   iconColor: string;
   onGenerate: () => void;
   onExport: () => void;
+  onExportPDF?: () => void;
   loading: boolean;
   hasData: boolean;
 }) {
@@ -828,13 +911,24 @@ function ReportCard({
           <Icon className="h-6 w-6 text-white" />
         </div>
         {hasData && (
-          <button
-            onClick={onExport}
-            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-            title="Export to CSV"
-          >
-            <Download className="h-5 w-5" />
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onExport}
+              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+              title="Export to CSV"
+            >
+              <Download className="h-5 w-5" />
+            </button>
+            {onExportPDF && (
+              <button
+                onClick={onExportPDF}
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                title="Export to PDF"
+              >
+                <FileText className="h-5 w-5" />
+              </button>
+            )}
+          </div>
         )}
       </div>
       <h3 className="text-lg font-bold text-slate-900 mb-2">{title}</h3>

@@ -11,7 +11,7 @@ interface ReviewDetailModalProps {
 }
 
 export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailModalProps) {
-    const { user, membership } = useAuth();
+    const { profile } = useAuth();
     const [review, setReview] = useState<any>(null);
     const [categories, setCategories] = useState<any[]>([]);
     const [ratings, setRatings] = useState<Record<string, { rating: number; comments: string }>>({});
@@ -34,8 +34,8 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
         setLoading(true);
         try {
             // Load Review
-            const { data: reviewData, error: reviewError } = await supabase
-                .from('performance_reviews')
+            const { data: reviewData, error: reviewError } = await (supabase
+                .from('performance_reviews' as any) as any)
                 .select(`
           *,
           employee:employees!employee_id(first_name, last_name, department:departments(name)),
@@ -56,8 +56,8 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
             setEmployeeComments(reviewData.employee_comments || '');
 
             // Load Categories
-            const { data: categoriesData } = await supabase
-                .from('review_categories')
+            const { data: categoriesData } = await (supabase
+                .from('review_categories' as any) as any)
                 .select('*')
                 .eq('organization_id', reviewData.organization_id)
                 .eq('is_active', true)
@@ -66,13 +66,13 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
             setCategories(categoriesData || []);
 
             // Load Existing Ratings
-            const { data: ratingsData } = await supabase
-                .from('review_ratings')
+            const { data: ratingsData } = await (supabase
+                .from('review_ratings' as any) as any)
                 .select('*')
                 .eq('review_id', reviewId);
 
             const ratingsMap: Record<string, any> = {};
-            ratingsData?.forEach(r => {
+            ratingsData?.forEach((r: any) => {
                 ratingsMap[r.category_id] = { rating: r.rating, comments: r.comments };
             });
             setRatings(ratingsMap);
@@ -110,8 +110,8 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
             const overallRating = totalWeight > 0 ? (totalWeightedScore / totalWeight) : 0;
 
             // Update Review
-            const { error: reviewError } = await supabase
-                .from('performance_reviews')
+            const { error: reviewError } = await (supabase
+                .from('performance_reviews' as any) as any)
                 .update({
                     status,
                     overall_rating: overallRating,
@@ -121,7 +121,7 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
                     goals_for_next_period: nextGoals,
                     manager_comments: managerComments,
                     reviewed_date: status === 'Completed' ? new Date().toISOString() : null
-                })
+                } as any)
                 .eq('id', reviewId);
 
             if (reviewError) throw reviewError;
@@ -134,8 +134,8 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
                 comments: ratings[cat.id]?.comments || ''
             }));
 
-            const { error: ratingsError } = await supabase
-                .from('review_ratings')
+            const { error: ratingsError } = await (supabase
+                .from('review_ratings' as any) as any)
                 .upsert(ratingsToUpsert as any, { onConflict: 'review_id,category_id' });
 
             if (ratingsError) throw ratingsError;
@@ -155,11 +155,11 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
     const handleEmployeeResponse = async () => {
         setSaving(true);
         try {
-            const { error } = await supabase
-                .from('performance_reviews')
+            const { error } = await (supabase
+                .from('performance_reviews' as any) as any)
                 .update({
                     employee_comments: employeeComments
-                })
+                } as any)
                 .eq('id', reviewId);
 
             if (error) throw error;
@@ -174,8 +174,8 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
 
     if (loading || !review) return null;
 
-    const isReviewer = user?.id === review.reviewer_id || ['admin', 'super_admin'].includes(membership?.role || '');
-    const isEmployee = user?.id === review.employee_id; // Need to map user.id to employee_id properly in real app
+    const isReviewer = profile?.employee_id === review.reviewer_id || ['admin', 'super_admin'].includes(profile?.role || '');
+    const isEmployee = profile?.employee_id === review.employee_id;
     const isEditable = isReviewer && review.status !== 'Completed' && review.status !== 'Approved';
     const canRespond = isEmployee && review.status === 'Completed';
 
@@ -210,7 +210,7 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
                             <div className="text-xs font-medium text-slate-500 uppercase mb-1">Review Period</div>
                             <div className="text-sm font-medium text-slate-900 flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-slate-400" />
-                                {format(new Date(review.review_period_start), 'MMM yyyy')} - {format(new Date(review.review_period_end), 'MMM yyyy')}
+                                {review.review_period_start ? format(new Date(review.review_period_start), 'MMM yyyy') : 'N/A'} - {review.review_period_end ? format(new Date(review.review_period_end), 'MMM yyyy') : 'N/A'}
                             </div>
                         </div>
                         <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">

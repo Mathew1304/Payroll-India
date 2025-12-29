@@ -48,7 +48,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [leaveBalances, setLeaveBalances] = useState<any[]>([]);
 
   useEffect(() => {
-    if (organization?.id) {
+    if (organization?.id && profile?.role && ['admin', 'hr', 'finance', 'manager'].includes(profile.role)) {
       loadDashboardData();
 
       // Subscribe to Realtime changes
@@ -73,6 +73,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       return () => {
         channels.forEach(channel => supabase.removeChannel(channel));
       };
+    } else if (organization?.id && profile?.role === 'employee') {
+      // Employee specific data loading if needed happens in EmployeeDashboard
     }
   }, [organization, profile]);
 

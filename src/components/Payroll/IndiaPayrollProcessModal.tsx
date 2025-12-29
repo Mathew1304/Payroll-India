@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react';
-import { X, AlertCircle, CheckCircle, Banknote, Users } from 'lucide-react';
+import { X, AlertCircle, CheckCircle, Banknote, Users, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateCompleteIndiaPayroll, IndiaSalaryComponents, OvertimeRecord, IndiaDeductions } from '../../utils/indiaPayrollCalculations';
+import {
+    startOfMonth,
+    endOfMonth,
+    eachDayOfInterval,
+    isSunday,
+    format
+} from 'date-fns';
 
 interface Employee {
     id: string;
@@ -40,16 +47,6 @@ interface AttendanceData {
     days_leave: number;
     loss_of_pay_days: number;
     overtime_hours: number;
-}
-
-interface LoanData {
-    employee_id: string;
-    monthly_deduction: number;
-}
-
-interface AdvanceData {
-    employee_id: string;
-    monthly_recovery: number;
 }
 
 interface PayrollCalculation {
@@ -120,7 +117,7 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                 .select(`
           *,
           employee:employees(
-            id, first_name, last_name, employee_code, pan_number, uan_number, 
+            id, first_name, last_name, employee_code, pan_number, uan_number,
             esi_number, bank_account_number, ifsc_code, tax_regime, work_state
           )
         `)
@@ -132,13 +129,42 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                 throw new Error('No active salary components found. Please set up employee salaries first.');
             }
 
-            // Fetch attendance data (assuming you have an attendance table)
-            const { data: attendanceData } = await supabase
-                .from('india_monthly_attendance')
+            // Fetch attendance records for the month
+            const monthStart = startOfMonth(new Date(year, month - 1));
+            const monthEnd = endOfMonth(monthStart);
+            const startStr = format(monthStart, 'yyyy-MM-dd');
+            const endStr = format(monthEnd, 'yyyy-MM-dd');
+
+            const { data: attendanceRecords } = await supabase
+                .from('attendance_records')
                 .select('*')
                 .eq('organization_id', organization!.id)
-                .eq('month', month)
-                .eq('year', year);
+                .gte('date', startStr)
+                .lte('date', endStr);
+
+            // Fetch approved leave applications
+            const { data: leaveApplications } = await supabase
+                .from('leave_applications')
+                .select('*, leave_types(*)')
+                .eq('status', 'approved')
+                .lte('start_date', endStr)
+                .gte('end_date', startStr);
+
+            // Fetch holidays
+            const { data: holidays } = await (supabase
+                .from('holidays') as any)
+                .select('*')
+                .eq('organization_id', organization!.id)
+                .gte('date', startStr)
+                .lte('date', endStr);
+
+            // Fetch leave balances for the current year
+            const currentYear = new Date().getFullYear();
+            const { data: leaveBalances } = await (supabase
+                .from('leave_balances') as any)
+                .select('*')
+                .eq('organization_id', organization!.id)
+                .eq('year', currentYear);
 
             // Fetch active loans
             const { data: loansData } = await supabase
@@ -161,42 +187,37 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                 .eq('organization_id', organization!.id)
                 .single();
 
-            const isGlobalPFEnabled = globalSettings?.pf_enabled ?? true;
-            const isGlobalESIEnabled = globalSettings?.esi_enabled ?? true;
+            const isGlobalPFEnabled = (globalSettings as any)?.pf_enabled ?? true;
+            const isGlobalESIEnabled = (globalSettings as any)?.esi_enabled ?? true;
 
-            const workingDays = 26; // Default working days, can be made configurable
+            // Calculate actual working days in the month (excluding Sundays and Holidays)
+            const holidaysDates = new Set((holidays as any[] || []).map((h: any) => h.date));
+            const allDaysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+            const workingDaysInMonth = allDaysInMonth.filter(day => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                return !isSunday(day) && !holidaysDates.has(dateStr);
+            }).length;
 
-            // Create attendance map
-            const attendanceMap = new Map<string, AttendanceData>();
-            attendanceData?.forEach(att => {
-                attendanceMap.set(att.employee_id, {
-                    employee_id: att.employee_id,
-                    days_present: att.days_present,
-                    days_absent: att.days_absent,
-                    days_leave: att.days_leave,
-                    loss_of_pay_days: att.loss_of_pay_days || 0,
-                    overtime_hours: att.overtime_hours || 0
-                });
-            });
+            const workingDaysDenominator = workingDaysInMonth || 26; // Use actual working days as denominator
 
             // Create loans map
             const loansMap = new Map<string, number>();
-            loansData?.forEach(loan => {
+            (loansData as any[] || []).forEach((loan: any) => {
                 const current = loansMap.get(loan.employee_id) || 0;
                 loansMap.set(loan.employee_id, current + Number(loan.installment_amount));
             });
 
             // Create advances map
             const advancesMap = new Map<string, number>();
-            advancesData?.forEach(adv => {
+            (advancesData as any[] || []).forEach((adv: any) => {
                 const current = advancesMap.get(adv.employee_id) || 0;
                 advancesMap.set(adv.employee_id, current + Number(adv.recovery_amount));
             });
 
             // Deduplicate salary components to ensure one record per employee
-            const uniqueSalaryMap = new Map();
-            salaryData.forEach((comp: any) => {
-                if (!uniqueSalaryMap.has(comp.employee.id)) {
+            const uniqueSalaryMap = new Map<string, any>();
+            (salaryData as any[] || []).forEach((comp: any) => {
+                if (comp.employee && !uniqueSalaryMap.has(comp.employee.id)) {
                     uniqueSalaryMap.set(comp.employee.id, comp);
                 }
             });
@@ -204,47 +225,128 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
             // Calculate payroll for each unique employee
             const calcs: PayrollCalculation[] = Array.from(uniqueSalaryMap.values()).map((comp: any) => {
                 const employee = comp.employee;
-                const attendance = attendanceMap.get(employee.id);
-                const daysPresent = attendance?.days_present || workingDays;
-                const daysAbsent = attendance?.days_absent || 0;
-                const lossOfPayDays = attendance?.loss_of_pay_days || 0;
-                const overtimeHours = attendance?.overtime_hours || 0;
 
-                // Prepare salary components
-                const salaryComponents: IndiaSalaryComponents = {
-                    basicSalary: Number(comp.basic_salary),
-                    dearnessAllowance: Number(comp.dearness_allowance),
-                    houseRentAllowance: Number(comp.house_rent_allowance),
-                    conveyanceAllowance: Number(comp.conveyance_allowance),
-                    medicalAllowance: Number(comp.medical_allowance),
-                    specialAllowance: Number(comp.special_allowance),
-                    otherAllowances: Number(comp.other_allowances)
+                // Get this employee's data
+                const empAttendance = (attendanceRecords || []).filter((r: any) => r.employee_id === employee.id);
+                const empLeaves = (leaveApplications || []).filter((l: any) => l.employee_id === employee.id);
+
+                let daysPresent = 0;
+                let lossOfPayDays = 0;
+                let overtimeHours = 0;
+                const paidLeavesTaken = new Map<string, number>();
+
+                allDaysInMonth.forEach(day => {
+                    const dateStr = format(day, 'yyyy-MM-dd');
+
+                    // Skip Sundays and Public Holidays for LOP calculation
+                    if (isSunday(day) || holidaysDates.has(dateStr)) {
+                        return;
+                    }
+
+                    const attendance = (empAttendance as any[]).find((r: any) => r.date === dateStr);
+                    const leave = (empLeaves as any[]).find((l: any) => {
+                        const lStart = l.start_date;
+                        const lEnd = l.end_date;
+                        return dateStr >= lStart && dateStr <= lEnd;
+                    });
+
+                    if (attendance && (attendance.status === 'Present' || attendance.status === 'Remote' || attendance.status === 'Late' || attendance.status === 'Half Day')) {
+                        if (attendance.status === 'Half Day') {
+                            daysPresent += 0.5;
+                            lossOfPayDays += 0.5;
+                        } else {
+                            daysPresent++;
+                        }
+                        // Accumulate overtime if available
+                        if (attendance.total_hours && attendance.total_hours > 9) {
+                            overtimeHours += (attendance.total_hours - 9);
+                        }
+                    } else if (leave) {
+                        const leaveType = leave.leave_types;
+                        if (leaveType && leaveType.is_paid) {
+                            // Track paid leaves to check against balance later
+                            const typeId = leave.leave_type_id;
+                            paidLeavesTaken.set(typeId, (paidLeavesTaken.get(typeId) || 0) + 1);
+                            daysPresent++; // Increment for now, adjust later if balance exceeded
+                        } else {
+                            lossOfPayDays++;
+                        }
+                    } else {
+                        // Not present, no leave -> LOP
+                        lossOfPayDays++;
+                    }
+                });
+
+                // Adjust LOP if paid leaves exceed balance
+                paidLeavesTaken.forEach((daysTaken, typeId) => {
+                    const balance = (leaveBalances as any[] || []).find(b => b.employee_id === employee.id && b.leave_type_id === typeId);
+                    if (balance) {
+                        const closingBalance = Number(balance.closing_balance || 0);
+                        // If balance is negative, it means they took more than allotted.
+                        // We need to find how many of the leaves taken THIS month contributed to that negativity.
+                        // Logic:
+                        // StartBalanceForMonth = closingBalance + daysTaken (assuming no leaves were taken after this month)
+                        // If StartBalanceForMonth <= 0, then all daysTaken are LOP.
+                        // If StartBalanceForMonth > 0 and closingBalance < 0, then Math.abs(closingBalance) are LOP.
+
+                        const startMonthBalance = closingBalance + daysTaken;
+                        let excessDays = 0;
+
+                        if (startMonthBalance <= 0) {
+                            excessDays = daysTaken;
+                        } else if (closingBalance < 0) {
+                            excessDays = Math.abs(closingBalance);
+                        }
+
+                        if (excessDays > 0) {
+                            lossOfPayDays += excessDays;
+                            daysPresent -= excessDays;
+                        }
+                    }
+                });
+
+                // Calculate pro-rated components based on attendance
+                const earnedFactor = Math.max(0, (workingDaysDenominator - lossOfPayDays) / workingDaysDenominator);
+
+                const earnedComponents: IndiaSalaryComponents = {
+                    basicSalary: Math.round(Number(comp.basic_salary) * earnedFactor),
+                    dearnessAllowance: Math.round(Number(comp.dearness_allowance) * earnedFactor),
+                    houseRentAllowance: Math.round(Number(comp.house_rent_allowance) * earnedFactor),
+                    conveyanceAllowance: Math.round(Number(comp.conveyance_allowance) * earnedFactor),
+                    medicalAllowance: Math.round(Number(comp.medical_allowance) * earnedFactor),
+                    specialAllowance: Math.round(Number(comp.special_allowance) * earnedFactor),
+                    otherAllowances: Math.round(Number(comp.other_allowances) * earnedFactor)
                 };
+
+                const fixedGross = (Number(comp.basic_salary) + Number(comp.dearness_allowance) +
+                    Number(comp.house_rent_allowance) + Number(comp.conveyance_allowance) +
+                    Number(comp.medical_allowance) + Number(comp.special_allowance) +
+                    Number(comp.other_allowances));
+
+                const earnedGross = (earnedComponents.basicSalary + earnedComponents.dearnessAllowance +
+                    earnedComponents.houseRentAllowance + earnedComponents.conveyanceAllowance +
+                    earnedComponents.medicalAllowance + earnedComponents.specialAllowance +
+                    earnedComponents.otherAllowances);
+
+                const absenceDeduction = fixedGross - earnedGross;
 
                 // Prepare overtime records
                 const overtimeRecords: OvertimeRecord[] = overtimeHours > 0 ? [
                     { type: 'weekday', hours: overtimeHours }
                 ] : [];
 
-                // Calculate pro-rated salary based on attendance
-                const dailyRate = (salaryComponents.basicSalary + salaryComponents.dearnessAllowance +
-                    salaryComponents.houseRentAllowance + salaryComponents.conveyanceAllowance +
-                    salaryComponents.medicalAllowance + salaryComponents.specialAllowance +
-                    salaryComponents.otherAllowances) / workingDays;
-                const absenceDeduction = dailyRate * lossOfPayDays;
-
-                // Prepare deductions
+                // Prepare deductions (loans/advances stay fixed)
                 const deductions: IndiaDeductions = {
-                    absenceDeduction,
+                    absenceDeduction: 0,
                     loanDeduction: loansMap.get(employee.id) || 0,
                     advanceDeduction: advancesMap.get(employee.id) || 0,
                     penaltyDeduction: 0,
                     otherDeductions: 0
                 };
 
-                // Calculate complete payroll
+                // Calculate complete payroll using EARNED components
                 const result = calculateCompleteIndiaPayroll(
-                    salaryComponents,
+                    earnedComponents,
                     overtimeRecords,
                     deductions,
                     comp.is_pf_applicable && isGlobalPFEnabled,
@@ -260,30 +362,31 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                     employee,
                     salary: {
                         employee_id: employee.id,
-                        basic_salary: salaryComponents.basicSalary,
-                        dearness_allowance: salaryComponents.dearnessAllowance,
-                        house_rent_allowance: salaryComponents.houseRentAllowance,
-                        conveyance_allowance: salaryComponents.conveyanceAllowance,
-                        medical_allowance: salaryComponents.medicalAllowance,
-                        special_allowance: salaryComponents.specialAllowance,
-                        other_allowances: salaryComponents.otherAllowances,
+                        basic_salary: Number(comp.basic_salary),
+                        dearness_allowance: Number(comp.dearness_allowance),
+                        house_rent_allowance: Number(comp.house_rent_allowance),
+                        conveyance_allowance: Number(comp.conveyance_allowance),
+                        medical_allowance: Number(comp.medical_allowance),
+                        special_allowance: Number(comp.special_allowance),
+                        other_allowances: Number(comp.other_allowances),
                         is_pf_applicable: comp.is_pf_applicable && isGlobalPFEnabled,
                         pf_contribution_type: comp.pf_contribution_type,
                         pf_wage_ceiling: comp.pf_wage_ceiling,
                         is_esi_applicable: comp.is_esi_applicable && isGlobalESIEnabled
                     },
-                    attendance,
-                    working_days: workingDays,
+                    attendance: undefined, // Dynamic source now
+                    working_days: workingDaysDenominator,
                     days_present: daysPresent,
                     loss_of_pay_days: lossOfPayDays,
-                    basic_salary: salaryComponents.basicSalary,
-                    dearness_allowance: salaryComponents.dearnessAllowance,
-                    house_rent_allowance: salaryComponents.houseRentAllowance,
-                    conveyance_allowance: salaryComponents.conveyanceAllowance,
-                    medical_allowance: salaryComponents.medicalAllowance,
-                    special_allowance: salaryComponents.specialAllowance,
-                    other_allowances: salaryComponents.otherAllowances,
-                    gross_salary: result.grossSalary,
+                    overtimeHours: overtimeHours,
+                    basic_salary: Number(comp.basic_salary),
+                    dearness_allowance: Number(comp.dearness_allowance),
+                    house_rent_allowance: Number(comp.house_rent_allowance),
+                    conveyance_allowance: Number(comp.conveyance_allowance),
+                    medical_allowance: Number(comp.medical_allowance),
+                    special_allowance: Number(comp.special_allowance),
+                    other_allowances: Number(comp.other_allowances),
+                    gross_salary: fixedGross,
                     overtime_amount: result.overtimeAmount,
                     pf_employee: result.statutoryDeductions.pfEmployee,
                     esi_employee: result.statutoryDeductions.esiEmployee,
@@ -292,7 +395,7 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                     lwf: result.statutoryDeductions.lwf,
                     loan_deduction: deductions.loanDeduction,
                     advance_deduction: deductions.advanceDeduction,
-                    absence_deduction: deductions.absenceDeduction,
+                    absence_deduction: absenceDeduction,
                     penalty_deduction: deductions.penaltyDeduction,
                     total_statutory_deductions: result.totalStatutoryDeductions,
                     total_other_deductions: result.totalOtherDeductions,
@@ -330,15 +433,15 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
 
             // Create a map of employee_id -> record_id
             const existingRecordMap = new Map<string, string>();
-            existingRecords?.forEach(record => {
+            (existingRecords as any[] || [])?.forEach(record => {
                 existingRecordMap.set(record.employee_id, record.id);
             });
 
             // 2. Prepare upsert payload with IDs if they exist
             const upsertPayload = calculations.map(calc => {
-                const existingId = existingRecordMap.get(calc.employee.id);
+                const existingId = (existingRecordMap as any).get(calc.employee.id);
 
-                const basePayload = {
+                const basePayload: any = {
                     organization_id: organization!.id,
                     employee_id: calc.employee.id,
                     pay_period_month: month,
@@ -350,7 +453,7 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                     medical_allowance: calc.medical_allowance,
                     special_allowance: calc.special_allowance,
                     other_allowances: calc.other_allowances,
-                    overtime_hours: calc.attendance?.overtime_hours || 0,
+                    overtime_hours: overtimeRecordHours(calc),
                     overtime_amount: calc.overtime_amount,
                     pf_employee: calc.pf_employee,
                     esi_employee: calc.esi_employee,
@@ -371,8 +474,8 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                     ctc: calc.ctc,
                     working_days: calc.working_days,
                     days_present: calc.days_present,
-                    days_absent: calc.attendance?.days_absent || 0,
-                    days_leave: calc.attendance?.days_leave || 0,
+                    days_absent: Math.max(0, calc.working_days - calc.days_present),
+                    days_leave: 0,
                     loss_of_pay_days: calc.loss_of_pay_days,
                     status: 'approved'
                 };
@@ -382,8 +485,8 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
             });
 
             // 3. Perform bulk upsert
-            const { error: upsertError } = await supabase
-                .from('india_payroll_records')
+            const { error: upsertError } = await (supabase
+                .from('india_payroll_records') as any)
                 .upsert(upsertPayload, {
                     onConflict: 'id'
                 });
@@ -399,11 +502,15 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
         }
     };
 
-    const totalGross = calculations.reduce((sum, c) => sum + c.gross_salary, 0);
+    const totalGross = calculations.reduce((sum, c) => sum + (c as any).gross_salary, 0);
     const totalNet = calculations.reduce((sum, c) => sum + c.net_salary, 0);
     const totalStatutoryDeductions = calculations.reduce((sum, c) => sum + c.total_statutory_deductions, 0);
-    const totalOtherDeductions = calculations.reduce((sum, c) => sum + c.total_other_deductions, 0);
-    const totalDeductions = calculations.reduce((sum, c) => sum + c.total_deductions, 0);
+    const totalAbsenceDeductions = calculations.reduce((sum, c) => sum + (c as any).absence_deduction, 0);
+
+    const overtimeRecordHours = (calc: PayrollCalculation) => {
+        // Prepare overtime records for calculation - return total hours
+        return (calc as any).overtimeHours || 0;
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -470,15 +577,15 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                                 </div>
                                 <div className="bg-red-50 rounded-xl border-2 border-red-200 p-4">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <Banknote className="h-5 w-5 text-red-600" />
-                                        <p className="text-sm font-medium text-red-900">Other Deductions</p>
+                                        <Clock className="h-5 w-5 text-red-600" />
+                                        <p className="text-sm font-medium text-red-900">Absence/LOP</p>
                                     </div>
-                                    <p className="text-2xl font-bold text-red-600">₹{totalOtherDeductions.toLocaleString('en-IN')}</p>
+                                    <p className="text-2xl font-bold text-red-600">₹{totalAbsenceDeductions.toLocaleString('en-IN')}</p>
                                 </div>
                                 <div className="bg-violet-50 rounded-xl border-2 border-violet-200 p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Banknote className="h-5 w-5 text-violet-600" />
-                                        <p className="text-sm font-medium text-violet-900">Net Salary</p>
+                                        <p className="text-sm font-medium text-violet-900">Net Payable</p>
                                     </div>
                                     <p className="text-2xl font-bold text-violet-600">₹{totalNet.toLocaleString('en-IN')}</p>
                                 </div>
@@ -493,12 +600,10 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                                                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">Basic</th>
                                                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">Allowances</th>
                                                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">Gross</th>
-                                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">PF</th>
-                                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">ESI</th>
-                                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">PT</th>
-                                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">TDS</th>
-                                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">Deductions</th>
-                                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">Net Salary</th>
+                                                <th className="px-4 py-3 text-right text-xs font-bold text-red-600 uppercase">Absence/LOP</th>
+                                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">Statutory</th>
+                                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">Other Deductions</th>
+                                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase">Net Payable</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-200">
@@ -520,11 +625,12 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
                                                         <td className="px-4 py-3 text-right text-sm text-slate-900">₹{calc.basic_salary.toLocaleString('en-IN')}</td>
                                                         <td className="px-4 py-3 text-right text-sm text-slate-900">₹{totalAllowances.toLocaleString('en-IN')}</td>
                                                         <td className="px-4 py-3 text-right text-sm font-semibold text-slate-900">₹{calc.gross_salary.toLocaleString('en-IN')}</td>
-                                                        <td className="px-4 py-3 text-right text-sm text-orange-600">₹{calc.pf_employee.toLocaleString('en-IN')}</td>
-                                                        <td className="px-4 py-3 text-right text-sm text-orange-600">₹{calc.esi_employee.toLocaleString('en-IN')}</td>
-                                                        <td className="px-4 py-3 text-right text-sm text-orange-600">₹{calc.professional_tax.toLocaleString('en-IN')}</td>
-                                                        <td className="px-4 py-3 text-right text-sm text-orange-600">₹{calc.tds.toLocaleString('en-IN')}</td>
-                                                        <td className="px-4 py-3 text-right text-sm text-red-600">₹{calc.total_deductions.toLocaleString('en-IN')}</td>
+                                                        <td className="px-4 py-3 text-right text-sm font-bold text-red-600">₹{calc.absence_deduction.toLocaleString('en-IN')}</td>
+                                                        <td className="px-4 py-3 text-right text-sm text-orange-600">
+                                                            <div className="text-[10px] text-slate-500">PF+ESI+PT+TDS</div>
+                                                            ₹{calc.total_statutory_deductions.toLocaleString('en-IN')}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right text-sm text-slate-600">₹{(calc.loan_deduction + calc.advance_deduction + calc.penalty_deduction).toLocaleString('en-IN')}</td>
                                                         <td className="px-4 py-3 text-right text-lg font-bold text-emerald-600">₹{calc.net_salary.toLocaleString('en-IN')}</td>
                                                     </tr>
                                                 );

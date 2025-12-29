@@ -34,39 +34,44 @@ export function AnalyticsTab({ departmentId, employeeId }: AnalyticsTabProps) {
                 .from('performance_reviews')
                 .select('overall_rating, status')
                 .eq('organization_id', organization!.id)
-                .eq('status', 'Completed');
+                .eq('status', 'completed');
 
             if (departmentId) {
                 goalsQuery = goalsQuery.eq('department_id', departmentId);
                 // reviewsQuery filtering by dept would need join, skipping for simple demo
             }
 
+            if (employeeId) {
+                goalsQuery = goalsQuery.eq('employee_id', employeeId);
+                reviewsQuery = reviewsQuery.eq('employee_id', employeeId);
+            }
+
             const [goalsRes, reviewsRes] = await Promise.all([goalsQuery, reviewsQuery]);
 
-            const goals = goalsRes.data || [];
-            const reviews = reviewsRes.data || [];
+            const goals = (goalsRes.data || []) as any[];
+            const reviews = (reviewsRes.data || []) as any[];
 
             // Process Goals
-            const goalStatusCounts = goals.reduce((acc: any, g) => {
+            const goalStatusCounts = goals.reduce((acc: any, g: any) => {
                 acc[g.status] = (acc[g.status] || 0) + 1;
                 return acc;
             }, {});
 
             // Process Reviews
-            const ratings = reviews.map(r => r.overall_rating || 0);
-            const avgRating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+            const ratings = reviews.map((r: any) => r.overall_rating || 0);
+            const avgRating = ratings.length ? ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length : 0;
 
             const ratingDistribution = {
-                'Excellent (4.5-5)': ratings.filter(r => r >= 4.5).length,
-                'Good (3.5-4.49)': ratings.filter(r => r >= 3.5 && r < 4.5).length,
-                'Average (2.5-3.49)': ratings.filter(r => r >= 2.5 && r < 3.5).length,
-                'Needs Imp. (<2.5)': ratings.filter(r => r < 2.5).length,
+                'Excellent (4.5-5)': ratings.filter((r: number) => r >= 4.5).length,
+                'Good (3.5-4.49)': ratings.filter((r: number) => r >= 3.5 && r < 4.5).length,
+                'Average (2.5-3.49)': ratings.filter((r: number) => r >= 2.5 && r < 3.5).length,
+                'Needs Imp. (<2.5)': ratings.filter((r: number) => r < 2.5).length,
             };
 
             setGoalStats({
                 total: goals.length,
                 statusCounts: goalStatusCounts,
-                completionRate: goals.length ? ((goalStatusCounts['Completed'] || 0) / goals.length * 100).toFixed(1) : 0
+                completionRate: goals.length ? ((goalStatusCounts['completed'] || goalStatusCounts['Completed'] || 0) / goals.length * 100).toFixed(1) : 0
             });
 
             setReviewStats({
@@ -98,15 +103,15 @@ export function AnalyticsTab({ departmentId, employeeId }: AnalyticsTabProps) {
                         {Object.entries(goalStats.statusCounts || {}).map(([status, count]: [string, any]) => (
                             <div key={status}>
                                 <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-slate-600">{status}</span>
+                                    <span className="text-slate-600 capitalize">{status.replace('_', ' ')}</span>
                                     <span className="font-medium text-slate-900">{count} ({((count / goalStats.total) * 100).toFixed(0)}%)</span>
                                 </div>
                                 <div className="w-full bg-slate-100 rounded-full h-2.5">
                                     <div
-                                        className={`h-2.5 rounded-full ${status === 'Completed' ? 'bg-green-500' :
-                                                status === 'In Progress' ? 'bg-blue-500' :
-                                                    status === 'Overdue' ? 'bg-red-500' :
-                                                        'bg-slate-400'
+                                        className={`h-2.5 rounded-full ${status.toLowerCase() === 'completed' ? 'bg-green-500' :
+                                            status.toLowerCase() === 'in_progress' ? 'bg-blue-500' :
+                                                status.toLowerCase() === 'overdue' ? 'bg-red-500' :
+                                                    'bg-slate-400'
                                             }`}
                                         style={{ width: `${(count / goalStats.total) * 100}%` }}
                                     />

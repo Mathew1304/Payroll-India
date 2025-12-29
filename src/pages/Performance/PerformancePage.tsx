@@ -10,7 +10,7 @@ import { CreateGoalModal } from '../../components/Performance/CreateGoalModal';
 import { CreateReviewModal } from '../../components/Performance/CreateReviewModal';
 
 export function PerformancePage() {
-  const { organization, membership } = useAuth();
+  const { organization, profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'goals' | 'reviews' | 'analytics'>('goals');
   const [departments, setDepartments] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -34,7 +34,7 @@ export function PerformancePage() {
     try {
       const [deptRes, empRes] = await Promise.all([
         supabase.from('departments').select('id, name').eq('organization_id', organization!.id).eq('is_active', true),
-        supabase.from('employees').select('id, first_name, last_name').eq('is_active', true)
+        supabase.from('employees').select('id, first_name, last_name').eq('organization_id', organization!.id).eq('is_active', true)
       ]);
 
       if (deptRes.data) setDepartments(deptRes.data);
@@ -44,7 +44,7 @@ export function PerformancePage() {
     }
   };
 
-  const isManagerOrAdmin = ['admin', 'super_admin', 'manager', 'hr'].includes(membership?.role || '');
+  const isManagerOrAdmin = ['admin', 'super_admin', 'manager', 'hr'].includes(profile?.role || '');
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -109,6 +109,7 @@ export function PerformancePage() {
 
       {/* Dashboard Stats */}
       <PerformanceDashboard
+        key={`stats-${refreshKey}`}
         departmentId={selectedDept === 'all' ? undefined : selectedDept}
         employeeId={selectedEmployee === 'all' ? undefined : selectedEmployee}
       />
@@ -166,6 +167,7 @@ export function PerformancePage() {
           )}
           {activeTab === 'analytics' && (
             <AnalyticsTab
+              key={`analytics-${refreshKey}`}
               departmentId={selectedDept === 'all' ? undefined : selectedDept}
               employeeId={selectedEmployee === 'all' ? undefined : selectedEmployee}
             />
@@ -178,7 +180,7 @@ export function PerformancePage() {
       )}
 
       {showCreateReview && (
-        <CreateReviewModal onClose={() => setShowCreateReview(false)} />
+        <CreateReviewModal onClose={() => { setShowCreateReview(false); setRefreshKey(prev => prev + 1); }} />
       )}
     </div>
   );

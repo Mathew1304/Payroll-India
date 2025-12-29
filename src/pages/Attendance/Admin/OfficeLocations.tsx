@@ -7,7 +7,8 @@ import {
     Trash2,
     Navigation,
     Check,
-    X
+    X,
+    Loader2
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -30,6 +31,7 @@ export function OfficeLocations() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingLocation, setEditingLocation] = useState<OfficeLocation | null>(null);
+    const [isLocating, setIsLocating] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState<Partial<OfficeLocation>>({
@@ -149,6 +151,7 @@ export function OfficeLocations() {
 
     const getCurrentLocation = () => {
         if (navigator.geolocation) {
+            setIsLocating(true);
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     setFormData(prev => ({
@@ -156,10 +159,29 @@ export function OfficeLocations() {
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude
                     }));
+                    setIsLocating(false);
                 },
                 (error) => {
                     console.error('Error getting location:', error);
-                    alert('Could not get current location. Please enter manually.');
+                    let errorMessage = 'Could not get current location.';
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Location permission denied. Please enable location access.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Location information is unavailable.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'The request to get user location timed out.';
+                            break;
+                    }
+                    alert(errorMessage);
+                    setIsLocating(false);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
                 }
             );
         } else {
@@ -323,10 +345,15 @@ export function OfficeLocations() {
                                 <div className="col-span-2">
                                     <button
                                         onClick={getCurrentLocation}
-                                        className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                                        disabled={isLocating}
+                                        className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <MapPin className="h-4 w-4" />
-                                        Use Current Location
+                                        {isLocating ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <MapPin className="h-4 w-4" />
+                                        )}
+                                        {isLocating ? 'Getting Location...' : 'Use Current Location'}
                                     </button>
                                 </div>
 

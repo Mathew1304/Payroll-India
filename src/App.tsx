@@ -142,9 +142,9 @@ function AppContent() {
       case 'helpdesk':
         return <HelpdeskPage />;
       case 'attendance-admin':
-        return <AttendanceAdminPage />;
+        return <AttendanceAdminPage onNavigate={setCurrentPage} />;
       case 'attendance-employee':
-        return <AttendanceEmployeePage />;
+        return <AttendanceEmployeePage onNavigate={setCurrentPage} />;
       case 'announcements':
         return <AnnouncementsPage />;
       case 'work-reports':

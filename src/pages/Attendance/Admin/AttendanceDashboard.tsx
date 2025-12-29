@@ -37,6 +37,7 @@ interface EmployeeStatus {
     check_out_time: string | null;
     duration: string | null;
     department_name: string | null;
+    early_checkout_reason: string | null;
 }
 
 export function AttendanceDashboard() {
@@ -163,7 +164,8 @@ export function AttendanceDashboard() {
                     check_in_time: record.check_in_time,
                     check_out_time: record.check_out_time,
                     duration: duration,
-                    department_name: record.employees.departments?.name || 'N/A'
+                    department_name: record.employees.departments?.name || 'N/A',
+                    early_checkout_reason: record.early_checkout_reason
                 };
             });
 
@@ -371,12 +373,13 @@ export function AttendanceDashboard() {
                                 <th className="text-left py-3 px-6 text-xs font-semibold text-slate-600 uppercase">Check-in Time</th>
                                 <th className="text-left py-3 px-6 text-xs font-semibold text-slate-600 uppercase">Check-out Time</th>
                                 <th className="text-left py-3 px-6 text-xs font-semibold text-slate-600 uppercase">Time Logged In</th>
+                                <th className="text-left py-3 px-6 text-xs font-semibold text-slate-600 uppercase">Early Checkout</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {liveEmployees.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="py-12 text-center text-slate-500">
+                                    <td colSpan={8} className="py-12 text-center text-slate-500">
                                         <Users className="h-12 w-12 text-slate-300 mx-auto mb-2" />
                                         <p>No check-ins yet today</p>
                                     </td>
@@ -420,6 +423,27 @@ export function AttendanceDashboard() {
                                         <td className="py-4 px-6 text-sm font-medium text-blue-600">
                                             {emp.duration}
                                         </td>
+                                        <td className="py-4 px-6">
+                                            {emp.early_checkout_reason ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative group">
+                                                        <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                                                            <div className="bg-slate-900 text-white text-xs rounded-lg py-2 px-3 max-w-xs shadow-lg">
+                                                                <p className="font-semibold mb-1">Early Checkout Reason:</p>
+                                                                <p>{emp.early_checkout_reason}</p>
+                                                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                                                                    <div className="border-4 border-transparent border-t-slate-900"></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-xs text-orange-600 font-medium">Early</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400 text-sm">-</span>
+                                            )}
+                                        </td>
                                     </tr>
                                 ))
                             )}
@@ -427,6 +451,88 @@ export function AttendanceDashboard() {
                     </table>
                 </div>
             </div>
+
+            {/* Early Checkouts Today */}
+            {liveEmployees.filter(emp => emp.early_checkout_reason).length > 0 && (
+                <div className="bg-white rounded-xl border border-orange-200 shadow-sm">
+                    <div className="p-6 border-b border-orange-100 bg-orange-50">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-orange-100 rounded-lg">
+                                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-lg text-slate-900">Early Checkouts Today</h3>
+                                <p className="text-sm text-slate-600">Employees who checked out before completing 8 hours</p>
+                            </div>
+                            <div className="ml-auto">
+                                <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                                    {liveEmployees.filter(emp => emp.early_checkout_reason).length}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6">
+                        <div className="space-y-4">
+                            {liveEmployees
+                                .filter(emp => emp.early_checkout_reason)
+                                .map((emp) => (
+                                    <div
+                                        key={emp.id}
+                                        className="bg-slate-50 border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                                    >
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <div>
+                                                        <h4 className="font-semibold text-slate-900">
+                                                            {emp.first_name} {emp.last_name}
+                                                        </h4>
+                                                        <p className="text-xs text-slate-500">
+                                                            {emp.employee_code} • {emp.department_name}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-white border border-orange-200 rounded-lg p-3 mt-2">
+                                                    <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1">
+                                                        Reason for Early Checkout
+                                                    </p>
+                                                    <p className="text-sm text-slate-700">
+                                                        {emp.early_checkout_reason}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="text-right">
+                                                <div className="space-y-2">
+                                                    <div>
+                                                        <p className="text-xs text-slate-500">Check-in</p>
+                                                        <p className="text-sm font-medium text-slate-900">
+                                                            {emp.check_in_time ? format(new Date(emp.check_in_time), 'HH:mm') : '-'}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-slate-500">Check-out</p>
+                                                        <p className="text-sm font-medium text-orange-600">
+                                                            {emp.check_out_time ? format(new Date(emp.check_out_time), 'HH:mm') : '-'}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-slate-500">Duration</p>
+                                                        <p className="text-sm font-bold text-orange-600">
+                                                            {emp.duration}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

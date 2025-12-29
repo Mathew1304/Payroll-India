@@ -8,7 +8,7 @@ interface CreateReviewModalProps {
 }
 
 export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
-    const { organization, membership } = useAuth();
+    const { organization, profile } = useAuth();
     const [loading, setLoading] = useState(false);
     const [employees, setEmployees] = useState<any[]>([]);
     const [goals, setGoals] = useState<any[]>([]);
@@ -39,10 +39,12 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
     }, [formData.employee_id]);
 
     const loadEmployees = async () => {
+        if (!organization?.id) return;
         try {
             const { data } = await supabase
                 .from('employees')
                 .select('id, first_name, last_name')
+                .eq('organization_id', organization.id)
                 .eq('is_active', true)
                 .order('first_name');
 
@@ -71,26 +73,27 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
         setLoading(true);
 
         try {
-            // @ts-ignore - Supabase type mismatch
-            const { error } = await supabase
-                .from('performance_reviews')
+            const { error } = await (supabase
+                .from('performance_reviews' as any) as any)
                 .insert({
                     organization_id: organization!.id,
                     employee_id: formData.employee_id,
                     goal_id: formData.goal_id || null,
-                    reviewer_id: membership?.employee_id || null,
+                    reviewer_id: profile?.employee_id || null, // Must be an employee ID or null
+                    review_type: formData.review_cycle.toLowerCase() === 'mid-year' ? 'half_yearly' : formData.review_cycle.toLowerCase(),
                     review_period: formData.review_period,
-                    rating: rating,
-                    feedback: formData.overall_feedback,
+                    overall_rating: rating,
+                    final_rating: rating, // Set both for compatibility
+                    manager_assessment: formData.overall_feedback,
+                    feedback: formData.overall_feedback, // Set both for compatibility
                     strengths: formData.strengths,
                     areas_for_improvement: formData.areas_for_improvement,
                     goals_met: formData.goals_met,
-                    reviewed_at: new Date().toISOString()
+                    reviewed_at: new Date().toISOString(),
+                    status: 'completed' // Matches database CHECK constraint (lowercase)
                 });
 
             if (error) throw error;
-
-            alert('Performance review created successfully!');
             onClose();
         } catch (err) {
             console.error('Error creating review:', err);

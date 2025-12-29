@@ -39,7 +39,7 @@ export function PerformanceDashboard({ departmentId, employeeId }: PerformanceDa
                 .from('performance_reviews')
                 .select('overall_rating', { count: 'exact' })
                 .eq('organization_id', organization!.id)
-                .eq('status', 'Completed');
+                .eq('status', 'completed');
 
             // Apply filters
             if (departmentId) {
@@ -54,12 +54,12 @@ export function PerformanceDashboard({ departmentId, employeeId }: PerformanceDa
 
             const [goalsRes, reviewsRes] = await Promise.all([goalsQuery, reviewsQuery]);
 
-            const goals = goalsRes.data || [];
-            const reviews = reviewsRes.data || [];
+            const goals: any[] = goalsRes.data || [];
+            const reviews: any[] = reviewsRes.data || [];
 
-            const activeGoals = goals.filter(g => ['Not Started', 'In Progress'].includes(g.status)).length;
-            const completedGoals = goals.filter(g => g.status === 'Completed').length;
-            const overdueGoals = goals.filter(g => g.status === 'Overdue').length;
+            const activeGoals = goals.filter(g => ['not_started', 'in_progress'].includes(g.status)).length;
+            const completedGoals = goals.filter(g => g.status === 'completed').length;
+            const overdueGoals = goals.filter(g => g.status !== 'completed' && new Date(g.end_date) < new Date()).length;
 
             const totalRating = reviews.reduce((sum, r) => sum + (r.overall_rating || 0), 0);
             const avgPerformance = reviews.length > 0 ? totalRating / reviews.length : 0;
@@ -83,6 +83,10 @@ export function PerformanceDashboard({ departmentId, employeeId }: PerformanceDa
     const completionRate = stats.totalGoals > 0
         ? Math.round((stats.completedGoals / stats.totalGoals) * 100)
         : 0;
+
+    if (loading) {
+        return <div className="text-center py-12 text-slate-500">Loading dashboard...</div>;
+    }
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

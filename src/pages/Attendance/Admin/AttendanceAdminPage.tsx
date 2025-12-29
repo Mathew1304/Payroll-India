@@ -2,23 +2,18 @@ import { useState } from 'react';
 import {
     LayoutDashboard,
     MapPin,
-    Calendar,
-    FileText,
-    Settings,
-    AlertTriangle,
-    Users
+    Calendar
 } from 'lucide-react';
 import { AttendanceDashboard } from './AttendanceDashboard';
 import { OfficeLocations } from './OfficeLocations';
-import { ScheduleManagement } from './ScheduleManagement';
-import { AttendanceReport } from './AttendanceReport';
-import { AttendanceSettings } from './AttendanceSettings';
+import { AttendanceCalendar } from '../AttendanceCalendar';
 
-export function AttendanceAdminPage() {
+export function AttendanceAdminPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
     const [activeTab, setActiveTab] = useState('dashboard');
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'calendar', label: 'Calendar', icon: Calendar },
         { id: 'locations', label: 'Office Locations', icon: MapPin },
     ];
 
@@ -59,10 +54,8 @@ export function AttendanceAdminPage() {
             {/* Content */}
             <div className="min-h-[500px]">
                 {activeTab === 'dashboard' && <AttendanceDashboard />}
+                {activeTab === 'calendar' && <AttendanceCalendar isAdmin={true} onNavigate={onNavigate} />}
                 {activeTab === 'locations' && <OfficeLocations />}
-                {activeTab === 'schedules' && <ScheduleManagement />}
-                {activeTab === 'reports' && <AttendanceReport />}
-                {activeTab === 'settings' && <AttendanceSettings />}
             </div>
         </div>
     );

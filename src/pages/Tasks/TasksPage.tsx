@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { CheckSquare, Plus, X, Send, Clock, Calendar, User, GitBranch, Github, TrendingUp, Filter, Search, Sparkles, AlertCircle, CheckCircle, Timer, MessageSquare, Paperclip } from 'lucide-react';
+import { CheckSquare, Plus, X, Send, Clock, Calendar, User, Github, TrendingUp, Search, Sparkles, AlertCircle, CheckCircle, ExternalLink, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { SubmitTaskModal } from '../../components/Tasks/SubmitTaskModal';
 
 interface Task {
   id: string;
@@ -24,6 +25,9 @@ interface Task {
     last_name: string;
     employee_code: string;
   };
+  submission_url?: string;
+  submission_notes?: string;
+  submitted_at?: string;
 }
 
 interface GitHubStats {
@@ -67,13 +71,12 @@ interface AlertModal {
 }
 
 export function TasksPage() {
-  const { membership, organization } = useAuth();
+  const { user, profile, organization } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [githubStats, setGithubStats] = useState<GitHubStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showGithubModal, setShowGithubModal] = useState(false);
+  const [submitModalTask, setSubmitModalTask] = useState<Task | null>(null);
   const [alertModal, setAlertModal] = useState<AlertModal | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,19 +98,20 @@ export function TasksPage() {
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [createTaskDepartment, setCreateTaskDepartment] = useState<string>('');
 
-  const isAdmin = membership?.role && ['admin', 'hr', 'manager'].includes(membership.role);
+  const isAdmin = profile?.role && ['admin', 'hr', 'manager'].includes(profile.role);
 
   useEffect(() => {
-    loadData();
-  }, [membership, organization]);
+    if (organization?.id && profile) {
+      loadData();
+    }
+  }, [organization?.id, profile]);
 
   const loadData = async () => {
     try {
       await Promise.all([
         loadTasks(),
         isAdmin && loadEmployees(),
-        isAdmin && loadDepartments(),
-        isAdmin && loadGithubStats()
+        isAdmin && loadDepartments()
       ]);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -118,17 +122,17 @@ export function TasksPage() {
 
   const loadTasks = async () => {
     try {
-      let query = supabase
-        .from('tasks')
+      let query = (supabase
+        .from('tasks' as any) as any)
         .select(`
           *,
           assigned_employee:employees!assigned_to(id, first_name, last_name, employee_code)
         `)
-        .eq('organization_id', organization?.id)
+        .eq('organization_id', organization?.id || '')
         .order('created_at', { ascending: false });
 
-      if (!isAdmin && membership?.employee_id) {
-        query = query.eq('assigned_to', membership.employee_id);
+      if (!isAdmin && profile?.employee_id) {
+        query = query.eq('assigned_to', profile.employee_id);
       }
 
       const { data } = await query;
@@ -167,21 +171,7 @@ export function TasksPage() {
     }
   };
 
-  const loadGithubStats = async () => {
-    if (!organization?.id) return;
-    try {
-      const { data } = await supabase
-        .from('github_stats')
-        .select(`
-          *,
-          employee:employees(first_name, last_name, employee_code)
-        `)
-        .order('last_synced_at', { ascending: false });
-      setGithubStats(data || []);
-    } catch (error) {
-      console.error('Error loading GitHub stats:', error);
-    }
-  };
+
 
   const handleCreateTask = async () => {
     if (!formData.title || !formData.assigned_to) {
@@ -194,8 +184,8 @@ export function TasksPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('tasks')
+      const { error } = await (supabase
+        .from('tasks' as any) as any)
         .insert({
           organization_id: organization?.id,
           title: formData.title,
@@ -208,9 +198,9 @@ export function TasksPage() {
           github_repo: formData.github_repo || null,
           github_issue_number: formData.github_issue_number ? parseInt(formData.github_issue_number) : null,
           github_pr_number: formData.github_pr_number ? parseInt(formData.github_pr_number) : null,
-          created_by: membership?.user_id,
-          status: 'todo'
-        });
+          created_by: user?.id,
+          status: 'pending'
+        } as any);
 
       if (error) throw error;
 
@@ -247,9 +237,9 @@ export function TasksPage() {
 
   const handleUpdateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ status: newStatus })
+      const { error } = await (supabase
+        .from('tasks' as any) as any)
+        .update({ status: newStatus } as any)
         .eq('id', taskId);
 
       if (error) throw error;
@@ -267,6 +257,40 @@ export function TasksPage() {
         type: 'error',
         title: 'Update Failed',
         message: error.message || 'Failed to update task'
+      });
+    }
+  };
+
+  const handleTaskSubmit = async (data: { submission_url: string; submission_notes: string }) => {
+    if (!submitModalTask) return;
+
+    try {
+      const { error } = await (supabase
+        .from('tasks' as any) as any)
+        .update({
+          status: 'in_review',
+          submission_url: data.submission_url,
+          submission_notes: data.submission_notes,
+          submitted_at: new Date().toISOString()
+        } as any)
+        .eq('id', submitModalTask.id);
+
+      if (error) throw error;
+
+      setAlertModal({
+        type: 'success',
+        title: 'Task Submitted',
+        message: 'Task submitted for review successfully'
+      });
+
+      setSubmitModalTask(null);
+      await loadTasks();
+    } catch (error: any) {
+      console.error('Error submitting task:', error);
+      setAlertModal({
+        type: 'error',
+        title: 'Submission Failed',
+        message: error.message || 'Failed to submit task'
       });
     }
   };
@@ -295,7 +319,7 @@ export function TasksPage() {
   const getTaskStats = () => {
     const stats = {
       total: tasks.length,
-      todo: tasks.filter(t => t.status === 'todo').length,
+      todo: tasks.filter(t => t.status === 'pending').length,
       in_progress: tasks.filter(t => t.status === 'in_progress').length,
       in_review: tasks.filter(t => t.status === 'in_review').length,
       completed: tasks.filter(t => t.status === 'completed').length,
@@ -321,20 +345,20 @@ export function TasksPage() {
       low: 'bg-slate-100 text-slate-700 border-slate-200',
       medium: 'bg-blue-100 text-blue-700 border-blue-200',
       high: 'bg-amber-100 text-amber-700 border-amber-200',
-      critical: 'bg-red-100 text-red-700 border-red-200'
+      urgent: 'bg-red-100 text-red-700 border-red-200'
     };
     return badges[priority] || badges.medium;
   };
 
   const getStatusBadge = (status: string) => {
     const badges: { [key: string]: { color: string; icon: any } } = {
-      todo: { color: 'bg-slate-100 text-slate-700 border-slate-200', icon: Clock },
+      pending: { color: 'bg-slate-100 text-slate-700 border-slate-200', icon: Clock },
       in_progress: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: TrendingUp },
       in_review: { color: 'bg-amber-100 text-amber-700 border-amber-200', icon: AlertCircle },
       completed: { color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle },
       cancelled: { color: 'bg-red-100 text-red-700 border-red-200', icon: X }
     };
-    const badge = badges[status] || badges.todo;
+    const badge = badges[status] || badges.pending;
     const Icon = badge.icon;
 
     return (
@@ -388,6 +412,15 @@ export function TasksPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {submitModalTask && (
+        <SubmitTaskModal
+          isOpen={true}
+          onClose={() => setSubmitModalTask(null)}
+          onSubmit={handleTaskSubmit}
+          taskTitle={submitModalTask.title}
+        />
       )}
 
       {showCreateModal && isAdmin && (
@@ -457,7 +490,7 @@ export function TasksPage() {
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
-                    <option value="critical">Critical</option>
+                    <option value="urgent">Urgent</option>
                   </select>
                 </div>
               </div>
@@ -602,13 +635,6 @@ export function TasksPage() {
           {isAdmin && (
             <div className="flex gap-3">
               <button
-                onClick={() => setShowGithubModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-xl hover:from-slate-800 hover:to-slate-900 shadow-lg"
-              >
-                <Github className="h-5 w-5" />
-                GitHub Stats
-              </button>
-              <button
                 onClick={() => setShowCreateModal(true)}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 shadow-lg"
               >
@@ -649,7 +675,7 @@ export function TasksPage() {
               className="px-4 py-2 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500"
             >
               <option value="all">All Status</option>
-              <option value="todo">To Do</option>
+              <option value="pending">Pending</option>
               <option value="in_progress">In Progress</option>
               <option value="in_review">In Review</option>
               <option value="completed">Completed</option>
@@ -687,6 +713,7 @@ export function TasksPage() {
                   task={task}
                   isAdmin={isAdmin}
                   onStatusChange={handleUpdateTaskStatus}
+                  onOpenSubmitModal={setSubmitModalTask}
                   getTaskTypeColor={getTaskTypeColor}
                   getPriorityBadge={getPriorityBadge}
                   getStatusBadge={getStatusBadge}
@@ -711,7 +738,7 @@ function StatsCard({ label, value, color }: { label: string; value: number; colo
   );
 }
 
-function TaskCard({ task, isAdmin, onStatusChange, getTaskTypeColor, getPriorityBadge, getStatusBadge }: any) {
+function TaskCard({ task, isAdmin, onStatusChange, onOpenSubmitModal, getTaskTypeColor, getPriorityBadge, getStatusBadge }: any) {
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
 
   return (
@@ -730,6 +757,26 @@ function TaskCard({ task, isAdmin, onStatusChange, getTaskTypeColor, getPriority
           <h3 className="font-bold text-slate-900 text-lg mb-1">{task.title}</h3>
           {task.description && (
             <p className="text-sm text-slate-600 mb-2">{task.description}</p>
+          )}
+
+          {/* Submission Details - Visible once submitted */}
+          {(task.submission_url || task.submission_notes) && (
+            <div className="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              {task.submission_url && (
+                <div className="flex items-center gap-2 text-sm mb-2">
+                  <ExternalLink className="h-4 w-4 text-purple-600" />
+                  <a href={task.submission_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                    View Work Submission
+                  </a>
+                </div>
+              )}
+              {task.submission_notes && (
+                <div className="flex items-start gap-2 text-sm">
+                  <FileText className="h-4 w-4 text-slate-500 mt-0.5" />
+                  <p className="text-slate-700 italic">{task.submission_notes}</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
         <div className="text-right ml-4">
@@ -766,34 +813,49 @@ function TaskCard({ task, isAdmin, onStatusChange, getTaskTypeColor, getPriority
         )}
       </div>
 
-      {!isAdmin && task.status !== 'completed' && task.status !== 'cancelled' && (
-        <div className="flex gap-2 pt-3 border-t border-slate-200">
-          {task.status === 'todo' && (
-            <button
-              onClick={() => onStatusChange(task.id, 'in_progress')}
-              className="flex-1 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 text-sm"
-            >
-              Start Task
-            </button>
-          )}
-          {task.status === 'in_progress' && (
-            <button
-              onClick={() => onStatusChange(task.id, 'in_review')}
-              className="flex-1 py-2 bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 text-sm"
-            >
-              Submit for Review
-            </button>
-          )}
-          {task.status === 'in_review' && (
-            <button
-              onClick={() => onStatusChange(task.id, 'completed')}
-              className="flex-1 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 text-sm"
-            >
-              Mark Complete
-            </button>
-          )}
-        </div>
-      )}
+
+
+      {/* Actions */}
+      <div className="flex gap-2 pt-3 border-t border-slate-200">
+        {!isAdmin && (
+          <>
+            {task.status === 'pending' && (
+              <button
+                onClick={() => onStatusChange(task.id, 'in_progress')}
+                className="flex-1 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 text-sm"
+              >
+                Start Task
+              </button>
+            )}
+            {task.status === 'in_progress' && (
+              <button
+                onClick={() => onOpenSubmitModal(task)}
+                className="flex-1 py-2 bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 text-sm"
+              >
+                Submit for Review
+              </button>
+            )}
+          </>
+        )}
+
+        {isAdmin && task.status === 'in_review' && (
+          <button
+            onClick={() => onStatusChange(task.id, 'completed')}
+            className="flex-1 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 text-sm"
+          >
+            Mark Complete
+          </button>
+        )}
+
+        {isAdmin && task.status === 'completed' && (
+          <button
+            disabled
+            className="flex-1 py-2 bg-slate-100 text-slate-400 rounded-lg font-semibold text-sm cursor-not-allowed"
+          >
+            Completed
+          </button>
+        )}
+      </div>
     </div>
   );
 }

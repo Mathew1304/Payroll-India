@@ -109,10 +109,12 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
     { id: 'my-payroll', labelKey: 'menu.myPayroll', icon: Banknote, color: 'from-emerald-500 to-emerald-600', roles: ['employee'] },
     { id: 'reports', labelKey: 'menu.reports', icon: FileText, color: 'from-violet-500 to-violet-600', roles: ['admin', 'hr', 'finance'] },
     // { id: 'work-reports', labelKey: 'menu.workReports', icon: ClipboardList, color: 'from-sky-500 to-sky-600', roles: ['admin', 'hr', 'manager', 'employee'] }, // HIDDEN
+    { id: 'tasks', labelKey: 'menu.tasks', icon: CheckSquare, color: 'from-pink-500 to-pink-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'employees', labelKey: 'menu.employees', icon: Users, color: 'from-teal-500 to-teal-600', roles: ['admin', 'hr', 'manager'] },
     { id: 'attendance-admin', labelKey: 'menu.attendance', icon: Clock, color: 'from-amber-500 to-amber-600', roles: ['admin', 'hr', 'manager'] },
     { id: 'attendance-employee', labelKey: 'menu.attendance', icon: Clock, color: 'from-amber-500 to-amber-600', roles: ['employee'] },
     { id: 'leave', labelKey: 'menu.leave', icon: Calendar, color: 'from-cyan-500 to-cyan-600', roles: ['admin', 'hr', 'manager', 'employee'] },
+    { id: 'performance', labelKey: 'menu.performance', icon: Award, color: 'from-orange-500 to-orange-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     // { id: 'helpdesk', labelKey: 'menu.helpdesk', icon: Headphones, color: 'from-pink-500 to-pink-600', roles: ['admin', 'hr', 'manager', 'employee'] }, // HIDDEN
     { id: 'announcements', labelKey: 'menu.announcements', icon: Megaphone, color: 'from-fuchsia-500 to-fuchsia-600', roles: ['admin', 'hr', 'manager', 'employee'] },
     { id: 'help', labelKey: 'menu.help', icon: HelpCircle, color: 'from-blue-500 to-blue-600', roles: ['admin', 'hr', 'manager', 'finance'] },

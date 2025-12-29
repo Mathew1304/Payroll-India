@@ -195,9 +195,9 @@ function AdminAnnouncementsDashboard() {
   };
 
 
-
   const handleView = (announcement: Announcement) => {
-    alert(`Viewing: ${announcement.title}\n\n${announcement.content}`);
+    setSelectedAnnouncement(announcement);
+    setShowViewModal(true);
   };
 
   const handleEdit = (announcement: Announcement) => {
@@ -391,6 +391,17 @@ function AdminAnnouncementsDashboard() {
         />
       )}
 
+
+
+      {showViewModal && selectedAnnouncement && (
+        <ViewAnnouncementModal
+          announcement={selectedAnnouncement}
+          onClose={() => {
+            setShowViewModal(false);
+            setSelectedAnnouncement(null);
+          }}
+        />
+      )}
 
       {showEditModal && selectedAnnouncement && (
         <EditAnnouncementModal
@@ -1273,6 +1284,65 @@ function CreateDistributionListModal({ onClose, onSuccess }: any) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function ViewAnnouncementModal({ announcement, onClose }: any) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="bg-gradient-to-r from-fuchsia-600 to-fuchsia-700 px-6 py-6 rounded-t-2xl flex justify-between items-start">
+          <div>
+            <h2 className="text-2xl font-bold text-white">{announcement.title}</h2>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="text-fuchsia-100 text-sm flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                {new Date(announcement.created_at).toLocaleDateString()}
+              </span>
+              <span className="bg-white/20 text-white px-2 py-0.5 rounded text-xs font-medium uppercase backdrop-blur-sm">
+                {announcement.type}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-white/80 hover:text-white transition-colors p-1"
+          >
+            <div className="h-6 w-6 font-bold text-xl">✕</div>
+          </button>
+        </div>
+
+        <div className="p-8">
+          <div className="prose prose-slate max-w-none">
+            <p className="text-slate-700 whitespace-pre-wrap leading-relaxed text-lg">
+              {announcement.content}
+            </p>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-slate-100 grid grid-cols-2 gap-4 text-sm text-slate-500">
+            <div>
+              <p className="font-semibold text-slate-900 mb-1">Priority</p>
+              <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase ${getPriorityColor(announcement.priority)}`}>
+                {announcement.priority}
+              </span>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900 mb-1">Expires On</p>
+              <p>{new Date(announcement.expires_at).toLocaleDateString()}</p>
+            </div>
+          </div>
+
+          <div className="mt-8 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

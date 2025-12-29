@@ -2,18 +2,18 @@ import { useState } from 'react';
 import {
     Clock,
     Calendar,
-    FileText,
-    MapPin,
     History
 } from 'lucide-react';
 import { CheckInCard } from './CheckInCard';
 import { AttendanceHistory } from './AttendanceHistory';
+import { AttendanceCalendar } from '../AttendanceCalendar';
 
-export function AttendanceEmployeePage() {
+export function AttendanceEmployeePage({ onNavigate }: { onNavigate?: (page: string) => void }) {
     const [activeTab, setActiveTab] = useState('checkin');
 
     const tabs = [
         { id: 'checkin', label: 'Check In/Out', icon: Clock },
+        { id: 'calendar', label: 'My Calendar', icon: Calendar },
         { id: 'history', label: 'My History', icon: History },
     ];
 
@@ -54,6 +54,7 @@ export function AttendanceEmployeePage() {
             {/* Content */}
             <div className="min-h-[500px]">
                 {activeTab === 'checkin' && <CheckInCard />}
+                {activeTab === 'calendar' && <AttendanceCalendar isAdmin={false} onNavigate={onNavigate} />}
                 {activeTab === 'history' && <AttendanceHistory />}
             </div>
         </div>

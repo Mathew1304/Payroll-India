@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Target, CheckCircle, AlertCircle, TrendingUp, Star } from 'lucide-react';
+import { Target, CheckCircle, AlertCircle, TrendingUp, Star, MoreVertical, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { GoalDetailModal } from '../../components/Performance/GoalDetailModal';
 
 interface Goal {
     id: string;
@@ -9,36 +10,33 @@ interface Goal {
     description: string;
     goal_type: string;
     status: string;
-    progress: number;
+    progress_percentage: number;
     start_date: string;
-    target_date: string;
+    end_date: string;
     created_at: string;
 }
 
 interface Review {
     id: string;
-    review_period: string;
-    rating: number;
-    feedback: string;
+    review_period_start: string;
+    review_period_end: string;
+    final_rating: number;
+    manager_assessment: string;
     strengths?: string;
-    areas_for_improvement?: string;
-    goals_met?: boolean;
+    areas_of_improvement?: string;
     reviewed_at: string;
     reviewer: {
         first_name: string;
         last_name: string;
     };
-    goal?: {
-        title: string;
-        status: string;
-    };
 }
 
 export function EmployeePerformancePage() {
-    const { membership } = useAuth();
+    const { profile, loading: authLoading } = useAuth();
     const [loading, setLoading] = useState(true);
     const [goals, setGoals] = useState<Goal[]>([]);
     const [reviews, setReviews] = useState<Review[]>([]);
+    const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
     const [stats, setStats] = useState({
         activeGoals: 0,
         completed: 0,
@@ -48,10 +46,14 @@ export function EmployeePerformancePage() {
     });
 
     useEffect(() => {
-        if (membership?.employee_id) {
-            loadData();
+        if (!authLoading) {
+            if (profile?.employee_id) {
+                loadData();
+            } else {
+                setLoading(false);
+            }
         }
-    }, [membership?.employee_id]);
+    }, [profile?.employee_id, authLoading]);
 
     const loadData = async () => {
         setLoading(true);
@@ -68,18 +70,18 @@ export function EmployeePerformancePage() {
     };
 
     const loadGoals = async () => {
-        if (!membership?.employee_id) return;
+        if (!profile?.employee_id) return;
 
         try {
             const { data, error } = await supabase
                 .from('goals')
                 .select('*')
-                .eq('employee_id', membership.employee_id)
+                .eq('employee_id', profile.employee_id)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
 
-            const goalsData = data || [];
+            const goalsData = (data || []) as Goal[];
             setGoals(goalsData);
 
             // Calculate stats
@@ -87,10 +89,10 @@ export function EmployeePerformancePage() {
             const completed = goalsData.filter(g => g.status === 'completed').length;
             const today = new Date();
             const overdue = goalsData.filter(g =>
-                g.status === 'in_progress' && new Date(g.target_date) < today
+                g.status === 'in_progress' && new Date(g.end_date) < today
             ).length;
             const avgProgress = goalsData.length > 0
-                ? goalsData.reduce((sum, g) => sum + (g.progress || 0), 0) / goalsData.length
+                ? goalsData.reduce((sum, g) => sum + (g.progress_percentage || 0), 0) / goalsData.length
                 : 0;
 
             setStats(prev => ({
@@ -106,27 +108,26 @@ export function EmployeePerformancePage() {
     };
 
     const loadReviews = async () => {
-        if (!membership?.employee_id) return;
+        if (!profile?.employee_id) return;
 
         try {
             const { data, error } = await supabase
                 .from('performance_reviews')
                 .select(`
           *,
-          reviewer:employees!reviewer_id(first_name, last_name),
-          goal:goals(title, status)
+          reviewer:employees!reviewer_id(first_name, last_name)
         `)
-                .eq('employee_id', membership.employee_id)
+                .eq('employee_id', profile.employee_id)
                 .order('reviewed_at', { ascending: false });
 
             if (error) throw error;
 
-            const reviewsData = data || [];
+            const reviewsData = (data || []) as Review[];
             setReviews(reviewsData);
 
             // Calculate average rating
             if (reviewsData.length > 0) {
-                const avgRating = reviewsData.reduce((sum, r) => sum + (r.rating || 0), 0) / reviewsData.length;
+                const avgRating = reviewsData.reduce((sum, r) => sum + (r.final_rating || 0), 0) / reviewsData.length;
                 setStats(prev => ({ ...prev, avgRating: Math.round(avgRating * 10) / 10 }));
             }
         } catch (error) {
@@ -153,7 +154,7 @@ export function EmployeePerformancePage() {
                 .update({
                     status: newStatus,
                     updated_at: new Date().toISOString()
-                })
+                } as any)
                 .eq('id', goalId);
 
             if (error) throw error;
@@ -175,10 +176,10 @@ export function EmployeePerformancePage() {
             const { error } = await supabase
                 .from('goals')
                 .update({
-                    progress: newProgress,
+                    progress_percentage: newProgress,
                     status: status,
                     updated_at: new Date().toISOString()
-                })
+                } as any)
                 .eq('id', goalId);
 
             if (error) throw error;
@@ -301,7 +302,7 @@ export function EmployeePerformancePage() {
                                     <div>
                                         <p className="text-xs text-slate-500 mb-1">Target Date</p>
                                         <p className="text-sm font-medium text-slate-900">
-                                            {new Date(goal.target_date).toLocaleDateString('en-GB')}
+                                            {new Date(goal.end_date).toLocaleDateString('en-GB')}
                                         </p>
                                     </div>
                                 </div>
@@ -314,7 +315,7 @@ export function EmployeePerformancePage() {
                                                 type="number"
                                                 min="0"
                                                 max="100"
-                                                value={goal.progress || 0}
+                                                value={goal.progress_percentage || 0}
                                                 onChange={(e) => {
                                                     const value = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
                                                     handleUpdateProgress(goal.id, value);
@@ -327,9 +328,18 @@ export function EmployeePerformancePage() {
                                     <div className="w-full bg-slate-200 rounded-full h-2">
                                         <div
                                             className="bg-blue-600 h-2 rounded-full transition-all"
-                                            style={{ width: `${goal.progress || 0}%` }}
+                                            style={{ width: `${goal.progress_percentage || 0}%` }}
                                         ></div>
                                     </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-slate-200 flex justify-end">
+                                    <button
+                                        onClick={() => setSelectedGoalId(goal.id)}
+                                        className="text-sm text-blue-600 font-medium hover:text-blue-800 flex items-center gap-1"
+                                    >
+                                        <MessageSquare className="h-4 w-4" />
+                                        Discussion & Details
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -359,18 +369,10 @@ export function EmployeePerformancePage() {
                                 {/* Header */}
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-bold text-slate-900 mb-2">{review.review_period}</h3>
-                                        {review.goal && (
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Target className="h-4 w-4 text-slate-500" />
-                                                <span className="text-sm text-slate-700">
-                                                    Goal: <span className="font-semibold">{review.goal.title}</span>
-                                                    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${getStatusColor(review.goal.status)}`}>
-                                                        {review.goal.status.replace(/_/g, ' ')}
-                                                    </span>
-                                                </span>
-                                            </div>
-                                        )}
+                                        <h3 className="text-xl font-bold text-slate-900 mb-2">
+                                            {new Date(review.review_period_start).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} -
+                                            {new Date(review.review_period_end).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                                        </h3>
                                         <p className="text-sm text-slate-500">
                                             Reviewed by: {review.reviewer?.first_name} {review.reviewer?.last_name}
                                         </p>
@@ -381,18 +383,11 @@ export function EmployeePerformancePage() {
                                             {[...Array(5)].map((_, i) => (
                                                 <Star
                                                     key={i}
-                                                    className={`h-4 w-4 ${i < review.rating ? 'text-amber-600 fill-amber-600' : 'text-amber-300'}`}
+                                                    className={`h-4 w-4 ${i < (review.final_rating || 0) ? 'text-amber-600 fill-amber-600' : 'text-amber-300'}`}
                                                 />
                                             ))}
-                                            <span className="text-sm font-bold text-amber-700 ml-1">{review.rating}/5</span>
+                                            <span className="text-sm font-bold text-amber-700 ml-1">{review.final_rating}/5</span>
                                         </div>
-                                        {/* Goals Met Badge */}
-                                        {review.goals_met && (
-                                            <div className="flex items-center gap-1 bg-emerald-100 px-3 py-1 rounded-full">
-                                                <CheckCircle className="h-4 w-4 text-emerald-600" />
-                                                <span className="text-xs font-bold text-emerald-700">Goals Met</span>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
 
@@ -400,12 +395,12 @@ export function EmployeePerformancePage() {
                                 <div className=" mb-4">
                                     <h4 className="text-sm font-bold text-slate-700 mb-2">Overall Feedback</h4>
                                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                        <p className="text-sm text-slate-700 leading-relaxed">{review.feedback}</p>
+                                        <p className="text-sm text-slate-700 leading-relaxed">{review.manager_assessment || 'No feedback provided'}</p>
                                     </div>
                                 </div>
 
                                 {/* Strengths and Areas for Improvement */}
-                                {(review.strengths || review.areas_for_improvement) && (
+                                {(review.strengths || review.areas_of_improvement) && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                         {review.strengths && (
                                             <div>
@@ -418,14 +413,14 @@ export function EmployeePerformancePage() {
                                                 </div>
                                             </div>
                                         )}
-                                        {review.areas_for_improvement && (
+                                        {review.areas_of_improvement && (
                                             <div>
                                                 <h4 className="text-sm font-bold text-amber-700 mb-2 flex items-center gap-1">
                                                     <TrendingUp className="h-4 w-4" />
                                                     Areas for Improvement
                                                 </h4>
                                                 <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
-                                                    <p className="text-sm text-slate-700 leading-relaxed">{review.areas_for_improvement}</p>
+                                                    <p className="text-sm text-slate-700 leading-relaxed">{review.areas_of_improvement}</p>
                                                 </div>
                                             </div>
                                         )}
@@ -447,6 +442,14 @@ export function EmployeePerformancePage() {
                     </div>
                 )}
             </div>
+
+            {selectedGoalId && (
+                <GoalDetailModal
+                    goalId={selectedGoalId}
+                    onClose={() => setSelectedGoalId(null)}
+                    onUpdate={loadData}
+                />
+            )}
         </div>
     );
 }

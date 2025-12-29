@@ -8,11 +8,10 @@ interface CreateGoalModalProps {
 }
 
 export function CreateGoalModal({ onClose }: CreateGoalModalProps) {
-    const { organization, membership } = useAuth();
+    const { organization, user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [employees, setEmployees] = useState<any[]>([]);
     const [goalTypes, setGoalTypes] = useState<any[]>([]);
-    const [departments, setDepartments] = useState<any[]>([]);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -22,7 +21,7 @@ export function CreateGoalModal({ onClose }: CreateGoalModalProps) {
         department_id: '',
         priority: 'Medium',
         start_date: new Date().toISOString().split('T')[0],
-        due_date: '',
+        end_date: '',
         weight: 0,
     });
 
@@ -38,15 +37,13 @@ export function CreateGoalModal({ onClose }: CreateGoalModalProps) {
 
     const loadData = async () => {
         try {
-            const [empRes, typeRes, deptRes] = await Promise.all([
-                supabase.from('employees').select('id, first_name, last_name, department_id').eq('is_active', true),
+            const [empRes, typeRes] = await Promise.all([
+                supabase.from('employees').select('id, first_name, last_name, department_id').eq('organization_id', organization!.id).eq('is_active', true),
                 supabase.from('goal_types').select('id, name').eq('organization_id', organization!.id).eq('is_active', true),
-                supabase.from('departments').select('id, name').eq('organization_id', organization!.id).eq('is_active', true)
             ]);
 
             if (empRes.data) setEmployees(empRes.data);
             if (typeRes.data) setGoalTypes(typeRes.data);
-            if (deptRes.data) setDepartments(deptRes.data);
         } catch (err) {
             console.error('Error loading data:', err);
         }
@@ -82,14 +79,20 @@ export function CreateGoalModal({ onClose }: CreateGoalModalProps) {
         try {
             // Create Goal
             // Admins without employee_id can create goals, created_by will be null
-            const { data: goal, error: goalError } = await supabase
-                .from('goals')
+            const { data: goal, error: goalError } = await (supabase
+                .from('goals' as any) as any)
                 .insert({
                     organization_id: organization!.id,
-                    created_by: membership?.employee_id || null,
-                    ...formData,
+                    created_by: user?.id,
+                    title: formData.title,
+                    description: formData.description,
+                    employee_id: formData.employee_id,
+                    goal_type_id: formData.goal_type_id,
+                    department_id: formData.department_id,
+                    start_date: formData.start_date,
+                    end_date: formData.end_date,
                     weight: formData.weight || null
-                })
+                } as any)
                 .select()
                 .single();
 
@@ -98,15 +101,15 @@ export function CreateGoalModal({ onClose }: CreateGoalModalProps) {
             // Create Milestones
             const validMilestones = milestones.filter(m => m.title.trim());
             if (validMilestones.length > 0) {
-                const { error: milestoneError } = await supabase
-                    .from('goal_milestones')
+                const { error: milestoneError } = await (supabase
+                    .from('goal_milestones' as any) as any)
                     .insert(
                         validMilestones.map((m, index) => ({
                             goal_id: goal.id,
                             title: m.title,
                             due_date: m.due_date || null,
                             display_order: index
-                        }))
+                        } as any))
                     );
 
                 if (milestoneError) throw milestoneError;
@@ -193,8 +196,8 @@ export function CreateGoalModal({ onClose }: CreateGoalModalProps) {
                                 type="date"
                                 required
                                 min={formData.start_date}
-                                value={formData.due_date}
-                                onChange={e => setFormData({ ...formData, due_date: e.target.value })}
+                                value={formData.end_date}
+                                onChange={e => setFormData({ ...formData, end_date: e.target.value })}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                             />
                         </div>

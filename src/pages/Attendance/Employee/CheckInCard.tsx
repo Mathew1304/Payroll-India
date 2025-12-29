@@ -30,7 +30,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 export function CheckInCard() {
     const { user, organization, profile } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [status, setStatus] = useState<'checked-out' | 'checked-in'>('checked-out');
+    const [status, setStatus] = useState<'not-started' | 'checked-in' | 'checked-out'>('not-started');
     const [currentRecord, setCurrentRecord] = useState<any>(null);
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [nearestOffice, setNearestOffice] = useState<any>(null);
@@ -38,6 +38,8 @@ export function CheckInCard() {
     const [error, setError] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [checkInMode, setCheckInMode] = useState<'location' | 'web'>('location');
+    const [showEarlyCheckoutModal, setShowEarlyCheckoutModal] = useState(false);
+    const [earlyCheckoutReason, setEarlyCheckoutReason] = useState('');
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -45,12 +47,20 @@ export function CheckInCard() {
     }, []);
 
     useEffect(() => {
+        let watchId: number | null = null;
+
         if (organization?.id && profile?.employee_id) {
             loadStatus();
             if (checkInMode === 'location') {
-                watchLocation();
+                watchId = watchLocation();
             }
         }
+
+        return () => {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+            }
+        };
     }, [organization?.id, profile?.employee_id, checkInMode]);
 
     const loadStatus = async () => {
@@ -78,6 +88,9 @@ export function CheckInCard() {
                 } else {
                     setStatus('checked-out');
                 }
+            } else {
+                setCurrentRecord(null);
+                setStatus('not-started');
             }
         } catch (err: any) {
             console.error('Error loading status:', err);
@@ -90,10 +103,10 @@ export function CheckInCard() {
     const watchLocation = () => {
         if (!navigator.geolocation) {
             setError('Geolocation is not supported by your browser');
-            return;
+            return null;
         }
 
-        navigator.geolocation.watchPosition(
+        return navigator.geolocation.watchPosition(
             async (position) => {
                 const { latitude, longitude } = position.coords;
                 setLocation({ lat: latitude, lng: longitude });
@@ -102,9 +115,27 @@ export function CheckInCard() {
             },
             (err) => {
                 console.error('Location error:', err);
-                setError('Unable to retrieve your location. Please enable GPS.');
+                let errorMessage = 'Unable to retrieve your location.';
+
+                switch (err.code) {
+                    case err.PERMISSION_DENIED:
+                        errorMessage = 'Location permission denied. Please allow location access.';
+                        break;
+                    case err.POSITION_UNAVAILABLE:
+                        errorMessage = 'Location information is unavailable.';
+                        break;
+                    case err.TIMEOUT:
+                        errorMessage = 'Location request timed out. Please check your GPS.';
+                        break;
+                }
+
+                setError(errorMessage);
             },
-            { enableHighAccuracy: true }
+            {
+                enableHighAccuracy: true,
+                timeout: 20000, // 20 seconds timeout
+                maximumAge: 5000 // Accept cached positions up to 5 seconds old
+            }
         );
     };
 
@@ -221,25 +252,81 @@ export function CheckInCard() {
             const durationMs = checkOutTime.getTime() - checkInTime.getTime();
             const totalHours = durationMs / (1000 * 60 * 60);
 
-            const payload = {
+            // Check if less than 8 hours
+            if (totalHours < 8) {
+                setShowEarlyCheckoutModal(true);
+                return;
+            }
+
+            // Normal checkout (8+ hours)
+            await performCheckout(null);
+        } catch (err: any) {
+            console.error('Error checking out:', err);
+            alert(`Failed to check out: ${err.message || 'Unknown error'}`);
+        }
+    };
+
+    const performCheckout = async (reason: string | null) => {
+        if (!currentRecord) return;
+
+        try {
+            const checkOutTime = new Date();
+            const checkInTime = new Date(currentRecord.check_in_time);
+            const durationMs = checkOutTime.getTime() - checkInTime.getTime();
+            const totalHours = durationMs / (1000 * 60 * 60);
+
+            const payload: any = {
                 check_out_time: checkOutTime.toISOString(),
                 check_out_latitude: location?.lat,
                 check_out_longitude: location?.lng,
                 total_hours: parseFloat(totalHours.toFixed(2))
             };
 
+            // Add early checkout reason if provided
+            if (reason) {
+                payload.early_checkout_reason = reason;
+            }
+
             const { error } = await supabase
                 .from('attendance_records')
-                .update(payload as any)
+                .update(payload)
                 .eq('id', currentRecord.id);
 
             if (error) throw error;
 
             setStatus('checked-out');
+            setShowEarlyCheckoutModal(false);
+            setEarlyCheckoutReason('');
             await loadStatus();
         } catch (err: any) {
             console.error('Error checking out:', err);
             alert(`Failed to check out: ${err.message || 'Unknown error'}`);
+        }
+    };
+
+    const handleReCheckIn = async () => {
+        if (!currentRecord) return;
+
+        try {
+            // Clear checkout time and re-enable check-in
+            const { error } = await supabase
+                .from('attendance_records')
+                .update({
+                    check_out_time: null,
+                    check_out_latitude: null,
+                    check_out_longitude: null,
+                    total_hours: null
+                    // Note: early_checkout_reason is preserved for admin reference
+                })
+                .eq('id', currentRecord.id);
+
+            if (error) throw error;
+
+            setStatus('checked-in');
+            await loadStatus();
+        } catch (err: any) {
+            console.error('Error re-checking in:', err);
+            alert(`Failed to re-check in: ${err.message || 'Unknown error'}`);
         }
     };
 
@@ -365,6 +452,24 @@ export function CheckInCard() {
                     <div className="flex justify-center">
                         {status === 'checked-out' ? (
                             <button
+                                onClick={handleReCheckIn}
+                                className="w-48 h-48 rounded-full border-8 bg-blue-500 border-blue-200 text-white shadow-blue-200 shadow-xl flex flex-col items-center justify-center transition-all transform hover:scale-105 active:scale-95"
+                            >
+                                <MapPin className="h-12 w-12 mb-2" />
+                                <span className="text-xl font-bold">Check In Again</span>
+                                <span className="text-sm opacity-80 mt-1">Resume Day</span>
+                            </button>
+                        ) : status === 'checked-in' ? (
+                            <button
+                                onClick={handleCheckOut}
+                                className="w-48 h-48 rounded-full border-8 bg-red-500 border-red-200 text-white shadow-red-200 shadow-xl flex flex-col items-center justify-center transition-all transform hover:scale-105 active:scale-95"
+                            >
+                                <Clock className="h-12 w-12 mb-2" />
+                                <span className="text-xl font-bold">Check Out</span>
+                                <span className="text-sm opacity-80 mt-1">End Day</span>
+                            </button>
+                        ) : (
+                            <button
                                 onClick={handleCheckIn}
                                 disabled={checkInMode === 'location' && (!!error || !location)}
                                 className={`
@@ -378,15 +483,6 @@ export function CheckInCard() {
                                 <MapPin className="h-12 w-12 mb-2" />
                                 <span className="text-xl font-bold">Check In</span>
                                 <span className="text-sm opacity-80 mt-1">Start Day</span>
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleCheckOut}
-                                className="w-48 h-48 rounded-full border-8 bg-red-500 border-red-200 text-white shadow-red-200 shadow-xl flex flex-col items-center justify-center transition-all transform hover:scale-105 active:scale-95"
-                            >
-                                <Clock className="h-12 w-12 mb-2" />
-                                <span className="text-xl font-bold">Check Out</span>
-                                <span className="text-sm opacity-80 mt-1">End Day</span>
                             </button>
                         )}
                     </div>
@@ -409,6 +505,88 @@ export function CheckInCard() {
                         </div>
                     )}
                 </div>
+
+                {/* Early Checkout Warning Modal */}
+                {showEarlyCheckoutModal && currentRecord && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+                            {/* Header */}
+                            <div className="bg-orange-500 p-6 text-white">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-white bg-opacity-20 rounded-full">
+                                        <AlertTriangle className="h-8 w-8" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold">Early Checkout Warning</h3>
+                                        <p className="text-sm opacity-90">8 hours not completed</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-6 space-y-4">
+                                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                                    <p className="text-sm text-slate-700">
+                                        You have worked for{' '}
+                                        <span className="font-bold text-orange-600">
+                                            {((new Date().getTime() - new Date(currentRecord.check_in_time).getTime()) / (1000 * 60 * 60)).toFixed(1)} hours
+                                        </span>
+                                        {' '}today. The standard work day is 8 hours.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                        Reason for early checkout <span className="text-red-500">*</span>
+                                    </label>
+                                    <textarea
+                                        value={earlyCheckoutReason}
+                                        onChange={(e) => setEarlyCheckoutReason(e.target.value)}
+                                        placeholder="e.g., Doctor's appointment, Personal emergency, etc."
+                                        className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                                        rows={3}
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                    <p className="text-xs text-blue-800">
+                                        <strong>Note:</strong> This reason will be visible to your administrator. You can check in again later if needed.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="p-6 bg-slate-50 flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowEarlyCheckoutModal(false);
+                                        setEarlyCheckoutReason('');
+                                    }}
+                                    className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-100 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (!earlyCheckoutReason.trim()) {
+                                            alert('Please provide a reason for early checkout');
+                                            return;
+                                        }
+                                        performCheckout(earlyCheckoutReason);
+                                    }}
+                                    disabled={!earlyCheckoutReason.trim()}
+                                    className={`flex-1 px-4 py-3 rounded-lg font-medium transition-colors ${earlyCheckoutReason.trim()
+                                        ? 'bg-orange-500 text-white hover:bg-orange-600'
+                                        : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                        }`}
+                                >
+                                    Confirm Checkout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Target, Calendar, User, MoreVertical, AlertCircle } from 'lucide-react';
+import { Search, Target, User, MoreVertical } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
@@ -37,7 +37,7 @@ export function GoalsTab({ departmentId, employeeId }: GoalsTabProps) {
           department:departments(name)
         `)
                 .eq('organization_id', organization!.id)
-                .order('due_date', { ascending: true });
+                .order('end_date', { ascending: true });
 
             if (departmentId) query = query.eq('department_id', departmentId);
             if (employeeId) query = query.eq('employee_id', employeeId);
@@ -67,24 +67,16 @@ export function GoalsTab({ departmentId, employeeId }: GoalsTabProps) {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'Not Started': return 'bg-slate-100 text-slate-700';
-            case 'In Progress': return 'bg-blue-100 text-blue-700';
-            case 'Completed': return 'bg-green-100 text-green-700';
-            case 'Overdue': return 'bg-red-100 text-red-700';
-            case 'Cancelled': return 'bg-gray-100 text-gray-700';
+            case 'not_started': return 'bg-slate-100 text-slate-700';
+            case 'in_progress': return 'bg-blue-100 text-blue-700';
+            case 'completed': return 'bg-green-100 text-green-700';
+            case 'overdue': return 'bg-red-100 text-red-700';
+            case 'cancelled': return 'bg-gray-100 text-gray-700';
             default: return 'bg-slate-100 text-slate-700';
         }
     };
 
-    const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case 'Critical': return 'text-red-600 bg-red-50 border-red-200';
-            case 'High': return 'text-orange-600 bg-orange-50 border-orange-200';
-            case 'Medium': return 'text-blue-600 bg-blue-50 border-blue-200';
-            case 'Low': return 'text-slate-600 bg-slate-50 border-slate-200';
-            default: return 'text-slate-600 bg-slate-50 border-slate-200';
-        }
-    };
+
 
     return (
         <div className="space-y-4">
@@ -108,10 +100,10 @@ export function GoalsTab({ departmentId, employeeId }: GoalsTabProps) {
                         className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     >
                         <option value="All">All Status</option>
-                        <option value="Not Started">Not Started</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Overdue">Overdue</option>
+                        <option value="not_started">Not Started</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="overdue">Overdue</option>
                     </select>
 
                     <select
@@ -177,7 +169,7 @@ export function GoalsTab({ departmentId, employeeId }: GoalsTabProps) {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(goal.status)}`}>
-                                            {goal.status}
+                                            {goal.status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -185,7 +177,7 @@ export function GoalsTab({ departmentId, employeeId }: GoalsTabProps) {
                                             <div className="flex-1 w-24 bg-slate-200 rounded-full h-2">
                                                 <div
                                                     className={`h-2 rounded-full ${goal.progress_percentage < 33 ? 'bg-red-500' :
-                                                            goal.progress_percentage < 66 ? 'bg-yellow-500' : 'bg-green-500'
+                                                        goal.progress_percentage < 66 ? 'bg-yellow-500' : 'bg-green-500'
                                                         }`}
                                                     style={{ width: `${goal.progress_percentage}%` }}
                                                 />
@@ -194,7 +186,7 @@ export function GoalsTab({ departmentId, employeeId }: GoalsTabProps) {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                                        {format(new Date(goal.due_date), 'MMM d, yyyy')}
+                                        {format(new Date(goal.end_date), 'MMM d, yyyy')}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button className="text-slate-400 hover:text-blue-600">

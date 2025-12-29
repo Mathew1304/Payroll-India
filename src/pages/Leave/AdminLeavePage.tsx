@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { AlertModal, AlertModalProps } from '../../components/UI/AlertModal';
 import { RejectionModal } from '../../components/Leave/RejectionModal';
 import { LeaveAllocationTab } from './LeaveAllocationTab';
+import { EmployeeLeavesTab } from './EmployeeLeavesTab';
 
 // Shared allocation helper
 const allocateLeaveBalanceToEmployees = async (
@@ -141,7 +142,7 @@ export function AdminLeavePage() {
     });
 
     const [actionLoading, setActionLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'overview' | 'allocations'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'allocations' | 'employee-leaves'>('overview');
 
     useEffect(() => {
         loadData();
@@ -573,6 +574,12 @@ export function AdminLeavePage() {
                 >
                     Employee Allocations
                 </button>
+                <button
+                    onClick={() => setActiveTab('employee-leaves')}
+                    className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'employee-leaves' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                    Employee Leaves
+                </button>
             </div>
 
             {
@@ -951,8 +958,10 @@ export function AdminLeavePage() {
                         </div>
 
                     </div>
-                ) : (
+                ) : activeTab === 'allocations' ? (
                     <LeaveAllocationTab />
+                ) : (
+                    <EmployeeLeavesTab />
                 )
             }
 

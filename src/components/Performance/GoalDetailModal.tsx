@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Calendar, User, CheckCircle, Clock, MessageSquare, Paperclip, AlertCircle, Trash2 } from 'lucide-react';
+import { X, Calendar, User, CheckCircle, Clock, MessageSquare, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
@@ -11,7 +11,7 @@ interface GoalDetailModalProps {
 }
 
 export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalProps) {
-    const { user, membership } = useAuth();
+    const { user, membership, profile } = useAuth();
     const [goal, setGoal] = useState<any>(null);
     const [milestones, setMilestones] = useState<any[]>([]);
     const [comments, setComments] = useState<any[]>([]);
@@ -31,8 +31,7 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
                 .from('goals')
                 .select(`
           *,
-          employee:employees!employee_id(first_name, last_name),
-          created_by_user:employees!created_by(first_name, last_name),
+          employee:employees(first_name, last_name),
           goal_type:goal_types(name),
           department:departments(name)
         `)
@@ -76,9 +75,9 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
                 .from('goals')
                 .update({
                     progress_percentage: newProgress,
-                    status: newProgress === 100 ? 'Completed' : goal.status === 'Not Started' && newProgress > 0 ? 'In Progress' : goal.status,
+                    status: newProgress === 100 ? 'completed' : goal.status === 'not_started' && newProgress > 0 ? 'in_progress' : goal.status,
                     completion_date: newProgress === 100 ? new Date().toISOString() : null
-                })
+                } as any)
                 .eq('id', goalId);
 
             if (error) throw error;
@@ -97,7 +96,7 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
                     is_completed: !isCompleted,
                     completed_date: !isCompleted ? new Date().toISOString() : null,
                     // completed_by: !isCompleted ? user?.id : null // Need to map user.id to employee_id
-                })
+                } as any)
                 .eq('id', milestoneId);
 
             if (error) throw error;
@@ -116,9 +115,9 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
                 .from('goal_comments')
                 .insert({
                     goal_id: goalId,
-                    user_id: membership?.employee_id || null,
+                    user_id: membership?.employee_id || profile?.employee_id || null,
                     comment_text: newComment
-                });
+                } as any);
 
             if (error) throw error;
             setNewComment('');
@@ -277,10 +276,10 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
                             <div className="mt-4 pt-4 border-t border-slate-200">
                                 <div className="flex justify-between text-sm mb-2">
                                     <span className="text-slate-500">Status</span>
-                                    <span className={`font-medium ${goal.status === 'Completed' ? 'text-green-600' :
-                                        goal.status === 'Overdue' ? 'text-red-600' :
+                                    <span className={`font-medium ${goal.status === 'completed' ? 'text-green-600' :
+                                        goal.status === 'overdue' ? 'text-red-600' :
                                             'text-blue-600'
-                                        }`}>{goal.status}</span>
+                                        }`}>{goal.status.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
                                 </div>
                             </div>
                         </div>
@@ -314,7 +313,7 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-slate-500">Due:</span>
-                                        <span className="text-slate-900 font-medium">{format(new Date(goal.due_date), 'MMM d, yyyy')}</span>
+                                        <span className="text-slate-900 font-medium">{format(new Date(goal.end_date), 'MMM d, yyyy')}</span>
                                     </div>
                                 </div>
                             </div>
@@ -324,7 +323,8 @@ export function GoalDetailModal({ goalId, onClose, onUpdate }: GoalDetailModalPr
                                 <div className="flex items-center gap-2 mt-1">
                                     <User className="h-4 w-4 text-slate-400" />
                                     <span className="text-sm text-slate-900">
-                                        {goal.created_by_user?.first_name} {goal.created_by_user?.last_name}
+                                        {/* created_by references auth.users, not joined here */}
+                                        --
                                     </span>
                                 </div>
                             </div>
