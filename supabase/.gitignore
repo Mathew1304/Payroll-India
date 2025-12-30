@@ -1,8 +1,48 @@
+# =========================
 # Supabase
+# =========================
 .branches
 .temp
+supabase/.temp
+supabase/.branches
 
-# dotenvx
-.env.keys
+# =========================
+# Environment files
+# =========================
+.env
+.env.*
 .env.local
 .env.*.local
+.env.keys
+
+# =========================
+# Database / SQL (IMPORTANT)
+# =========================
+*.sql
+*.dump
+*.sqlite
+*.db
+
+# =========================
+# Node / React
+# =========================
+node_modules/
+dist/
+build/
+.next/
+.out/
+
+# =========================
+# Logs
+# =========================
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

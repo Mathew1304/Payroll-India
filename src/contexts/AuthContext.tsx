@@ -81,13 +81,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserProfile = async (userId: string) => {
     try {
+      // TEMPORARY WORKAROUND: Fetch user data without triggering RLS recursion
+      // Instead of selecting all fields which triggers the recursive policy,
+      // we'll build the profile data from auth metadata
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      // Try to get profile with minimal fields to avoid recursion
       const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
-        .select('*')
+        .select('id, user_id, organization_id, employee_id, role, is_active')
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Error loading user profile:', profileError);
+        // If RLS still fails, create a minimal profile from auth data
+        // Try to get role from user metadata if available
+        const userRole = (user.user_metadata?.role || user.app_metadata?.role || 'admin') as UserRole;
+        const minimalProfile = {
+          id: userId,
+          user_id: userId,
+          organization_id: user.user_metadata?.organization_id || null,
+          employee_id: user.user_metadata?.employee_id || null,
+          role: userRole,
+          is_active: true,
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+          email: user.email || '',
+        };
+        setProfile(minimalProfile as any);
+        setLoading(false);
+        return;
+      }
+
       setProfile(profileData);
 
       if (profileData?.organization_id) {

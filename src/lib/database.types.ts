@@ -87,6 +87,7 @@ export interface Database {
       employees: {
         Row: {
           id: string;
+          user_id: string | null;
           employee_code: string | null;
           first_name: string;
           middle_name: string | null;
@@ -743,8 +744,33 @@ export interface Database {
         };
         Insert: Omit<Database['public']['Tables']['saudi_salary_components']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['saudi_salary_components']['Row']>;
+        organization_admins: {
+        Row: {
+          id: string;
+          organization_id: string;
+          user_id: string;
+          first_name: string | null;
+          last_name: string | null;
+          email: string | null;
+          mobile_number: string | null;
+          alternate_number: string | null;
+          gender: string | null;
+          date_of_birth: string | null;
+          date_of_joining: string | null;
+          designation: string | null;
+          admin_code: string | null;
+          current_address: string | null;
+          city: string | null;
+          state: string | null;
+          pincode: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['organization_admins']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['organization_admins']['Insert']>;
       };
     };
+
     Views: {};
     Functions: {};
     Enums: {

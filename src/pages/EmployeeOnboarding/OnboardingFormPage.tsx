@@ -156,6 +156,9 @@ export function OnboardingFormPage() {
           aadhaar_number: formData.aadhaar_number,
           uan_number: formData.uan_number,
           esi_number: formData.esi_number,
+          emergency_contact_name: formData.emergency_contact_name,
+          emergency_contact_relationship: formData.emergency_contact_relation,
+          emergency_contact_phone: formData.emergency_contact_phone,
           updated_at: new Date().toISOString()
         })
         .eq('id', invitation.employee_id);

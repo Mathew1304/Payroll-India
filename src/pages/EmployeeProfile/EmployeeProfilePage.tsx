@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { PayrollHistoryTab } from '../../components/Payroll/PayrollHistoryTab';
 import { AdminOverviewTab } from '../../components/Profile/AdminOverviewTab';
 
+
 interface SalaryComponent {
   id: string;
   component_id: string;
@@ -47,7 +48,7 @@ interface LeaveStats {
 export function EmployeeProfilePage() {
   const { membership, organization, user, profile } = useAuth();
   const [employee, setEmployee] = useState<any>(null);
-  const [admin, setAdmin] = useState<any>(null); // Admin profile from organization_admins
+  const [admin, setAdmin] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [salaryStructure, setSalaryStructure] = useState<SalaryComponent[]>([]);
   const [offerLetters, setOfferLetters] = useState<OfferLetter[]>([]);
@@ -69,7 +70,7 @@ export function EmployeeProfilePage() {
   const country = organization?.country || 'India';
 
   useEffect(() => {
-    if (profile?.role && ['admin', 'hr'].includes(profile.role)) {
+    if (profile?.role && ['admin', 'hr', 'hr_manager', 'super_admin'].includes(profile.role)) {
       setIsAdmin(true);
     }
     loadData();
@@ -79,21 +80,59 @@ export function EmployeeProfilePage() {
     if (!user) return;
 
     try {
-      const { data: profile } = await supabase
+      const { data: profileData } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      setUserProfile(profile);
+      setUserProfile(profileData);
 
-      // Check if user is admin (has admin_id in organization_members)
-      if (membership?.admin_id) {
-        await loadAdminData();
-      } else if (profile?.employee_id) {
-        await loadEmployeeData();
-        await loadAttendanceStats();
-        await loadLeaveStats();
+      const isUserAdmin = profileData?.role && ['admin', 'hr', 'hr_manager', 'super_admin'].includes(profileData.role);
+
+      if (isUserAdmin) {
+        // Load Admin Data from organization_admins
+        const { data: adminData } = await supabase
+          .from('organization_admins')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        setAdmin(adminData);
+        if (adminData) setEditFormData(adminData);
+
+        // Also check if they mistakenly have an employee profile linked, strictly for data integrity? 
+        // For now, respect the "admin not in employee table" rule by prioritized loading.
+      }
+
+      if (!isUserAdmin) {
+        let empId = profileData?.employee_id;
+
+        // If no linked employee_id, try to claim by email via secure RPC
+        if (!empId) {
+          try {
+            const { data: claimResult, error: claimError } = await supabase.rpc('claim_employee_profile');
+
+            if (claimResult && claimResult.success) {
+              console.log('Successfully claimed employee profile:', claimResult);
+              empId = claimResult.employee_id;
+              // Update local state to reflect the new link immediately
+              setUserProfile({ ...profileData, employee_id: empId, organization_id: claimResult.organization_id });
+            } else if (claimError) {
+              console.warn('Failed to claim profile:', claimError);
+            } else {
+              console.log('No matching profile found to claim.');
+            }
+          } catch (e) {
+            console.error('Error invoking claim_employee_profile:', e);
+          }
+        }
+
+        if (empId) {
+          await loadEmployeeData(empId);
+          await loadAttendanceStats(empId);
+          await loadLeaveStats(empId);
+        }
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -102,67 +141,85 @@ export function EmployeeProfilePage() {
     }
   };
 
-  const loadEmployeeData = async () => {
-    if (!profile?.employee_id) return;
+  const loadEmployeeData = async (employeeId: string) => {
+    if (!employeeId) return;
 
     try {
-      const { data: empData } = await supabase
+      let empData = null;
+      let error = null;
+
+      // Try fetching with relationships first
+      const { data: fullData, error: fullError } = await supabase
         .from('employees')
         .select(`
           *,
-          departments!department_id (name),
-          designations!designation_id (title),
-          branches!branch_id (name, city)
-        `)
-        .eq('id', profile.employee_id)
-        .single();
-
-      setEmployee(empData);
-      setEditFormData(empData);
-
-      const { data: salaryData } = await supabase
-        .from('salary_structures')
-        .select(`
           *,
-          salary_components (name, code, type)
+          departments:department_id (name),
+          designations:designation_id (name)
         `)
-        .eq('employee_id', profile.employee_id)
-        .eq('is_active', true)
-        .order('salary_components(type)', { ascending: false });
+        .eq('id', employeeId)
+        .maybeSingle();
 
-      setSalaryStructure(salaryData || []);
+      if (fullError) {
+        console.warn('Error fetching full employee data, trying simple fetch:', fullError);
+        // Fallback to simple fetch if joins fail
+        const { data: simpleData, error: simpleError } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('id', employeeId)
+          .maybeSingle();
 
-      const { data: offerData } = await supabase
-        .from('offer_letters')
-        .select('*')
-        .eq('employee_id', profile.employee_id)
-        .order('created_at', { ascending: false });
+        if (simpleError) throw simpleError;
+        empData = simpleData;
+      } else {
+        empData = fullData;
+      }
 
-      setOfferLetters(offerData || []);
+      if (empData) {
+        setEmployee(empData);
+        setEditFormData(empData);
+
+        try {
+          const { data: salaryData, error: salaryError } = await supabase
+            .from('salary_structures')
+            .select(`
+              *,
+              salary_components (name, code, type)
+            `)
+            .eq('employee_id', employeeId)
+            .eq('is_active', true)
+            .order('salary_components(type)', { ascending: false });
+
+          if (salaryError) throw salaryError;
+          setSalaryStructure(salaryData || []);
+        } catch (e) {
+          // Silent fail for salary info as it might not exist yet
+          setSalaryStructure([]);
+        }
+
+        try {
+          const { data: offerData, error: offerError } = await supabase
+            .from('offer_letters')
+            .select('*')
+            .eq('employee_id', employeeId)
+            .order('created_at', { ascending: false });
+
+          if (offerError) throw offerError;
+          setOfferLetters(offerData || []);
+        } catch (e) {
+          // Silent fail for offer letters
+          setOfferLetters([]);
+        }
+      }
     } catch (error) {
       console.error('Error loading employee data:', error);
     }
   };
 
-  const loadAdminData = async () => {
-    if (!membership?.admin_id) return;
 
-    try {
-      const { data: adminData } = await supabase
-        .from('organization_admins')
-        .select('*')
-        .eq('id', membership.admin_id)
-        .single();
 
-      setAdmin(adminData);
-      setEditFormData(adminData);
-    } catch (error) {
-      console.error('Error loading admin data:', error);
-    }
-  };
-
-  const loadAttendanceStats = async () => {
-    if (!profile?.employee_id) return;
+  const loadAttendanceStats = async (employeeId: string) => {
+    if (!employeeId) return;
 
     try {
       const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
@@ -171,7 +228,7 @@ export function EmployeeProfilePage() {
       const { data } = await supabase
         .from('attendance_records')
         .select('*')
-        .eq('employee_id', profile.employee_id)
+        .eq('employee_id', employeeId)
         .gte('attendance_date', startOfMonth)
         .lte('attendance_date', today);
 
@@ -196,20 +253,20 @@ export function EmployeeProfilePage() {
     }
   };
 
-  const loadLeaveStats = async () => {
-    if (!profile?.employee_id) return;
+  const loadLeaveStats = async (employeeId: string) => {
+    if (!employeeId) return;
 
     try {
       const { data: balances } = await supabase
         .from('leave_balances')
         .select('*')
-        .eq('employee_id', profile.employee_id)
+        .eq('employee_id', employeeId)
         .eq('year', new Date().getFullYear());
 
       const { data: applications } = await supabase
         .from('leave_applications')
         .select('*')
-        .eq('employee_id', profile.employee_id);
+        .eq('employee_id', employeeId);
 
       const available = balances?.reduce((sum, b) => sum + Number(b.available_leaves), 0) || 0;
       const taken = applications?.filter(a => a.status === 'approved').reduce((sum, a) => sum + Number(a.total_days), 0) || 0;
@@ -227,6 +284,10 @@ export function EmployeeProfilePage() {
 
   const handleEditToggle = () => {
     if (isEditMode) {
+      // Revert changes if cancelling
+      setEditFormData(admin || employee);
+    } else {
+      // Initialize form with current data
       setEditFormData(admin || employee);
     }
     setIsEditMode(!isEditMode);
@@ -237,54 +298,35 @@ export function EmployeeProfilePage() {
   };
 
   const handleSaveProfile = async () => {
-    // Handle admin profile update
-    if (membership?.admin_id) {
-      try {
+    try {
+      if (admin) {
+        // Update Admin Profile
         const { error } = await supabase
           .from('organization_admins')
           .update({
-            mobile_number: editFormData.mobile_number || null,
-            alternate_number: editFormData.alternate_number || null,
-            current_address: editFormData.current_address || null,
-            permanent_address: editFormData.permanent_address || null,
-            city: editFormData.city || null,
-            state: editFormData.state || null,
-            country: editFormData.country || null,
-            pincode: editFormData.pincode || null,
+            mobile_number: editFormData.mobile_number,
+            alternate_number: editFormData.alternate_number,
+            current_address: editFormData.current_address,
+            city: editFormData.city,
+            state: editFormData.state,
+            pincode: editFormData.pincode,
             date_of_birth: editFormData.date_of_birth || null,
-            gender: editFormData.gender || null,
+            gender: editFormData.gender,
             updated_at: new Date().toISOString()
           })
-          .eq('id', membership.admin_id);
+          .eq('id', admin.id);
 
         if (error) throw error;
-
+        setAdmin({ ...admin, ...editFormData });
         setAlertModal({
           type: 'success',
           title: 'Profile Updated',
           message: 'Your profile has been updated successfully.'
         });
-
         setIsEditMode(false);
-        await loadAdminData();
-      } catch (error: any) {
-        console.error('Error updating admin profile:', error);
-        setAlertModal({
-          type: 'error',
-          title: 'Update Failed',
-          message: 'Failed to update profile: ' + error.message
-        });
-      }
-      return;
-    }
-
-    // Handle employee profile update
-    if (!profile?.employee_id) return;
-
-    try {
-      const { error } = await supabase
-        .from('employees')
-        .update({
+      } else if (employee) {
+        // Construct update object dynamically to avoid schema errors
+        const updates: any = {
           personal_email: editFormData.personal_email,
           mobile_number: editFormData.mobile_number,
           alternate_number: editFormData.alternate_number,
@@ -301,7 +343,6 @@ export function EmployeeProfilePage() {
           linkedin_url: editFormData.linkedin_url,
           github_url: editFormData.github_url,
           portfolio_url: editFormData.portfolio_url,
-          // New fields - convert empty strings to null for dates
           date_of_birth: editFormData.date_of_birth || null,
           gender: editFormData.gender,
           blood_group: editFormData.blood_group,
@@ -313,42 +354,72 @@ export function EmployeeProfilePage() {
           mother_name: editFormData.mother_name,
           spouse_name: editFormData.spouse_name,
           number_of_children: editFormData.number_of_children,
-          // Document fields - convert empty strings to null
-          pan_number: editFormData.pan_number || null,
-          pan_expiry: editFormData.pan_expiry || null,
-          aadhaar_number: editFormData.aadhaar_number || null,
           passport_number: editFormData.passport_number || null,
           passport_issue_date: editFormData.passport_issue_date || null,
-          passport_expiry_date: editFormData.passport_expiry_date || null,
+          passport_expiry: editFormData.passport_expiry || null,
           passport_issue_place: editFormData.passport_issue_place || null,
-          visa_number: editFormData.visa_number || null,
-          visa_sponsor: editFormData.visa_sponsor || null,
-          visa_issue_date: editFormData.visa_issue_date || null,
-          visa_expiry_date: editFormData.visa_expiry_date || null,
-          qatar_id: editFormData.qatar_id || null,
-          qatar_id_expiry: editFormData.qatar_id_expiry || null,
-          iqama_number: editFormData.iqama_number || null,
-          iqama_expiry: editFormData.iqama_expiry || null,
           driving_license_number: editFormData.driving_license_number || null,
           driving_license_expiry: editFormData.driving_license_expiry || null,
           bank_name: editFormData.bank_name || null,
           bank_account_number: editFormData.bank_account_number || null,
-          iban: editFormData.iban || null,
-          branch: editFormData.branch || null,
+          bank_ifsc_code: editFormData.bank_ifsc_code || null,
+          bank_branch: editFormData.bank_branch || null,
           updated_at: new Date().toISOString()
-        })
-        .eq('id', profile.employee_id);
+        };
 
-      if (error) throw error;
+        // Country Specific Fields
+        if (country === 'India') {
+          updates.pan_number = editFormData.pan_number || null;
+          updates.pan_expiry = editFormData.pan_expiry || null;
+          updates.aadhaar_number = editFormData.aadhaar_number || null;
+          updates.uan_number = editFormData.uan_number || null;
+          updates.esi_number = editFormData.esi_number || null;
+          updates.professional_tax_number = editFormData.professional_tax_number || null;
+          updates.pf_account_number = editFormData.pf_account_number || null;
+          updates.pf_uan = editFormData.pf_uan || null;
+          updates.lwf_number = editFormData.lwf_number || null;
+        } else {
+          // For Non-India (GCC), include Visa/IBAN details
+          updates.visa_number = editFormData.visa_number || null;
+          updates.visa_sponsor = editFormData.visa_sponsor || null;
+          updates.visa_issue_date = editFormData.visa_issue_date || null;
+          updates.visa_expiry = editFormData.visa_expiry || null;
+          updates.bank_iban = editFormData.bank_iban || editFormData.iban_number || null;
+        }
 
-      setAlertModal({
-        type: 'success',
-        title: 'Profile Updated',
-        message: 'Your profile has been updated successfully.'
-      });
+        if (country === 'Qatar') {
+          updates.qatar_id = editFormData.qatar_id || null;
+          updates.qatar_id_expiry = editFormData.qatar_id_expiry || null;
+          updates.health_card_number = editFormData.health_card_number || null;
+          updates.health_card_expiry = editFormData.health_card_expiry || null;
+          // Add other Qatar specific fields if they exist in schema
+        }
 
-      setIsEditMode(false);
-      await loadEmployeeData();
+        if (country === 'Saudi Arabia') {
+          updates.iqama_number = editFormData.iqama_number || null;
+          updates.iqama_expiry = editFormData.iqama_expiry || null;
+          // Add other Saudi specific fields if they exist in schema
+        }
+
+        // Update Employee Profile
+        const { error } = await supabase
+          .from('employees')
+          .update(updates)
+          .eq('id', userProfile.employee_id);
+
+        if (error) throw error;
+
+        setAlertModal({
+          type: 'success',
+          title: 'Profile Updated',
+          message: 'Your profile has been updated successfully.'
+        });
+
+        setIsEditMode(false);
+        // Optimize: Update local state immediately instead of re-fetching to prevent stale data race conditions
+        setEmployee({ ...employee, ...updates });
+        setEditFormData({ ...employee, ...updates });
+      }
     } catch (error: any) {
       console.error('Error updating profile:', error);
       setAlertModal({
@@ -408,52 +479,31 @@ export function EmployeeProfilePage() {
     setLoading(true);
 
     try {
-      // 1. Create Employee Record
-      const { data: newEmployee, error: createError } = await supabase
-        .from('employees')
+      // Create Admin Profile in organization_admins
+      const { data: newAdmin, error: createError } = await supabase
+        .from('organization_admins')
         .insert({
           organization_id: organization.id,
+          user_id: user.id,
+          email: user.email,
           first_name: userProfile?.full_name?.split(' ')[0] || 'Admin',
           last_name: userProfile?.full_name?.split(' ').slice(1).join(' ') || 'User',
-          company_email: user.email,
-          personal_email: user.email,
-          mobile_number: '', // Schema requires this, but we can update later
           date_of_joining: new Date().toISOString().split('T')[0],
-          employment_status: 'active',
-          employment_type: 'full_time',
-          user_id: user.id,
-          // department_id: null, // Can be set later
-          // designation_id: null, // Can be set later
+          admin_code: `ADM-${Math.floor(Math.random() * 10000)}`, // Simple generation
+          designation: 'Administrator'
         })
         .select()
         .single();
 
       if (createError) throw createError;
 
-      // 2. Link to Organization Member
-      const { error: linkError } = await supabase
-        .from('organization_members')
-        .update({ employee_id: newEmployee.id })
-        .eq('organization_id', organization.id)
-        .eq('user_id', user.id);
-
-      if (linkError) throw linkError;
-
-      // 3. Link to User Profile (if not already handled by trigger)
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .update({ employee_id: newEmployee.id })
-        .eq('user_id', user.id);
-
-      if (profileError) throw profileError;
-
       setAlertModal({
         type: 'success',
         title: 'Profile Created',
-        message: 'Your employee profile has been created successfully.'
+        message: 'Your admin profile has been created successfully.'
       });
 
-      // Reload data to show the new profile
+      // Reload to reflect changes
       window.location.reload();
 
     } catch (error: any) {
@@ -523,9 +573,8 @@ export function EmployeeProfilePage() {
     );
   }
 
-  const profileData = admin || employee;
-  const displayName = profileData
-    ? `${profileData.first_name} ${profileData.middle_name || ''} ${profileData.last_name}`.trim()
+  const displayName = employee
+    ? `${employee.first_name} ${employee.middle_name || ''} ${employee.last_name}`.trim()
     : userProfile?.full_name || user?.email || 'User';
 
   const totals = employee ? calculateTotals() : { earnings: 0, deductions: 0, netSalary: 0 };
@@ -693,22 +742,17 @@ export function EmployeeProfilePage() {
               </div>
               <div className="text-white flex-1">
                 <h2 className="text-3xl font-bold mb-2">{displayName}</h2>
-                {admin && (
+                {(employee || admin) && (
                   <>
-                    <p className="text-blue-100 text-lg">{admin.designation || 'Administrator'}</p>
+                    <p className="text-blue-100 text-lg">
+                      {admin ? (admin.designation || 'Administrator') : (employee?.designations?.name || 'N/A')}
+                    </p>
                     <div className="flex items-center gap-4 mt-2">
-                      <p className="text-blue-200 text-sm">{admin.admin_code}</p>
-                      <p className="text-blue-200 text-sm">• Admin Profile</p>
-                    </div>
-                  </>
-                )}
-                {employee && (
-                  <>
-                    <p className="text-blue-100 text-lg">{employee.designations?.title || 'N/A'}</p>
-                    <div className="flex items-center gap-4 mt-2">
-                      <p className="text-blue-200 text-sm">{employee.employee_code}</p>
-                      {employee.nationality && (
-                        <p className="text-blue-200 text-sm">• {employee.nationality}</p>
+                      <p className="text-blue-200 text-sm">
+                        {admin ? admin.admin_code : employee?.employee_code}
+                      </p>
+                      {(admin ? admin.country : employee?.nationality) && (
+                        <p className="text-blue-200 text-sm">• {admin ? admin.country : employee?.nationality}</p>
                       )}
                     </div>
                   </>
@@ -719,8 +763,7 @@ export function EmployeeProfilePage() {
 
           <div className="border-b border-slate-200">
             <div className="flex gap-2 px-6 overflow-x-auto">
-              {/* Show only overview and personal tabs for admins */}
-              {(admin ? ['overview', 'personal'] : ['overview', 'personal', 'professional', 'documents', 'payroll']).map((tab) => (
+              {(isAdmin ? ['overview', 'personal'] : ['overview', 'personal', 'professional', 'documents', 'payroll']).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab as any)}
@@ -817,7 +860,7 @@ export function EmployeeProfilePage() {
                   />
                 )}
 
-                {!admin && activeTab === 'professional' && (
+                {activeTab === 'professional' && (
                   <ProfessionalTab
                     employee={employee}
                     isEditMode={isEditMode}
@@ -827,7 +870,7 @@ export function EmployeeProfilePage() {
                   />
                 )}
 
-                {!admin && activeTab === 'documents' && (
+                {activeTab === 'documents' && (
                   <DocumentsTab
                     employee={employee}
                     maskSensitiveData={maskSensitiveData}
@@ -841,7 +884,7 @@ export function EmployeeProfilePage() {
                     handleEditChange={handleEditChange}
                   />
                 )}
-                {!admin && activeTab === 'payroll' && employee && (
+                {activeTab === 'payroll' && employee && (
                   <PayrollHistoryTab employeeId={employee.id} />
                 )}
               </>
@@ -899,7 +942,7 @@ function OverviewTab({ employee, salaryStructure, offerLetters, totals, formatCu
         <Section title="Employment Details" icon={Briefcase}>
           <div className="grid grid-cols-2 gap-4">
             <InfoItem icon={Building} label="Department" value={employee.departments?.name || 'N/A'} />
-            <InfoItem icon={Briefcase} label="Designation" value={employee.designations?.title || 'N/A'} />
+            <InfoItem icon={Briefcase} label="Designation" value={employee.designations?.name || 'N/A'} />
             <InfoItem icon={MapPin} label="Branch" value={employee.branches?.name || 'N/A'} />
             <InfoItem icon={Calendar} label="Joining Date" value={employee.date_of_joining ? new Date(employee.date_of_joining).toLocaleDateString() : 'N/A'} />
             <InfoItem label="Employment Type" value={employee.employment_type?.replace('_', ' ').toUpperCase() || 'N/A'} />
@@ -1966,7 +2009,7 @@ function DocumentsTab({ employee, maskSensitiveData, isAdmin, hasData, country, 
         </div>
       </Section>
 
-      <Section title="Passport & Visa" icon={Plane}>
+      <Section title={country === 'India' ? "Passport Details" : "Passport & Visa"} icon={Plane}>
         <div className="space-y-3">
           {isEditMode ? (
             <>
@@ -2006,42 +2049,46 @@ function DocumentsTab({ employee, maskSensitiveData, isAdmin, hasData, country, 
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
                 />
               </div>
-              <div>
-                <label className="text-xs text-slate-500 mb-1 block">Visa Number</label>
-                <input
-                  type="text"
-                  value={editFormData.visa_number || ''}
-                  onChange={(e) => handleEditChange('visa_number', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-500 mb-1 block">Visa Sponsor</label>
-                <input
-                  type="text"
-                  value={editFormData.visa_sponsor || ''}
-                  onChange={(e) => handleEditChange('visa_sponsor', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-500 mb-1 block">Visa Issue Date</label>
-                <input
-                  type="date"
-                  value={editFormData.visa_issue_date || ''}
-                  onChange={(e) => handleEditChange('visa_issue_date', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-500 mb-1 block">Visa Expiry</label>
-                <input
-                  type="date"
-                  value={editFormData.visa_expiry || ''}
-                  onChange={(e) => handleEditChange('visa_expiry', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                />
-              </div>
+              {country !== 'India' && (
+                <>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Visa Number</label>
+                    <input
+                      type="text"
+                      value={editFormData.visa_number || ''}
+                      onChange={(e) => handleEditChange('visa_number', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Visa Sponsor</label>
+                    <input
+                      type="text"
+                      value={editFormData.visa_sponsor || ''}
+                      onChange={(e) => handleEditChange('visa_sponsor', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Visa Issue Date</label>
+                    <input
+                      type="date"
+                      value={editFormData.visa_issue_date || ''}
+                      onChange={(e) => handleEditChange('visa_issue_date', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Visa Expiry</label>
+                    <input
+                      type="date"
+                      value={editFormData.visa_expiry || ''}
+                      onChange={(e) => handleEditChange('visa_expiry', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    />
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -2058,10 +2105,10 @@ function DocumentsTab({ employee, maskSensitiveData, isAdmin, hasData, country, 
                 isExpiringSoon={isExpiringSoon}
                 isExpired={isExpired}
               />
-              {employee.visa_number && (
+              {country !== 'India' && (
                 <>
-                  <SmallInfoItem label="Visa Number" value={employee.visa_number} />
-                  {employee.visa_sponsor && <SmallInfoItem label="Visa Sponsor" value={employee.visa_sponsor} />}
+                  <SmallInfoItem label="Visa Number" value={employee.visa_number || 'N/A'} />
+                  <SmallInfoItem label="Visa Sponsor" value={employee.visa_sponsor || 'N/A'} />
                   {employee.visa_issue_date && (
                     <SmallInfoItem label="Visa Issue Date" value={new Date(employee.visa_issue_date).toLocaleDateString()} />
                   )}

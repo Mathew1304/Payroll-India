@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Filter, Edit, Trash2, Eye, Users, Briefcase, Mail, Phone, Calendar, Sparkles, Send, UserPlus, Upload, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, Users, Briefcase, Mail, Phone, Calendar, Sparkles, Send, Upload, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { AddEmployeeModal } from '../../components/Employees/AddEmployeeModal';
 import { QuickInviteModal } from '../../components/Employees/QuickInviteModal';
@@ -56,7 +56,7 @@ export function EmployeesPage() {
       loadEmployees();
       loadMasterData();
     }
-  }, [organization, statusFilter, activeFilter]);
+  }, [organization?.id, statusFilter, activeFilter]);
 
   const loadEmployees = async () => {
     if (!organization?.id) {
