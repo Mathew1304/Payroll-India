@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Download, Calendar, TrendingUp, Wallet, ChevronDown, ChevronUp, CheckCircle, Clock } from 'lucide-react';
+import { Download, Calendar, TrendingUp, Wallet, ChevronDown, ChevronUp, CheckCircle, Clock, Eye } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { downloadPayslipHTML } from '../../utils/payslipGenerator';
+import { downloadPayslipPDF } from '../../utils/payslipPDFGenerator';
+import { PayslipModal } from '../../components/Payroll/PayslipModal';
+import { format } from 'date-fns';
 
 interface PayrollRecord {
     id: string;
@@ -43,148 +46,209 @@ interface Employee {
     pan_number: string;
     bank_account_number: string;
     ifsc_code: string;
+    designation?: string;
+    date_of_joining?: string;
 }
 
 export function EmployeePayrollPage() {
-    const { profile, organization } = useAuth();
+    console.log('🚀 COMPONENT RENDER START');
+
+    const { user, profile, organization } = useAuth();
+
+    console.log('🔍 Auth Context Values:', {
+        hasProfile: !!profile,
+        hasUser: !!user,
+        userId: user?.id,
+        employeeId: profile?.employee_id,
+        hasOrg: !!organization
+    });
+
     const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([]);
     const [employee, setEmployee] = useState<Employee | null>(null);
     const [loading, setLoading] = useState(true);
     const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [selectedPayslip, setSelectedPayslip] = useState<any | null>(null);
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-    console.log('EmployeePayrollPage mounted, profile:', profile);
-
     useEffect(() => {
-        console.log('useEffect triggered, profile?.employee_id:', profile?.employee_id);
+        console.log('⚡ useEffect FIRED');
+        console.log('⚡ profile?.employee_id:', profile?.employee_id);
+        console.log('⚡ Full profile object:', JSON.stringify(profile, null, 2));
+
         if (profile?.employee_id) {
+            console.log('✅ Employee ID found, calling loadData()');
             loadData();
         } else {
-            console.log('No employee_id, setting loading to false');
+            console.log('❌ No employee_id found in profile');
+            console.log('❌ No user_id found');
             setLoading(false);
         }
-    }, [profile]);
+    }, [user?.id]); // Dependency changed to user?.id
 
     const loadData = async () => {
-        if (!profile?.employee_id) {
-            console.log('No employee_id in profile:', profile);
-            setError('No employee ID found in your profile');
-            setLoading(false);
-            return;
-        }
+        console.log('🔄 Loading data...');
+        console.log('🔄 User ID from auth:', user?.id);
+        console.log('🔄 Profile employee_id:', profile?.employee_id);
 
-        console.log('Loading data for employee_id:', profile.employee_id);
+        // Set a timeout to prevent infinite loading
+        const loadTimeout = setTimeout(() => {
+            console.error('⏱️ TIMEOUT: Data loading took too long (30s).');
+            setError('Loading timed out. Please refresh the page or contact support.');
+            setLoading(false);
+        }, 30000);
 
         try {
-            // Load employee details
-            console.log('Fetching employee from database...');
+            if (!user?.id) {
+                console.error('❌ No user ID available');
+                setError('Authentication error: No user ID found. Please try logging out and back in.');
+                setLoading(false);
+                clearTimeout(loadTimeout);
+                return;
+            }
+
+            // BYPASS STRATEGY: Fetch employee directly by user_id instead of relying on profile.employee_id
+            console.log('📋 Step 1: Fetching employee by user_id...');
+            console.time('employee-fetch');
+
             const { data: empData, error: empError } = await supabase
                 .from('employees')
-                .select('id, first_name, last_name, employee_code, pan_number, bank_account_number, ifsc_code')
-                .eq('id', profile.employee_id)
-                .single();
+                .select('id, first_name, last_name, employee_code, pan_number, bank_account_number, bank_ifsc_code, organization_id, designation_id, date_of_joining, designations(name)')
+                .eq('user_id', user.id)
+                .maybeSingle();
 
-            console.log('Employee query result:', { empData, empError });
+            console.timeEnd('employee-fetch');
+            console.log('📋 Employee query result:', { empData, empError });
 
             if (empError) {
-                console.error('Employee fetch error:', empError);
+                clearTimeout(loadTimeout);
+                console.error('❌ Employee fetch error:', empError);
+                console.error('❌ Error code:', empError.code);
+                console.error('❌ Error message:', empError.message);
+
                 if (empError.code === 'PGRST116') {
-                    setError(`No employee record found. Your employee profile (ID: ${profile.employee_id}) has not been created yet.`);
+                    setError(`No employee record found. Your employee profile has not been created yet. Please contact HR.`);
+                } else if (empError.code === 'PGRST301') {
+                    setError(`Database permission error: You don't have access to view your employee profile. Please contact your administrator.`);
                 } else {
-                    setError(`Database error: ${empError.message}`);
+                    setError(`Database error (${empError.code}): ${empError.message}`);
                 }
                 setLoading(false);
                 return;
             }
 
             if (!empData) {
-                console.error('No employee data returned');
-                setError(`No employee record found with ID: ${profile.employee_id}`);
+                clearTimeout(loadTimeout);
+                console.error('❌ No employee data returned for user_id:', user?.id);
+                setError(`No employee record found. Please contact HR to set up your employee profile.`);
                 setLoading(false);
                 return;
             }
 
             setEmployee(empData);
-            console.log('Employee set successfully:', empData);
+            console.log('✅ Employee set successfully:', empData);
 
-            // Load all payroll records for this employee
-            console.log('Fetching payroll records...');
+            // Load all payroll records for this employee using the fetched employee ID
+            console.log('💰 Step 2: Fetching payroll records for employee_id:', empData.id);
+            console.time('payroll-fetch');
+
             const { data: payrollData, error: payrollError } = await supabase
                 .from('india_payroll_records')
                 .select('*')
-                .eq('employee_id', profile.employee_id)
+                .eq('employee_id', empData.id)
                 .order('pay_period_year', { ascending: false })
                 .order('pay_period_month', { ascending: false });
 
-            console.log('Payroll query result:', { payrollData, payrollError, count: payrollData?.length });
+            console.timeEnd('payroll-fetch');
+            console.log('💰 Payroll query result:', { payrollData, payrollError, count: payrollData?.length });
 
             if (payrollError) {
-                console.error('Payroll fetch error:', payrollError);
+                console.error('⚠️ Payroll fetch error:', payrollError);
+                console.error('⚠️ Error code:', payrollError.code);
+                console.error('⚠️ Error message:', payrollError.message);
                 // Don't set error for payroll - employee might just not have records yet
             }
 
             setPayrollRecords(payrollData || []);
-            console.log('Payroll records set successfully, count:', payrollData?.length || 0);
+            console.log('✅ Payroll records set successfully, count:', payrollData?.length || 0);
+
+            clearTimeout(loadTimeout);
         } catch (error) {
-            console.error('Error loading payroll data:', error);
+            clearTimeout(loadTimeout);
+            console.error('❌ Error loading payroll data:', error);
             setError(`Unexpected error: ${error}`);
         } finally {
             setLoading(false);
+            console.log('✅ Loading complete, loading state set to false');
         }
     };
 
-    const handleDownloadPayslip = (record: PayrollRecord) => {
-        if (!employee) return;
+    const preparePayslipData = (record: PayrollRecord) => {
+        if (!employee) return null;
 
-        const payslipData = {
-            country: 'India' as const,
-            currency: 'INR' as const,
-            companyName: organization?.name || 'Company',
-            establishmentId: 'EST-001',
+        // Prepare earnings array
+        const earnings = [];
+        if (record.basic_salary > 0) earnings.push({ name: 'Basic', amount: Number(record.basic_salary), ytd: Number(record.basic_salary) });
+        if (record.house_rent_allowance > 0) earnings.push({ name: 'House Rent Allowance', amount: Number(record.house_rent_allowance), ytd: Number(record.house_rent_allowance) });
+        if (record.conveyance_allowance > 0) earnings.push({ name: 'Fixed Allowance', amount: Number(record.conveyance_allowance), ytd: Number(record.conveyance_allowance) });
+        if (record.dearness_allowance > 0) earnings.push({ name: 'Dearness Allowance', amount: Number(record.dearness_allowance), ytd: Number(record.dearness_allowance) });
+        if (record.medical_allowance > 0) earnings.push({ name: 'Medical Allowance', amount: Number(record.medical_allowance), ytd: Number(record.medical_allowance) });
+        if (record.special_allowance > 0) earnings.push({ name: 'Special Allowance', amount: Number(record.special_allowance), ytd: Number(record.special_allowance) });
+        if (record.other_allowances > 0) earnings.push({ name: 'Other Allowances', amount: Number(record.other_allowances), ytd: Number(record.other_allowances) });
+        if (record.overtime_amount > 0) earnings.push({ name: 'Overtime', amount: Number(record.overtime_amount), ytd: Number(record.overtime_amount) });
+
+        // Prepare deductions array
+        const deductions = [];
+        if (record.professional_tax > 0) deductions.push({ name: 'Professional Tax', amount: Number(record.professional_tax), ytd: Number(record.professional_tax) });
+        if (record.pf_employee > 0) deductions.push({ name: 'Provident Fund', amount: Number(record.pf_employee), ytd: Number(record.pf_employee) });
+        if (record.esi_employee > 0) deductions.push({ name: 'ESI', amount: Number(record.esi_employee), ytd: Number(record.esi_employee) });
+        if (record.tds > 0) deductions.push({ name: 'TDS', amount: Number(record.tds), ytd: Number(record.tds) });
+        if (record.absence_deduction > 0) deductions.push({ name: 'Absence Deduction', amount: Number(record.absence_deduction), ytd: Number(record.absence_deduction) });
+        if (record.loan_deduction > 0) deductions.push({ name: 'Loan Deduction', amount: Number(record.loan_deduction), ytd: Number(record.loan_deduction) });
+        if (record.advance_deduction > 0) deductions.push({ name: 'Advance Deduction', amount: Number(record.advance_deduction), ytd: Number(record.advance_deduction) });
+        if (record.penalty_deduction > 0) deductions.push({ name: 'Penalty', amount: Number(record.penalty_deduction), ytd: Number(record.penalty_deduction) });
+
+        const lopDays = record.working_days - record.days_present;
+
+        return {
+            companyName: organization?.name || 'Company Name',
+            companyAddress: organization?.address || '',
             employeeName: `${employee.first_name} ${employee.last_name}`,
             employeeCode: employee.employee_code,
-            employeeId: employee.pan_number || '',
-            iban: employee.bank_account_number || '',
+            designation: (employee as any).designations?.name || employee.designation || 'N/A',
+            joiningDate: employee.date_of_joining ? format(new Date(employee.date_of_joining), 'dd/MM/yyyy') : 'N/A',
             payPeriod: `${monthNames[record.pay_period_month - 1]} ${record.pay_period_year}`,
-            workingDays: record.working_days,
-            daysPresent: record.days_present,
-            daysAbsent: record.working_days - record.days_present,
-            basicSalary: Number(record.basic_salary),
-            // Indian allowances
-            dearnessAllowance: Number(record.dearness_allowance),
-            houseRentAllowance: Number(record.house_rent_allowance),
-            conveyanceAllowance: Number(record.conveyance_allowance),
-            medicalAllowance: Number(record.medical_allowance),
-            specialAllowance: Number(record.special_allowance),
-            // Qatar/Saudi allowances (set to 0 for India)
-            housingAllowance: 0,
-            foodAllowance: 0,
-            transportAllowance: 0,
-            mobileAllowance: 0,
-            utilityAllowance: 0,
-            otherAllowances: Number(record.other_allowances),
-            overtimeHours: 0,
-            overtimeAmount: Number(record.overtime_amount),
-            bonus: 0,
-            // Indian deductions
-            pfEmployee: Number(record.pf_employee),
-            esiEmployee: Number(record.esi_employee),
-            professionalTax: Number(record.professional_tax),
-            tds: Number(record.tds),
-            absenceDeduction: Number(record.absence_deduction),
-            loanDeduction: Number(record.loan_deduction),
-            advanceDeduction: Number(record.advance_deduction),
-            penaltyDeduction: Number(record.penalty_deduction),
-            otherDeductions: 0,
-            grossSalary: Number(record.gross_salary),
-            totalEarnings: Number(record.gross_salary) + Number(record.overtime_amount),
+            payDate: format(new Date(record.created_at), 'dd/MM/yyyy'),
+            paidDays: record.days_present,
+            lopDays: lopDays,
+            earnings,
+            deductions,
+            grossEarnings: Number(record.gross_salary),
             totalDeductions: Number(record.total_deductions),
-            netSalary: Number(record.net_salary)
+            netPay: Number(record.net_pay),
         };
+    };
 
-        downloadPayslipHTML(payslipData);
+    const handleViewPayslip = (record: PayrollRecord) => {
+        const payslipData = preparePayslipData(record);
+        if (payslipData) {
+            setSelectedPayslip(payslipData);
+        }
+    };
+
+    const handleDownloadPayslip = async (record: PayrollRecord) => {
+        if (!employee) return;
+
+        const payslipData = preparePayslipData(record);
+        if (!payslipData) return;
+
+        try {
+            await downloadPayslipPDF(payslipData);
+        } catch (error) {
+            console.error('Error downloading payslip:', error);
+            alert('Failed to download payslip. Please try again.');
+        }
     };
 
     const toggleExpand = (recordId: string) => {
@@ -348,11 +412,19 @@ export function EmployeePayrollPage() {
                                                     </span>
 
                                                     <button
+                                                        onClick={() => handleViewPayslip(record)}
+                                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                        View
+                                                    </button>
+
+                                                    <button
                                                         onClick={() => handleDownloadPayslip(record)}
                                                         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                                                     >
                                                         <Download className="h-4 w-4" />
-                                                        Payslip
+                                                        Download
                                                     </button>
 
                                                     <button
@@ -486,5 +558,14 @@ export function EmployeePayrollPage() {
                 </div>
             </div>
         </div>
+
+        {/* Payslip Modal */}
+        {selectedPayslip && (
+            <PayslipModal
+                data={selectedPayslip}
+                onClose={() => setSelectedPayslip(null)}
+            />
+        )}
+    </div>
     );
 }

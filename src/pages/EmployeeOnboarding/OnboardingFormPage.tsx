@@ -63,16 +63,30 @@ export function OnboardingFormPage() {
   const loadInvitation = async (invitationToken: string) => {
     try {
       setLoading(true);
-      const { data, error: fetchError } = await supabase
+      // First, get the invitation
+      const { data: invitationData, error: fetchError } = await supabase
         .from('employee_invitations')
-        .select(`
-          *,
-          employee:employees(*)
-        `)
+        .select('*')
         .eq('onboarding_token', invitationToken)
         .single();
 
       if (fetchError) throw fetchError;
+
+      // Then, get the employee data separately if employee_id exists
+      let employeeData = null;
+      if (invitationData.employee_id) {
+        const { data: empData, error: empError } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('id', invitationData.employee_id)
+          .single();
+        
+        if (!empError && empData) {
+          employeeData = empData;
+        }
+      }
+
+      const data = { ...invitationData, employee: employeeData };
 
       if (data.onboarding_completed) {
         setError('This onboarding form has already been completed');

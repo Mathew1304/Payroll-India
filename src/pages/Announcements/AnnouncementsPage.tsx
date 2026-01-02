@@ -568,7 +568,7 @@ function CreateAnnouncementModal({ onClose, onSuccess, distributionLists }: any)
     title: '',
     content: '',
     type: 'general',
-    priority: 'normal',
+    priority: 'medium',
     target_type: 'all',
     expires_in_days: 30
   });
@@ -678,9 +678,9 @@ function CreateAnnouncementModal({ onClose, onSuccess, distributionLists }: any)
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
                 className="input-modern"
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
               </select>
             </div>
           </div>
@@ -778,7 +778,7 @@ function EditAnnouncementModal({ announcement, onClose, onSuccess, distributionL
     title: announcement.title || '',
     content: announcement.content || '',
     type: announcement.type || 'general',
-    priority: announcement.priority || 'medium',
+    priority: announcement.priority ? (announcement.priority.charAt(0).toUpperCase() + announcement.priority.slice(1).toLowerCase()) : 'Medium', // Ensure capitalization
     is_active: announcement.is_active ?? true,
     expires_in_days: daysUntilExpiry > 0 ? daysUntilExpiry : 30
   });
@@ -798,13 +798,12 @@ function EditAnnouncementModal({ announcement, onClose, onSuccess, distributionL
           title: formData.title,
           content: formData.content,
           type: formData.type,
-          priority: formData.priority,
+          priority: formData.priority, // Is now Capitalized 'Low', 'Medium', or 'High'
           is_active: formData.is_active,
           expires_at: expiresAt.toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', announcement.id);
-
       if (updateError) throw updateError;
 
       onSuccess();
@@ -884,9 +883,9 @@ function EditAnnouncementModal({ announcement, onClose, onSuccess, distributionL
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
                 className="input-modern"
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
               </select>
             </div>
           </div>
@@ -927,8 +926,8 @@ function EditAnnouncementModal({ announcement, onClose, onSuccess, distributionL
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }
 

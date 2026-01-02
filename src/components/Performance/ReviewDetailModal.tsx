@@ -110,6 +110,7 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
             const overallRating = totalWeight > 0 ? (totalWeightedScore / totalWeight) : 0;
 
             // Update Review
+            const reviewDate = status === 'Completed' ? new Date().toISOString() : null;
             const { error: reviewError } = await (supabase
                 .from('performance_reviews' as any) as any)
                 .update({
@@ -120,7 +121,8 @@ export function ReviewDetailModal({ reviewId, onClose, onUpdate }: ReviewDetailM
                     achievements,
                     goals_for_next_period: nextGoals,
                     manager_comments: managerComments,
-                    reviewed_date: status === 'Completed' ? new Date().toISOString() : null
+                    reviewed_date: reviewDate,
+                    reviewed_at: reviewDate // Set both date fields
                 } as any)
                 .eq('id', reviewId);
 

@@ -14,43 +14,92 @@ const allocateLeaveBalanceToEmployees = async (
     leaveTypeId: string,
     daysPerYear: number
 ) => {
-    if (!organizationId) return;
+    console.log('[Allocation] Starting allocation...', { organizationId, leaveTypeId, daysPerYear });
+        if (!organizationId) {
+        console.error('[Allocation] Missing organization ID');
+        return;
+    }
 
     // 1. Fetch all active employees
-    const { data: employees } = await supabase
+    console.log('[Allocation] Step 1: Fetching active employees...');
+    const { data: employees, error: empError } = await supabase
         .from('employees')
         .select('id')
         .eq('organization_id', organizationId)
         .eq('is_active', true)
         .eq('employment_status', 'active');
 
-    if (!employees || employees.length === 0) return;
+    if (empError) {
+        console.error('[Allocation] Error fetching employees:', empError);
+        return;
+    }
 
-    // 2. Prepare bulk insert data
+    if (!employees || employees.length === 0) {
+        console.warn('[Allocation] No active employees found.');
+        return;
+    }
+    console.log(`[Allocation] Found ${employees.length} active employees.`);
+
+    // 2. Fetch existing balances for this year to preserve 'used' counts
     const year = new Date().getFullYear();
-    const balanceData = employees.map((emp: any) => ({
-        organization_id: organizationId,
-        employee_id: emp.id,
-        leave_type_id: leaveTypeId,
-        year: year,
-        opening_balance: 0,
-        accrued: daysPerYear,
-        used: 0,
-        adjustment: 0,
-        encashed: 0,
-        carried_forward: 0,
-        closing_balance: daysPerYear
-    }));
-
-    // 3. Insert balances (ignore duplicates to preserve existing)
-    const { error } = await supabase
+    console.log(`[Allocation] Step 2: Fetching existing balances for year ${year}...`);
+    const { data: existingBalances, error: balError } = await supabase
         .from('leave_balances')
-        .upsert(balanceData, { onConflict: 'employee_id, leave_type_id, year', ignoreDuplicates: true });
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('leave_type_id', leaveTypeId)
+        .eq('year', year);
+
+    if (balError) {
+        console.error('[Allocation] Error fetching existing balances:', balError);
+    }
+    console.log(`[Allocation] Found ${existingBalances?.length || 0} existing balance records.`);
+
+    const balanceMap = new Map(existingBalances?.map((b) => [b.employee_id, b]) || []);
+
+    // 3. Prepare bulk upsert data
+    console.log('[Allocation] Step 3: Calculating new balances...');
+    const balanceData = employees.map((emp) => {
+        const existing = balanceMap.get(emp.id);
+        const used = Number(existing?.used || 0);
+        const encashed = Number(existing?.encashed || 0);
+        const carried_forward = Number(existing?.carried_forward || 0);
+        const accrued = Number(daysPerYear);
+
+        // New closing balance logic:
+        const totalCredits = accrued + carried_forward;
+        const totalDebits = used + encashed;
+        const closing_balance = Math.max(0, totalCredits - totalDebits);
+
+        return {
+            organization_id: organizationId,
+            employee_id: emp.id,
+            leave_type_id: leaveTypeId,
+            year: year,
+            opening_balance: Number(existing?.opening_balance || 0),
+            accrued: accrued,
+            used: used,
+            adjustment: Number(existing?.adjustment || 0),
+            encashed: encashed,
+            carried_forward: carried_forward,
+            closing_balance: closing_balance
+        };
+    });
+
+    console.log('[Allocation] Prepared payload for upsert (first 3 samples):', balanceData.slice(0, 3));
+
+    // 4. Upsert balances
+    console.log('[Allocation] Step 4: Performing Upsert...');
+    const { data: upsertData, error } = await supabase
+        .from('leave_balances')
+        .upsert(balanceData, { onConflict: 'employee_id, leave_type_id, year' })
+        .select();
 
     if (error) {
-        console.error('Error allocating balances:', error);
+        console.error('[Allocation] Error upserting balances:', error);
         throw error;
     }
+    console.log(`[Allocation] Successfully upserted ${upsertData?.length || 'unknown'} records.`);
 };
 
 const ConfirmDialog = ({ isOpen, title, message, onConfirm, onClose }: { isOpen: boolean; title: string; message: string; onConfirm: () => void; onClose: () => void }) => {
@@ -745,7 +794,7 @@ export function AdminLeavePage() {
                                                 <td className="py-3 px-4 text-sm text-slate-700">{type.code}</td>
                                                 <td className="py-3 px-4 text-sm text-slate-500">{type.description || '-'}</td>
                                                 <td className="py-3 px-4 text-sm text-slate-700">{type.is_paid ? 'Yes' : 'No'}</td>
-                                                <td className="py-3 px-4 text-sm text-slate-700">{type.max_consecutive_days || 'Unlimited'}</td>
+                                                <td className="py-3 px-4 text-sm text-slate-700">-</td>
                                                 <td className="py-3 px-4 text-sm text-slate-700">{type.requires_document ? 'Yes' : 'No'}</td>
                                                 <td className="py-3 px-4 text-sm text-slate-700">{type.is_carry_forward ? 'Yes' : 'No'}</td>
                                                 <td className="py-3 px-4">
@@ -770,7 +819,7 @@ export function AdminLeavePage() {
                                                                     onConfirm: async () => {
                                                                         try {
                                                                             if (organization?.id) {
-                                                                                await allocateLeaveBalanceToEmployees(supabase, organization.id, type.id, type.days_per_year || 0);
+                                                                                await allocateLeaveBalanceToEmployees(supabase, organization.id, type.id, Number(type.days_per_year) || 0);
                                                                                 setAlertModal({
                                                                                     type: 'success',
                                                                                     title: 'Allocation Complete',
@@ -1029,10 +1078,10 @@ function CreateLeaveTypeModal({ onClose, onSuccess }: { onClose: () => void; onS
         description: '',
         is_paid: true,
         requires_document: false,
-        max_consecutive_days: 30,
+        max_consecutive_days: 30 as number | '',
         is_carry_forward: false,
         is_active: true,
-        days_per_year: 0
+        days_per_year: 0 as number | ''
     });
     const [loading, setLoading] = useState(false);
     const [alertModal, setAlertModal] = useState<AlertModalProps | null>(null);
@@ -1047,7 +1096,15 @@ function CreateLeaveTypeModal({ onClose, onSuccess }: { onClose: () => void; onS
             const { data: newLeaveType, error } = await supabase
                 .from('leave_types')
                 .insert([{
-                    ...formData,
+                    name: formData.name,
+                    code: formData.code,
+                    description: formData.description,
+                    is_paid: formData.is_paid,
+                    requires_document: formData.requires_document,
+                    // map boolean to integer column
+                    max_carry_forward: formData.is_carry_forward ? (formData.days_per_year || 0) : 0,
+                    days_per_year: formData.days_per_year === '' ? 0 : formData.days_per_year,
+                    is_active: formData.is_active,
                     organization_id: organization.id
                 }])
                 .select()
@@ -1131,7 +1188,7 @@ function CreateLeaveTypeModal({ onClose, onSuccess }: { onClose: () => void; onS
                             min="0"
                             required
                             value={formData.days_per_year}
-                            onChange={(e) => setFormData({ ...formData, days_per_year: Number(e.target.value) })}
+                            onChange={(e) => setFormData({ ...formData, days_per_year: e.target.value === '' ? '' : Number(e.target.value) })}
                             placeholder="e.g. 12"
                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
@@ -1154,8 +1211,8 @@ function CreateLeaveTypeModal({ onClose, onSuccess }: { onClose: () => void; onS
                         <input
                             type="number"
                             min="1"
-                            value={formData.max_consecutive_days || ''}
-                            onChange={(e) => setFormData({ ...formData, max_consecutive_days: Number(e.target.value) || undefined })}
+                            value={formData.max_consecutive_days}
+                            onChange={(e) => setFormData({ ...formData, max_consecutive_days: e.target.value === '' ? '' : Number(e.target.value) })}
                             placeholder="Leave blank for no limit"
                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
@@ -1229,15 +1286,15 @@ function CreateLeaveTypeModal({ onClose, onSuccess }: { onClose: () => void; onS
 function EditLeaveTypeModal({ leaveType, onClose, onSuccess }: { leaveType: LeaveType; onClose: () => void; onSuccess: () => void }) {
     const { organization } = useAuth();
     const [formData, setFormData] = useState({
-        name: leaveType.name,
-        code: leaveType.code,
+        name: leaveType.name || '',
+        code: leaveType.code || '',
         description: leaveType.description || '',
-        is_paid: leaveType.is_paid,
-        requires_document: leaveType.requires_document,
-        max_consecutive_days: leaveType.max_consecutive_days || 30,
-        is_carry_forward: leaveType.is_carry_forward,
-        is_active: leaveType.is_active,
-        days_per_year: leaveType.days_per_year || 0
+        is_paid: leaveType.is_paid || false,
+        requires_document: leaveType.requires_document || false,
+        max_consecutive_days: (leaveType.max_consecutive_days === undefined || leaveType.max_consecutive_days === null) ? '' : leaveType.max_consecutive_days,
+        is_carry_forward: (leaveType as any).max_carry_forward > 0, // correctly map from DB column
+        is_active: leaveType.is_active ?? true,
+        days_per_year: (leaveType.days_per_year === undefined || leaveType.days_per_year === null) ? '' : leaveType.days_per_year
     });
     const [loading, setLoading] = useState(false);
     const [alertModal, setAlertModal] = useState<AlertModalProps | null>(null);
@@ -1251,7 +1308,17 @@ function EditLeaveTypeModal({ leaveType, onClose, onSuccess }: { leaveType: Leav
             // @ts-ignore - leave_types table exists but is not in generated types
             const { error } = await supabase
                 .from('leave_types')
-                .update(formData)
+                .update({
+                    name: formData.name,
+                    code: formData.code,
+                    description: formData.description,
+                    is_paid: formData.is_paid,
+                    requires_document: formData.requires_document,
+                    // Map boolean to integer column
+                    max_carry_forward: formData.is_carry_forward ? ((formData.days_per_year as number) || 0) : 0,
+                    days_per_year: formData.days_per_year === '' ? 0 : formData.days_per_year,
+                    is_active: formData.is_active
+                })
                 .eq('id', leaveType.id);
 
             if (error) throw error;
@@ -1293,7 +1360,7 @@ function EditLeaveTypeModal({ leaveType, onClose, onSuccess }: { leaveType: Leav
                             <input
                                 type="text"
                                 required
-                                value={formData.name}
+                                value={formData.name || ''}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="e.g., Annual Leave"
                                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
@@ -1304,7 +1371,7 @@ function EditLeaveTypeModal({ leaveType, onClose, onSuccess }: { leaveType: Leav
                             <input
                                 type="text"
                                 required
-                                value={formData.code}
+                                value={formData.code || ''}
                                 onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                                 placeholder="e.g., AL"
                                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
@@ -1319,8 +1386,8 @@ function EditLeaveTypeModal({ leaveType, onClose, onSuccess }: { leaveType: Leav
                             type="number"
                             min="0"
                             step="0.5"
-                            value={formData.days_per_year || 0}
-                            onChange={(e) => setFormData({ ...formData, days_per_year: Number(e.target.value) })}
+                            value={formData.days_per_year}
+                            onChange={(e) => setFormData({ ...formData, days_per_year: e.target.value === '' ? '' : Number(e.target.value) })}
                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
                     </div>
@@ -1341,8 +1408,8 @@ function EditLeaveTypeModal({ leaveType, onClose, onSuccess }: { leaveType: Leav
                         <input
                             type="number"
                             min="1"
-                            value={formData.max_consecutive_days || ''}
-                            onChange={(e) => setFormData({ ...formData, max_consecutive_days: Number(e.target.value) || 30 })}
+                            value={formData.max_consecutive_days}
+                            onChange={(e) => setFormData({ ...formData, max_consecutive_days: e.target.value === '' ? '' : Number(e.target.value) })}
                             placeholder="Leave blank for no limit"
                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />

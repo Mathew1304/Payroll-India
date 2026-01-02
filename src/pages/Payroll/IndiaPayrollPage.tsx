@@ -3,8 +3,10 @@ import { Banknote, Plus, Download, FileText, Clock, Calculator, TrendingUp, User
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { downloadPayslipHTML, printPayslip } from '../../utils/payslipGenerator';
+import { downloadPayslipPDF } from '../../utils/payslipPDFGenerator';
 import { IndiaPayrollProcessModal } from '../../components/Payroll/IndiaPayrollProcessModal';
 import { PayrollSettingsTab } from '../../components/Payroll/PayrollSettingsTab';
+import { format } from 'date-fns';
 
 interface SalaryComponent {
     id: string;
@@ -146,7 +148,9 @@ export function IndiaPayrollPage() {
           pan_number,
           uan_number,
           bank_account_number,
-          ifsc_code
+          ifsc_code,
+          date_of_joining,
+          designation_id
         )
       `)
             .eq('organization_id', organization.id)
@@ -157,6 +161,28 @@ export function IndiaPayrollPage() {
         if (error) {
             console.error('Error loading payroll records:', error);
             return;
+        }
+
+        // Fetch designations separately for each unique designation_id
+        if (data && data.length > 0) {
+            const designationIds = [...new Set(data.map(r => r.employee?.designation_id).filter(Boolean))];
+            
+            if (designationIds.length > 0) {
+                const { data: designationsData } = await supabase
+                    .from('designations')
+                    .select('id, title')
+                    .in('id', designationIds);
+
+                // Create a map for quick lookup
+                const designationsMap = new Map(designationsData?.map(d => [d.id, d.title]) || []);
+
+                // Attach designation titles to employees
+                data.forEach(record => {
+                    if (record.employee?.designation_id) {
+                        record.employee.designation_title = designationsMap.get(record.employee.designation_id) || 'N/A';
+                    }
+                });
+            }
         }
 
         if (data) setPayrollRecords(data);
@@ -854,42 +880,55 @@ function PayrollRecordsTab({ records, onRefresh, selectedMonth, selectedYear, or
         setCurrentPage(1);
     }, [searchQuery]);
 
-    const handleDownloadPayslip = (record: any) => {
+    const handleDownloadPayslip = async (record: any) => {
+        // Prepare earnings array
+        const earnings = [];
+        if (record.basic_salary > 0) earnings.push({ name: 'Basic', amount: Number(record.basic_salary), ytd: Number(record.basic_salary) });
+        if (record.house_rent_allowance > 0) earnings.push({ name: 'House Rent Allowance', amount: Number(record.house_rent_allowance), ytd: Number(record.house_rent_allowance) });
+        if (record.conveyance_allowance > 0) earnings.push({ name: 'Fixed Allowance', amount: Number(record.conveyance_allowance), ytd: Number(record.conveyance_allowance) });
+        if (record.dearness_allowance > 0) earnings.push({ name: 'Dearness Allowance', amount: Number(record.dearness_allowance), ytd: Number(record.dearness_allowance) });
+        if (record.medical_allowance > 0) earnings.push({ name: 'Medical Allowance', amount: Number(record.medical_allowance), ytd: Number(record.medical_allowance) });
+        if (record.special_allowance > 0) earnings.push({ name: 'Special Allowance', amount: Number(record.special_allowance), ytd: Number(record.special_allowance) });
+        if (record.other_allowances > 0) earnings.push({ name: 'Other Allowances', amount: Number(record.other_allowances), ytd: Number(record.other_allowances) });
+        if (record.overtime_amount > 0) earnings.push({ name: 'Overtime', amount: Number(record.overtime_amount), ytd: Number(record.overtime_amount) });
+
+        // Prepare deductions array
+        const deductions = [];
+        if (record.professional_tax > 0) deductions.push({ name: 'Professional Tax', amount: Number(record.professional_tax), ytd: Number(record.professional_tax) });
+        if (record.pf_employee > 0) deductions.push({ name: 'Provident Fund', amount: Number(record.pf_employee), ytd: Number(record.pf_employee) });
+        if (record.esi_employee > 0) deductions.push({ name: 'ESI', amount: Number(record.esi_employee), ytd: Number(record.esi_employee) });
+        if (record.tds > 0) deductions.push({ name: 'TDS', amount: Number(record.tds), ytd: Number(record.tds) });
+        if (record.absence_deduction > 0) deductions.push({ name: 'Absence Deduction', amount: Number(record.absence_deduction), ytd: Number(record.absence_deduction) });
+        if (record.loan_deduction > 0) deductions.push({ name: 'Loan Deduction', amount: Number(record.loan_deduction), ytd: Number(record.loan_deduction) });
+        if (record.advance_deduction > 0) deductions.push({ name: 'Advance Deduction', amount: Number(record.advance_deduction), ytd: Number(record.advance_deduction) });
+        if (record.penalty_deduction > 0) deductions.push({ name: 'Penalty', amount: Number(record.penalty_deduction), ytd: Number(record.penalty_deduction) });
+
+        const lopDays = record.working_days - record.days_present;
+
         const payslipData = {
-            country: 'India' as const,
-            currency: 'INR' as const,
             companyName: organizationName,
-            establishmentId: 'EST-001',
+            companyAddress: '',
             employeeName: `${record.employee.first_name} ${record.employee.last_name}`,
             employeeCode: record.employee.employee_code,
-            employeeId: record.employee.pan_number || '',
-            iban: record.employee.bank_account_number || '',
+            designation: record.employee.designation_title || 'N/A',
+            joiningDate: record.employee.date_of_joining ? format(new Date(record.employee.date_of_joining), 'dd/MM/yyyy') : 'N/A',
             payPeriod: `${monthNames[selectedMonth - 1]} ${selectedYear}`,
-            workingDays: record.working_days,
-            daysPresent: record.days_present,
-            daysAbsent: record.days_absent,
-            basicSalary: Number(record.basic_salary),
-            housingAllowance: Number(record.housing_allowance),
-            foodAllowance: Number(record.food_allowance),
-            transportAllowance: Number(record.transport_allowance),
-            mobileAllowance: Number(record.mobile_allowance),
-            utilityAllowance: Number(record.utility_allowance),
-            otherAllowances: Number(record.other_allowances),
-            overtimeHours: Number(record.overtime_hours),
-            overtimeAmount: Number(record.overtime_amount),
-            bonus: Number(record.bonus) || 0,
-            absenceDeduction: Number(record.absence_deduction),
-            loanDeduction: Number(record.loan_deduction),
-            advanceDeduction: Number(record.advance_deduction),
-            penaltyDeduction: Number(record.penalty_deduction),
-            otherDeductions: Number(record.other_deductions),
-            grossSalary: Number(record.gross_salary),
-            totalEarnings: Number(record.gross_salary) + Number(record.overtime_amount) + (Number(record.bonus) || 0),
+            payDate: format(new Date(record.created_at || new Date()), 'dd/MM/yyyy'),
+            paidDays: record.days_present,
+            lopDays: lopDays,
+            earnings,
+            deductions,
+            grossEarnings: Number(record.gross_salary),
             totalDeductions: Number(record.total_deductions),
-            netSalary: Number(record.net_salary)
+            netPay: Number(record.net_salary),
         };
 
-        downloadPayslipHTML(payslipData);
+        try {
+            await downloadPayslipPDF(payslipData);
+        } catch (error) {
+            console.error('Error downloading payslip:', error);
+            showNotification?.('Failed to download payslip. Please try again.', 'error');
+        }
     };
 
     if (records.length === 0) {

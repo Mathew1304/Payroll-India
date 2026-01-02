@@ -197,24 +197,31 @@ export function EditEmployeeModal({ employeeId, onClose, onSuccess, departments,
         }
       });
 
+      // Create final update object
+      const finalUpdateData: any = {
+        ...updateData,
+        bank_iban: formData.iban_number || null,
+        ctc_annual: formData.ctc_annual ? parseFloat(formData.ctc_annual) : null,
+        basic_salary: formData.basic_salary ? parseFloat(formData.basic_salary) : null,
+        accommodation_allowance: formData.accommodation_allowance ? parseFloat(formData.accommodation_allowance) : null,
+        transportation_allowance: formData.transportation_allowance ? parseFloat(formData.transportation_allowance) : null,
+        food_allowance: formData.food_allowance ? parseFloat(formData.food_allowance) : null,
+        department_id: formData.department_id || null,
+        designation_id: formData.designation_id || null,
+        branch_id: formData.branch_id || null,
+        gender: formData.gender as Gender,
+        marital_status: formData.marital_status as MaritalStatus,
+        employment_type: formData.employment_type as EmploymentType,
+        employment_status: formData.employment_status as EmploymentStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      // Remove the form-only field 'iban_number' which isn't a DB column
+      delete finalUpdateData.iban_number;
+
       const { error } = await supabase
         .from('employees')
-        .update({
-          ...updateData,
-          ctc_annual: formData.ctc_annual ? parseFloat(formData.ctc_annual) : null,
-          basic_salary: formData.basic_salary ? parseFloat(formData.basic_salary) : null,
-          accommodation_allowance: formData.accommodation_allowance ? parseFloat(formData.accommodation_allowance) : null,
-          transportation_allowance: formData.transportation_allowance ? parseFloat(formData.transportation_allowance) : null,
-          food_allowance: formData.food_allowance ? parseFloat(formData.food_allowance) : null,
-          department_id: formData.department_id || null,
-          designation_id: formData.designation_id || null,
-          branch_id: formData.branch_id || null,
-          gender: formData.gender as Gender,
-          marital_status: formData.marital_status as MaritalStatus,
-          employment_type: formData.employment_type as EmploymentType,
-          employment_status: formData.employment_status as EmploymentStatus,
-          updated_at: new Date().toISOString()
-        } as any)
+        .update(finalUpdateData)
         .eq('id', employeeId);
 
       if (error) throw error;

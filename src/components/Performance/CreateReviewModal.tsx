@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Star } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { notifyPerformanceReview } from '../../utils/notificationService';
 
 interface CreateReviewModalProps {
     onClose: () => void;
@@ -14,11 +15,57 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
     const [goals, setGoals] = useState<any[]>([]);
     const [rating, setRating] = useState(0);
 
+    // Helper function to calculate review period dates based on review date and cycle
+    const calculatePeriodDates = (reviewDate: string, cycle: string) => {
+        const date = new Date(reviewDate);
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        
+        switch (cycle.toLowerCase()) {
+            case 'quarterly':
+                const quarter = Math.floor(month / 3);
+                const quarterStart = new Date(year, quarter * 3, 1);
+                const quarterEnd = new Date(year, (quarter + 1) * 3, 0);
+                return {
+                    start: quarterStart.toISOString().split('T')[0],
+                    end: quarterEnd.toISOString().split('T')[0]
+                };
+            case 'mid-year':
+            case 'half_yearly':
+                const halfYear = month < 6 ? 0 : 1;
+                const halfStart = new Date(year, halfYear * 6, 1);
+                const halfEnd = new Date(year, (halfYear + 1) * 6, 0);
+                return {
+                    start: halfStart.toISOString().split('T')[0],
+                    end: halfEnd.toISOString().split('T')[0]
+                };
+            case 'annual':
+                return {
+                    start: `${year}-01-01`,
+                    end: `${year}-12-31`
+                };
+            case 'probation':
+                // Default to 3 months for probation
+                const probStart = new Date(date);
+                probStart.setMonth(probStart.getMonth() - 3);
+                return {
+                    start: probStart.toISOString().split('T')[0],
+                    end: reviewDate
+                };
+            default:
+                return {
+                    start: `${year}-01-01`,
+                    end: `${year}-12-31`
+                };
+        }
+    };
+
     const [formData, setFormData] = useState({
         employee_id: '',
         goal_id: '',
         review_cycle: 'Quarterly',
         review_period: '',
+        review_date: new Date().toISOString().split('T')[0], // Default to today
         rating: 0,
         overall_feedback: '',
         strengths: '',
@@ -73,7 +120,13 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
         setLoading(true);
 
         try {
-            const { error } = await (supabase
+            // Use the date from the form, convert to ISO timestamp
+            const reviewDate = new Date(formData.review_date).toISOString();
+            
+            // Calculate review period start and end dates
+            const periodDates = calculatePeriodDates(formData.review_date, formData.review_cycle);
+            
+            const { data: reviewData, error } = await (supabase
                 .from('performance_reviews' as any) as any)
                 .insert({
                     organization_id: organization!.id,
@@ -82,6 +135,8 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
                     reviewer_id: profile?.employee_id || null, // Must be an employee ID or null
                     review_type: formData.review_cycle.toLowerCase() === 'mid-year' ? 'half_yearly' : formData.review_cycle.toLowerCase(),
                     review_period: formData.review_period,
+                    review_period_start: periodDates.start, // Set period start date
+                    review_period_end: periodDates.end, // Set period end date
                     overall_rating: rating,
                     final_rating: rating, // Set both for compatibility
                     manager_assessment: formData.overall_feedback,
@@ -89,11 +144,30 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
                     strengths: formData.strengths,
                     areas_for_improvement: formData.areas_for_improvement,
                     goals_met: formData.goals_met,
-                    reviewed_at: new Date().toISOString(),
+                    reviewed_at: reviewDate,
+                    reviewed_date: reviewDate, // Set both date fields
                     status: 'completed' // Matches database CHECK constraint (lowercase)
-                });
+                })
+                .select()
+                .single();
 
             if (error) throw error;
+
+            // Send notification to employee
+            if (reviewData && organization?.id) {
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const startDate = new Date(periodDates.start);
+                const endDate = new Date(periodDates.end);
+                const reviewPeriod = `${monthNames[startDate.getMonth()]} ${startDate.getFullYear()} - ${monthNames[endDate.getMonth()]} ${endDate.getFullYear()}`;
+                
+                await notifyPerformanceReview(
+                    formData.employee_id,
+                    reviewPeriod,
+                    reviewData.id,
+                    organization.id
+                );
+            }
+
             onClose();
         } catch (err) {
             console.error('Error creating review:', err);
@@ -180,6 +254,20 @@ export function CreateReviewModal({ onClose }: CreateReviewModalProps) {
                                 className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
                             />
                         </div>
+                    </div>
+
+                    {/* Review Date */}
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Review Date *</label>
+                        <input
+                            type="date"
+                            required
+                            value={formData.review_date}
+                            onChange={e => setFormData({ ...formData, review_date: e.target.value })}
+                            max={new Date().toISOString().split('T')[0]}
+                            className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Date when the review was conducted</p>
                     </div>
 
                     {/* Rating */}

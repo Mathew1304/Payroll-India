@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { secureLog } from '../utils/secureLogger';
 
 interface ErrorLogData {
     errorType?: string;
@@ -13,20 +13,25 @@ export async function logErrorToSupabase(error: Error | string, data?: Partial<E
     try {
         // DISABLED: Supabase error logging to prevent 404 errors
         // The log_error RPC function doesn't exist in the database
-        // Only log to console for now
+        // Only log to console for now (using secure logger)
 
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
 
+        // Use secure logger - automatically sanitizes sensitive data
         if (import.meta.env.DEV) {
-            console.group('%c Error Log', 'color: orange; font-weight: bold');
-            console.error('Message:', errorMessage);
-            if (errorStack) console.error('Stack:', errorStack);
-            if (data?.errorType) console.error('Type:', data.errorType);
-            if (data?.severity) console.error('Severity:', data.severity);
-            if (data?.pageUrl) console.error('Page:', data.pageUrl);
-            if (data?.metadata) console.error('Metadata:', data.metadata);
-            console.groupEnd();
+            secureLog.group('Error Log', false);
+            secureLog.error('Message:', errorMessage);
+            if (errorStack) secureLog.error('Stack:', errorStack);
+            if (data?.errorType) secureLog.error('Type:', data.errorType);
+            if (data?.severity) secureLog.error('Severity:', data.severity);
+            if (data?.pageUrl) secureLog.error('Page:', data.pageUrl);
+            // Metadata is automatically sanitized by secureLog
+            if (data?.metadata) secureLog.error('Metadata:', data.metadata);
+            secureLog.groupEnd();
+        } else {
+            // In production, only log sanitized error message
+            secureLog.error('Application Error:', errorMessage);
         }
 
         // TODO: Create the log_error RPC function in Supabase if database logging is needed
@@ -82,7 +87,7 @@ export async function logErrorToSupabase(error: Error | string, data?: Partial<E
                     userName = user.user_metadata.full_name;
                 }
             } catch (e) {
-                console.warn('Failed to fetch context for error log', e);
+                secureLog.warn('Failed to fetch context for error log', e);
             }
         }
 
@@ -119,13 +124,12 @@ export async function logErrorToSupabase(error: Error | string, data?: Partial<E
             throw new Error(`RPC failed: ${rpcRes.status} ${rpcRes.statusText}`);
         }
 
-        console.log('%c Error logged to database successfully', 'color: green; font-weight: bold');
+        secureLog.success('Error logged to database successfully');
         */
     } catch (logError) {
         // Silently fail - don't create more errors
-        if (import.meta.env.DEV) {
-            console.warn('Error logger failed:', logError);
-        }
+        // Use secure logger even for logger failures
+        secureLog.warn('Error logger failed:', logError);
     }
 }
 

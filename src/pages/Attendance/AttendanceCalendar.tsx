@@ -69,24 +69,54 @@ export function AttendanceCalendar({ employee_id, isAdmin = false, onNavigate }:
     });
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(employee_id || (isAdmin ? 'all' : membership?.employee_id || ''));
+    const [localOrgId, setLocalOrgId] = useState<string | null>(null);
+
+    // Fallback: If organization context is missing, use localOrgId recovered from employee profile
+    const effectiveOrgId = organization?.id || localOrgId;
+    const { user, profile } = useAuth(); // getting profile to help find employee_id if needed
     const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
     const [selectedDateDetails, setSelectedDateDetails] = useState<{
         date: string;
         people: { name: string; type: 'WFH' | 'Leave'; details?: string }[];
     } | null>(null);
 
+    // Recover Organization ID if missing
     useEffect(() => {
-        if (isAdmin && organization?.id) {
+        const recoverOrg = async () => {
+            if (!organization?.id && !localOrgId && (profile?.employee_id || membership?.employee_id)) {
+                const empId = profile?.employee_id || membership?.employee_id;
+                if (!empId) return;
+
+                try {
+                    const { data } = await supabase
+                        .from('employees')
+                        .select('organization_id')
+                        .eq('id', empId)
+                        .maybeSingle();
+
+                    if (data?.organization_id) {
+                        setLocalOrgId(data.organization_id);
+                    }
+                } catch (e) {
+                    console.error("Error recovering Org ID", e);
+                }
+            }
+        };
+        recoverOrg();
+    }, [organization?.id, localOrgId, profile, membership]);
+
+    useEffect(() => {
+        if (isAdmin && effectiveOrgId) {
             loadEmployees();
         }
-    }, [isAdmin, organization?.id]);
+    }, [isAdmin, effectiveOrgId]);
 
     const loadEmployees = async () => {
         try {
             const { data } = await supabase
                 .from('employees')
                 .select('id, first_name, last_name, employee_code')
-                .eq('organization_id', organization!.id)
+                .eq('organization_id', effectiveOrgId!)
                 .eq('is_active', true)
                 .order('first_name');
             const typedData = data as Employee[] | null;
@@ -99,10 +129,14 @@ export function AttendanceCalendar({ employee_id, isAdmin = false, onNavigate }:
     const targetEmployeeId = selectedEmployeeId;
 
     useEffect(() => {
-        if (organization?.id) {
+        if (effectiveOrgId) {
             loadMonthData();
+        } else {
+            // Safety timeout or stop loading if we truly have no org
+            const t = setTimeout(() => setLoading(false), 3000);
+            return () => clearTimeout(t);
         }
-    }, [currentDate, targetEmployeeId, organization?.id]);
+    }, [currentDate, targetEmployeeId, effectiveOrgId]);
 
     const loadMonthData = async () => {
         setLoading(true);
@@ -116,7 +150,7 @@ export function AttendanceCalendar({ employee_id, isAdmin = false, onNavigate }:
             const { data: typesData, error: typesError } = await supabase
                 .from('leave_types')
                 .select('*')
-                .eq('organization_id', organization!.id);
+                .eq('organization_id', effectiveOrgId!);
 
             if (typesError) console.error('Error fetching leave types:', typesError);
             const currentTypes = (typesData || []) as LeaveType[];
@@ -127,7 +161,7 @@ export function AttendanceCalendar({ employee_id, isAdmin = false, onNavigate }:
             let attendanceQuery = supabase
                 .from('attendance_records')
                 .select('*, employees(first_name, last_name)')
-                .eq('organization_id', organization!.id)
+                .eq('organization_id', effectiveOrgId!)
                 .gte('date', startStr)
                 .lte('date', endStr);
 

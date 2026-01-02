@@ -1,34 +1,86 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export function ChangePasswordPage() {
+    const { user } = useAuth();
+    const [currentPassword, setCurrentPassword] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const [userEmail, setUserEmail] = useState('');
+
+    useEffect(() => {
+        if (user?.email) {
+            setUserEmail(user.email);
+        }
+    }, [user]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
+        // Validate current password
+        if (!currentPassword) {
+            setError('Please enter your current password');
+            return;
+        }
+
+        // Validate new password
         if (password.length < 6) {
-            setError('Password must be at least 6 characters long');
+            setError('New password must be at least 6 characters long');
             return;
         }
 
         if (password !== confirmPassword) {
-            setError('Passwords do not match');
+            setError('New passwords do not match');
+            return;
+        }
+
+        if (currentPassword === password) {
+            setError('New password must be different from current password');
             return;
         }
 
         setLoading(true);
 
         try {
-            // 1. Update Password
+            // 1. Verify current password by attempting to sign in
+            // We'll create a new client instance for verification to avoid affecting current session
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+            
+            if (!supabaseUrl || !supabaseAnonKey) {
+                throw new Error('Supabase configuration is missing');
+            }
+
+            const verifyClient = createClient(supabaseUrl, supabaseAnonKey, {
+                auth: {
+                    persistSession: false, // Don't persist this verification session
+                    autoRefreshToken: false
+                }
+            });
+
+            const { error: verifyError } = await verifyClient.auth.signInWithPassword({
+                email: userEmail,
+                password: currentPassword
+            });
+
+            if (verifyError) {
+                throw new Error('Current password is incorrect');
+            }
+
+            // Sign out the verification client to clean up (we don't need that session)
+            await verifyClient.auth.signOut();
+
+            // 2. Update Password using the original client (which has the current session)
             const { error: updateError } = await supabase.auth.updateUser({
                 password: password,
                 data: { force_password_change: false } // Clear the flag
@@ -60,7 +112,7 @@ export function ChangePasswordPage() {
                     </div>
                     <h2 className="text-2xl font-bold text-white">Change Password</h2>
                     <p className="text-blue-100 mt-2">
-                        Please set a new password to continue to your dashboard.
+                        Please enter your current password and set a new password to continue.
                     </p>
                 </div>
 
@@ -84,6 +136,30 @@ export function ChangePasswordPage() {
 
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Current Password
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type={showCurrentPassword ? 'text' : 'password'}
+                                        required
+                                        value={currentPassword}
+                                        onChange={(e) => setCurrentPassword(e.target.value)}
+                                        className="w-full pl-4 pr-12 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                                        placeholder="Enter your current password"
+                                        autoComplete="current-password"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    >
+                                        {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
                                     New Password
                                 </label>
                                 <div className="relative">
@@ -94,6 +170,7 @@ export function ChangePasswordPage() {
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="w-full pl-4 pr-12 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                                         placeholder="Enter new password"
+                                        autoComplete="new-password"
                                     />
                                     <button
                                         type="button"
@@ -117,6 +194,7 @@ export function ChangePasswordPage() {
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         className="w-full pl-4 pr-12 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                                         placeholder="Confirm new password"
+                                        autoComplete="new-password"
                                     />
                                     <button
                                         type="button"

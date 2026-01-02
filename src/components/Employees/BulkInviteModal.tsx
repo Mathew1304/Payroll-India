@@ -138,7 +138,7 @@ export function BulkInviteModal({ onClose, onSuccess }: BulkInviteModalProps) {
               invitation_code: inviteCodeData,
               onboarding_token: onboardingToken,
               invitation_type: 'full_onboarding',
-              invited_by: user!.id
+              created_by: user!.id
             });
 
           await supabase

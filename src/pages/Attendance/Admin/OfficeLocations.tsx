@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import {
     MapPin,
     Plus,
-    Search,
     Edit2,
     Trash2,
     Navigation,
-    Check,
     X,
-    Loader2
+    Loader2,
+    AlertCircle,
+    CheckCircle,
+    AlertTriangle,
+    Info
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -32,6 +34,19 @@ export function OfficeLocations() {
     const [showModal, setShowModal] = useState(false);
     const [editingLocation, setEditingLocation] = useState<OfficeLocation | null>(null);
     const [isLocating, setIsLocating] = useState(false);
+
+    // Alert Modal State
+    const [alertModal, setAlertModal] = useState<{
+        show: boolean;
+        title: string;
+        message: string;
+        type: 'error' | 'success' | 'warning' | 'info';
+    }>({
+        show: false,
+        title: '',
+        message: '',
+        type: 'info'
+    });
 
     // Form State
     const [formData, setFormData] = useState<Partial<OfficeLocation>>({
@@ -69,10 +84,14 @@ export function OfficeLocations() {
         }
     };
 
+    const showAlert = (title: string, message: string, type: 'error' | 'success' | 'warning' | 'info') => {
+        setAlertModal({ show: true, title, message, type });
+    };
+
     const handleSave = async () => {
         try {
             if (!formData.name || !formData.latitude || !formData.longitude) {
-                alert('Please fill in all required fields');
+                showAlert('Missing Information', 'Please fill in all required fields (Name, Latitude, and Longitude).', 'warning');
                 return;
             }
 
@@ -107,9 +126,10 @@ export function OfficeLocations() {
                 timezone: 'UTC'
             });
             loadLocations();
+            showAlert('Success', `Office location ${editingLocation ? 'updated' : 'created'} successfully!`, 'success');
         } catch (err) {
             console.error('Error saving location:', err);
-            alert('Failed to save location');
+            showAlert('Error', 'Failed to save location. Please try again.', 'error');
         }
     };
 
@@ -150,43 +170,75 @@ export function OfficeLocations() {
     };
 
     const getCurrentLocation = () => {
-        if (navigator.geolocation) {
-            setIsLocating(true);
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    setFormData(prev => ({
-                        ...prev,
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude
-                    }));
-                    setIsLocating(false);
-                },
-                (error) => {
-                    console.error('Error getting location:', error);
-                    let errorMessage = 'Could not get current location.';
-                    switch (error.code) {
-                        case error.PERMISSION_DENIED:
-                            errorMessage = 'Location permission denied. Please enable location access.';
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            errorMessage = 'Location information is unavailable.';
-                            break;
-                        case error.TIMEOUT:
-                            errorMessage = 'The request to get user location timed out.';
-                            break;
-                    }
-                    alert(errorMessage);
-                    setIsLocating(false);
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
+        // Check if the page is served over HTTPS or localhost
+        const isSecureContext = window.isSecureContext;
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        if (!isSecureContext && !isLocalhost) {
+            showAlert(
+                '⚠️ HTTPS Required',
+                'The browser blocks location access on non-secure connections.\n\nPlease either:\n• Access via https:// URL\n• Use localhost for development\n• Manually enter coordinates below',
+                'warning'
             );
-        } else {
-            alert('Geolocation is not supported by this browser.');
+            return;
         }
+
+        if (!navigator.geolocation) {
+            showAlert(
+                '❌ Geolocation Not Supported',
+                'Your browser doesn\'t support geolocation.\n\nPlease manually enter the latitude and longitude.',
+                'error'
+            );
+            return;
+        }
+
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setFormData(prev => ({
+                    ...prev,
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                }));
+                setIsLocating(false);
+                showAlert(
+                    '✅ Location Captured',
+                    `Latitude: ${position.coords.latitude.toFixed(6)}\nLongitude: ${position.coords.longitude.toFixed(6)}`,
+                    'success'
+                );
+            },
+            (error) => {
+                console.error('Error getting location:', error);
+                let title = '❌ Could not get current location';
+                let message = '';
+
+                switch (error.code) {
+                    case error.PERMISSION_DENIED:
+                        title = '🚫 Location Permission Denied';
+                        message = 'How to fix:\n\n• Click the location icon in your browser\'s address bar\n• Allow location access for this site\n• Refresh the page and try again\n\nOr manually enter coordinates below.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        title = '📡 Location Unavailable';
+                        message = 'Possible causes:\n\n• GPS/location services are disabled\n• No GPS signal (try moving near a window)\n• Network location services unavailable\n\nPlease enable location services or manually enter coordinates.';
+                        break;
+                    case error.TIMEOUT:
+                        title = '⏱️ Location Request Timed Out';
+                        message = 'The request timed out after 10 seconds.\n\nTry:\n• Moving to a location with better GPS signal\n• Enabling high-accuracy mode in device settings\n• Manually entering coordinates';
+                        break;
+                    default:
+                        title = '❌ Unknown Error';
+                        message = 'An unknown error occurred.\n\nPlease manually enter the coordinates below.';
+                }
+
+                showAlert(title, message, 'error');
+                setIsLocating(false);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
     };
 
     return (
@@ -355,6 +407,12 @@ export function OfficeLocations() {
                                         )}
                                         {isLocating ? 'Getting Location...' : 'Use Current Location'}
                                     </button>
+                                    <p className="text-xs text-slate-500 mt-2">
+                                        💡 <strong>Tip:</strong> If location access fails, you can find coordinates by:
+                                        <br />• Right-clicking on Google Maps and selecting the coordinates
+                                        <br />• Using your phone's GPS app
+                                        <br />• Searching "[address] coordinates" on Google
+                                    </p>
                                 </div>
 
                                 <div>
@@ -426,6 +484,60 @@ export function OfficeLocations() {
                                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                             >
                                 {editingLocation ? 'Update Location' : 'Create Location'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Alert Modal */}
+            {alertModal.show && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
+                        <div className={`p-6 border-b ${alertModal.type === 'error' ? 'border-red-100 bg-red-50' :
+                                alertModal.type === 'success' ? 'border-green-100 bg-green-50' :
+                                    alertModal.type === 'warning' ? 'border-amber-100 bg-amber-50' :
+                                        'border-blue-100 bg-blue-50'
+                            }`}>
+                            <div className="flex items-start gap-4">
+                                <div className={`flex-shrink-0 ${alertModal.type === 'error' ? 'text-red-600' :
+                                        alertModal.type === 'success' ? 'text-green-600' :
+                                            alertModal.type === 'warning' ? 'text-amber-600' :
+                                                'text-blue-600'
+                                    }`}>
+                                    {alertModal.type === 'error' && <AlertCircle className="h-8 w-8" />}
+                                    {alertModal.type === 'success' && <CheckCircle className="h-8 w-8" />}
+                                    {alertModal.type === 'warning' && <AlertTriangle className="h-8 w-8" />}
+                                    {alertModal.type === 'info' && <Info className="h-8 w-8" />}
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className={`text-lg font-bold ${alertModal.type === 'error' ? 'text-red-900' :
+                                            alertModal.type === 'success' ? 'text-green-900' :
+                                                alertModal.type === 'warning' ? 'text-amber-900' :
+                                                    'text-blue-900'
+                                        }`}>
+                                        {alertModal.title}
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6">
+                            <p className="text-slate-700 whitespace-pre-line leading-relaxed">
+                                {alertModal.message}
+                            </p>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-200 flex justify-end">
+                            <button
+                                onClick={() => setAlertModal({ ...alertModal, show: false })}
+                                className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${alertModal.type === 'error' ? 'bg-red-600 hover:bg-red-700 text-white' :
+                                        alertModal.type === 'success' ? 'bg-green-600 hover:bg-green-700 text-white' :
+                                            alertModal.type === 'warning' ? 'bg-amber-600 hover:bg-amber-700 text-white' :
+                                                'bg-blue-600 hover:bg-blue-700 text-white'
+                                    }`}
+                            >
+                                OK
                             </button>
                         </div>
                     </div>

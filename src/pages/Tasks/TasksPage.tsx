@@ -3,6 +3,7 @@ import { CheckSquare, Plus, X, Send, Clock, Calendar, User, Github, TrendingUp, 
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { SubmitTaskModal } from '../../components/Tasks/SubmitTaskModal';
+import { notifyTaskAssignment } from '../../utils/notificationService';
 
 interface Task {
   id: string;
@@ -81,6 +82,9 @@ export function TasksPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
+  const [localOrgId, setLocalOrgId] = useState<string | null>(null);
+
+  const effectiveOrgId = organization?.id || localOrgId;
 
   const [formData, setFormData] = useState<TaskFormData>({
     title: '',
@@ -101,10 +105,45 @@ export function TasksPage() {
   const isAdmin = profile?.role && ['admin', 'hr', 'manager'].includes(profile.role);
 
   useEffect(() => {
-    if (organization?.id && profile) {
+    const recoverOrg = async () => {
+      // If we already have org context from AuthContext, skip recovery
+      if (organization?.id) return;
+
+      // If we already recovered locally, skip
+      if (localOrgId) return;
+
+      // Try to recover from employee profile
+      const targetEmpId = profile?.employee_id;
+      if (!targetEmpId) return;
+
+      try {
+        const { data } = await supabase
+          .from('employees')
+          .select('organization_id')
+          .eq('id', targetEmpId)
+          .maybeSingle();
+
+        if (data?.organization_id) {
+          setLocalOrgId(data.organization_id);
+        }
+      } catch (e) {
+        console.error("Error recovering Org ID in Tasks", e);
+      }
+    };
+    recoverOrg();
+  }, [organization?.id, localOrgId, profile?.employee_id]);
+
+  useEffect(() => {
+    if (effectiveOrgId && profile) {
       loadData();
+    } else {
+      // Safety timeout
+      const t = setTimeout(() => {
+        if (loading && !effectiveOrgId) setLoading(false);
+      }, 3000);
+      return () => clearTimeout(t);
     }
-  }, [organization?.id, profile]);
+  }, [effectiveOrgId, profile]);
 
   const loadData = async () => {
     try {
@@ -122,33 +161,71 @@ export function TasksPage() {
 
   const loadTasks = async () => {
     try {
+      console.log('[TasksPage] Loading tasks with effectiveOrgId:', effectiveOrgId, 'employee_id:', profile?.employee_id, 'isAdmin:', isAdmin);
+      
+      // Debug: Check user profile organization_id
+      if (user?.id) {
+        const { data: profileCheck } = await supabase
+          .from('user_profiles')
+          .select('organization_id, employee_id, role')
+          .eq('user_id', user.id)
+          .single();
+        console.log('[TasksPage] User profile check:', profileCheck);
+      }
+
       let query = (supabase
         .from('tasks' as any) as any)
         .select(`
           *,
           assigned_employee:employees!assigned_to(id, first_name, last_name, employee_code)
         `)
-        .eq('organization_id', organization?.id || '')
+        .eq('organization_id', effectiveOrgId || '')
         .order('created_at', { ascending: false });
 
       if (!isAdmin && profile?.employee_id) {
+        console.log('[TasksPage] Filtering tasks for employee:', profile.employee_id);
         query = query.eq('assigned_to', profile.employee_id);
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('[TasksPage] Error loading tasks:', error);
+        console.error('[TasksPage] Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+
+      console.log('[TasksPage] Tasks loaded successfully:', data);
+      console.log('[TasksPage] Number of tasks:', data?.length || 0);
+      
+      // Debug: If no tasks, check if any tasks exist for this employee
+      if ((!data || data.length === 0) && !isAdmin && profile?.employee_id) {
+        console.warn('[TasksPage] No tasks found. This could be due to:');
+        console.warn('1. No tasks assigned to this employee');
+        console.warn('2. RLS policy blocking tasks (user_profiles.organization_id mismatch)');
+        console.warn('3. Tasks exist but in different organization');
+        console.warn('Run QUICK_FIX_TASKS_VISIBILITY.sql to diagnose and fix');
+      }
+      
       setTasks(data || []);
     } catch (error) {
-      console.error('Error loading tasks:', error);
+      console.error('[TasksPage] Error loading tasks:', error);
+      setTasks([]); // Set empty array on error to prevent infinite loading
     }
   };
 
   const loadEmployees = async () => {
-    if (!organization?.id) return;
+    if (!effectiveOrgId) return;
     try {
       const { data } = await supabase
         .from('employees')
         .select('id, first_name, last_name, employee_code, company_email, is_active, department_id')
-        .eq('organization_id', organization.id)
+        .eq('organization_id', effectiveOrgId)
         .eq('is_active', true)
         .order('first_name');
       setEmployees(data || []);
@@ -158,12 +235,12 @@ export function TasksPage() {
   };
 
   const loadDepartments = async () => {
-    if (!organization?.id) return;
+    if (!effectiveOrgId) return;
     try {
       const { data } = await supabase
         .from('departments')
         .select('id, name')
-        .eq('organization_id', organization.id)
+        .eq('organization_id', effectiveOrgId)
         .order('name');
       setDepartments(data || []);
     } catch (error) {
@@ -184,10 +261,10 @@ export function TasksPage() {
     }
 
     try {
-      const { error } = await (supabase
+      const { data: taskData, error } = await (supabase
         .from('tasks' as any) as any)
         .insert({
-          organization_id: organization?.id,
+          organization_id: effectiveOrgId,
           title: formData.title,
           description: formData.description,
           task_type: formData.task_type,
@@ -200,9 +277,21 @@ export function TasksPage() {
           github_pr_number: formData.github_pr_number ? parseInt(formData.github_pr_number) : null,
           created_by: user?.id,
           status: 'pending'
-        } as any);
+        } as any)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Send notification to assigned employee
+      if (taskData && effectiveOrgId) {
+        await notifyTaskAssignment(
+          formData.assigned_to,
+          formData.title,
+          taskData.id,
+          effectiveOrgId
+        );
+      }
 
       setAlertModal({
         type: 'success',

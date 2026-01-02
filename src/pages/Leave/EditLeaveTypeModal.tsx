@@ -19,10 +19,13 @@ function EditLeaveTypeModal({ leaveType, onClose, onSuccess }: { leaveType: Leav
 
         setLoading(true);
         try {
+            // Filter out columns that don't exist in the database
+            const { is_carry_forward, max_consecutive_days, ...updateData } = formData;
+            
             // @ts-ignore - leave_types table exists but is not in generated types
             const { error } = await supabase
                 .from('leave_types')
-                .update(formData)
+                .update(updateData)
                 .eq('id', leaveType.id);
 
             if (error) throw error;

@@ -124,7 +124,6 @@ export interface Database {
           contract_duration_months: number | null;
           notice_period_days: number | null;
           pan_number: string | null;
-          pan_expiry: string | null;
           aadhaar_number: string | null;
           uan_number: string | null;
           esi_number: string | null;

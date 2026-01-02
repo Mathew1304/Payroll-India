@@ -219,17 +219,20 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 <span className="text-sm font-medium">{i18n.language === 'en' ? 'EN' : 'العربية'}</span>
               </button> */}
 
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 rounded-xl text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-bg-primary transition-all"
-              >
-                <Bell className="h-5 w-5" />
-                {notificationCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center text-xs text-white font-bold">
-                    {notificationCount > 9 ? '9+' : notificationCount}
-                  </span>
-                )}
-              </button>
+              {/* Only show notifications for employees, not admins */}
+              {profile?.role === 'employee' && (
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 rounded-xl text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-bg-primary transition-all"
+                >
+                  <Bell className="h-5 w-5" />
+                  {notificationCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center text-xs text-white font-bold">
+                      {notificationCount > 9 ? '9+' : notificationCount}
+                    </span>
+                  )}
+                </button>
+              )}
 
               <div className="flex items-center gap-3 border-l border-theme-border pl-4">
                 <div className="text-right">

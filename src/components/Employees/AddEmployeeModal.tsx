@@ -28,14 +28,14 @@ interface AddEmployeeAlertState {
 type TabType = 'personal' | 'employment' | 'family' | 'education' | 'documents' | 'health' | 'professional' | 'salary';
 
 export function AddEmployeeModal({ onClose, onSuccess, departments, designations, branches }: AddEmployeeModalProps) {
-  const { organization } = useAuth();
+  const { organization, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [currentTab, setCurrentTab] = useState<TabType>('personal');
   const [alertModal, setAlertModal] = useState<AddEmployeeAlertState | null>(null);
   const [sendInvitation, setSendInvitation] = useState(true);
   const [invitationType, setInvitationType] = useState<'basic' | 'full_onboarding'>('full_onboarding');
   const [createLogin, setCreateLogin] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(true); // Show password by default so admin can see it
 
   const isQatar = organization?.country === 'Qatar';
   const isSaudi = organization?.country === 'Saudi Arabia';
@@ -252,56 +252,8 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         organization_id: organization.id,
         employee_code: employeeCode, // Auto-generated employee code
 
-        // Remove fields that don't exist in database
-        bank_iban: undefined,
-        bank_ifsc_code: undefined,
-        branch_id: undefined,
+        // All fields now exist in database after migration - no need to exclude any
 
-        // Remove Qatar/Saudi-specific fields that don't exist
-        qatar_id: undefined,
-        qatar_id_expiry: undefined,
-        residence_permit_number: undefined,
-        residence_permit_expiry: undefined,
-        work_permit_number: undefined,
-        work_permit_expiry: undefined,
-        health_card_number: undefined,
-        health_card_expiry: undefined,
-        labor_card_number: undefined,
-        labor_card_expiry: undefined,
-        iqama_number: undefined,
-        iqama_expiry: undefined,
-        muqeem_id: undefined,
-        jawazat_number: undefined,
-        sponsor_name: undefined,
-        sponsor_id: undefined,
-        medical_fitness_certificate: undefined,
-        medical_fitness_expiry: undefined,
-        police_clearance_certificate: undefined,
-        police_clearance_expiry: undefined,
-        visa_number: undefined,
-        visa_expiry: undefined,
-        visa_issue_date: undefined,
-        visa_sponsor: undefined,
-        kafala_sponsor_name: undefined,
-        kafala_sponsor_id: undefined,
-        medical_insurance_number: undefined,
-        medical_insurance_provider: undefined,
-        medical_insurance_expiry: undefined,
-        absher_id: undefined,
-
-        // Remove other non-existent fields
-        city: undefined,
-        state: undefined,
-        pincode: undefined,
-        alternate_number: undefined,
-        blood_group: undefined,
-        religion: undefined,
-        place_of_birth: undefined,
-        work_location: undefined,
-        job_grade: undefined,
-        job_level: undefined,
-        accommodation_address: undefined,
-        accommodation_type: undefined,
 
         // Parse numeric fields - ensure empty strings become null
         ctc_annual: formData.ctc_annual && formData.ctc_annual.trim() !== '' ? parseFloat(formData.ctc_annual) : null,
@@ -321,6 +273,7 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         food_allowance: formData.food_allowance && formData.food_allowance.trim() !== '' ? parseFloat(formData.food_allowance) : null,
         department_id: formData.department_id || null,
         designation_id: formData.designation_id || null,
+        branch_id: formData.branch_id || null,
         gender: formData.gender as Gender,
         marital_status: formData.marital_status as MaritalStatus,
         employment_status: formData.employment_status as EmploymentStatus,
@@ -353,7 +306,20 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         insurance_expiry: formData.insurance_expiry || null,
         confirmation_date: (formData as any).confirmation_date || null,
         resignation_date: (formData as any).resignation_date || null,
-        last_working_date: (formData as any).last_working_date || null
+        last_working_date: (formData as any).last_working_date || null,
+
+        // Qatar/Saudi-specific date fields
+        qatar_id_expiry: formData.qatar_id_expiry || null,
+        residence_permit_expiry: formData.residence_permit_expiry || null,
+        work_permit_expiry: formData.work_permit_expiry || null,
+        health_card_expiry: formData.health_card_expiry || null,
+        labor_card_expiry: formData.labor_card_expiry || null,
+        medical_fitness_expiry: formData.medical_fitness_expiry || null,
+        police_clearance_expiry: formData.police_clearance_expiry || null,
+        visa_expiry: formData.visa_expiry || null,
+        visa_issue_date: formData.visa_issue_date || null,
+        iqama_expiry: formData.iqama_expiry || null,
+        medical_insurance_expiry: formData.medical_insurance_expiry || null
       };
 
       const { data: employeeData, error: employeeError } = await supabase
@@ -400,11 +366,21 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
       }
 
       let generatedPassword = '';
+      let emailSent = false;
+      let emailError = null;
+
       if (createLogin) {
         // Generate random password: OrgName + Random 4 digits
         const orgPrefix = organization.name.substring(0, 3).toUpperCase();
         const randomDigits = Math.floor(1000 + Math.random() * 9000);
         generatedPassword = `${orgPrefix}@${randomDigits}`;
+
+        // Get session and call function
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+          throw new Error('No active session found. Please log in again.');
+        }
 
         const { data: functionData, error: functionError } = await supabase.functions.invoke('create-employee-user', {
           body: {
@@ -418,38 +394,131 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         });
 
         if (functionError) {
-          console.error('Edge Function error details:', functionError);
-          console.error('Edge Function response data:', functionData);
+          console.error('Edge Function error:', functionError);
 
-          // Try to get more details with a manual fetch
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const response = await fetch(`${supabase.supabaseUrl}/functions/v1/create-employee-user`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session?.access_token}`,
-              },
-              body: JSON.stringify({
-                email: formData.company_email,
-                password: generatedPassword,
-                organization_id: organization.id,
-                employee_id: employeeData.id,
-                first_name: formData.first_name,
-                last_name: formData.last_name
-              })
+          if (functionError.status === 401 || (functionError as any)?.message?.includes('JWT')) {
+            setAlertModal({
+              type: 'error',
+              title: 'Authentication Error',
+              message: 'Your session token is being rejected by the server (Invalid JWT). This usually requires a hard refresh (Ctrl+F5) or logging out and back in. If the issue persists, the project URL/Key might be mismatched.'
+            });
+          } else {
+            setAlertModal({
+              type: 'error',
+              title: 'Login Creation Failed',
+              message: `The employee record was created, but login setup failed: ${functionError.message}`
+            });
+          }
+          setLoading(false);
+          return;
+        }
+
+        if (functionData) {
+          console.log('Edge Function success:', functionData);
+        }
+
+        // Create onboarding invitation for the employee
+        let onboardingToken = null;
+        try {
+          // Generate invitation code (required by schema)
+          const { data: inviteCodeData, error: inviteCodeError } = await supabase.rpc('generate_invitation_code');
+          if (inviteCodeError) throw inviteCodeError;
+          
+          const { data: tokenData } = await supabase.rpc('generate_onboarding_token');
+          onboardingToken = tokenData || crypto.randomUUID();
+
+          const { error: inviteInsertError } = await supabase
+            .from('employee_invitations')
+            .insert({
+              organization_id: organization.id,
+              employee_id: employeeData.id,
+              email: formData.company_email,
+              invitation_code: inviteCodeData, // Required by schema
+              onboarding_token: onboardingToken,
+              invitation_type: 'full_onboarding',
+              created_by: user?.id || null
             });
 
-            const errorDetails = await response.json();
-            console.error('Detailed error from Edge Function:', errorDetails);
-          } catch (fetchError) {
-            console.error('Could not fetch detailed error:', fetchError);
+          if (inviteInsertError) {
+            console.warn('Failed to create onboarding invitation:', inviteInsertError);
+            // Continue anyway - email will be sent without onboarding link
+          } else {
+            // Try to update invitation_sent flag (column may not exist in all schemas)
+            try {
+              const { error: updateError } = await supabase
+                .from('employees')
+                .update({ invitation_sent: true })
+                .eq('id', employeeData.id);
+              
+              if (updateError) {
+                console.warn('Could not update invitation_sent flag (column may not exist):', updateError);
+                // Continue anyway - this is not critical
+              }
+            } catch (updateErr) {
+              console.warn('Error updating invitation_sent flag:', updateErr);
+              // Continue anyway - this is not critical
+            }
           }
+        } catch (inviteErr: any) {
+          console.warn('Error creating onboarding invitation:', inviteErr);
+          // Continue anyway - email will be sent without onboarding link
+        }
 
-          // Don't throw - allow employee creation to succeed even if email fails
-          // We'll show a warning to the user instead
-        } else {
-          console.log('Edge Function success:', functionData);
+        // Send email with credentials and onboarding link
+        try {
+          const { data: emailData, error: emailErrorResponse } = await supabase.functions.invoke('send-employee-credentials', {
+            body: {
+              email: formData.company_email,
+              password: generatedPassword,
+              first_name: formData.first_name,
+              last_name: formData.last_name,
+              organization_name: organization.name,
+              login_url: window.location.origin,
+              onboarding_token: onboardingToken
+            }
+          });
+
+          if (emailErrorResponse) {
+            console.error('Email sending error:', emailErrorResponse);
+            // Check if it's a 401 (function not deployed) or other error
+            const is401 = emailErrorResponse.status === 401 || 
+                         (emailErrorResponse as any)?.status === 401 ||
+                         emailErrorResponse.message?.includes('401') ||
+                         emailErrorResponse.message?.includes('Unauthorized');
+            
+            if (is401) {
+              emailError = { 
+                message: 'Email function not deployed. The employee was created successfully. To enable automatic emails, deploy the send-employee-credentials edge function. See DEPLOY_SEND_EMAIL_FUNCTION.md for instructions.' 
+              };
+            } else {
+              emailError = emailErrorResponse;
+            }
+            emailSent = false;
+          } else if (emailData?.success) {
+            emailSent = true;
+          } else {
+            // Email service not configured, but this is okay - we'll still show credentials to admin
+            console.warn('Email service not configured:', emailData?.message);
+            emailSent = false;
+            emailError = emailData?.message ? { message: emailData.message } : null;
+          }
+        } catch (emailErr: any) {
+          console.error('Error sending email:', emailErr);
+          // Check if it's a 401 error
+          const is401 = emailErr.status === 401 || 
+                       emailErr.statusCode === 401 ||
+                       emailErr.message?.includes('401') || 
+                       emailErr.message?.includes('Unauthorized') ||
+                       emailErr.message?.includes('non-2xx status code');
+          
+          if (is401) {
+            emailError = { 
+              message: 'Email function not deployed. The employee was created successfully. To enable automatic emails, deploy the send-employee-credentials edge function. See DEPLOY_SEND_EMAIL_FUNCTION.md for instructions.' 
+            };
+          } else {
+            emailError = emailErr;
+          }
+          emailSent = false;
         }
       }
 
@@ -463,8 +532,6 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
         const { data: tokenData } = await supabase.rpc('generate_onboarding_token');
         const onboardingToken = tokenData || crypto.randomUUID();
 
-        const { data: user } = await supabase.auth.getUser();
-
         const { error: insertError } = await supabase
           .from('employee_invitations')
           .insert({
@@ -474,15 +541,26 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
             invitation_code: invitationCode,
             onboarding_token: onboardingToken,
             invitation_type: invitationType,
-            invited_by: user?.user?.id
+            created_by: user?.id || null
           });
 
         if (insertError) throw insertError;
 
-        await supabase
-          .from('employees')
-          .update({ invitation_sent: true })
-          .eq('id', employeeData.id);
+        // Try to update invitation_sent flag (column may not exist in all schemas)
+        try {
+          const { error: updateError } = await supabase
+            .from('employees')
+            .update({ invitation_sent: true })
+            .eq('id', employeeData.id);
+          
+          if (updateError) {
+            console.warn('Could not update invitation_sent flag (column may not exist):', updateError);
+            // Continue anyway - this is not critical
+          }
+        } catch (updateErr) {
+          console.warn('Error updating invitation_sent flag:', updateErr);
+          // Continue anyway - this is not critical
+        }
 
         const invitationLink = invitationType === 'full_onboarding'
           ? `${window.location.origin}/onboarding?token=${onboardingToken}`
@@ -497,10 +575,13 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
           invitationLink: invitationLink
         });
       } else if (createLogin) {
+        // Show credentials to admin
         setAlertModal({
           type: 'success',
-          title: 'Employee & Login Created!',
-          message: `Employee ${formData.first_name} has been created with login access. Please share these credentials securely:`,
+          title: 'Employee Created Successfully!',
+          message: emailSent 
+            ? `Employee ${formData.first_name} has been created with login access. An email with credentials has been sent to ${formData.company_email}. The credentials are also shown below for your records.`
+            : `Employee ${formData.first_name} has been created with login access. ${emailError?.message ? `Note: Email sending failed (${emailError.message}). ` : ''}Please share the credentials below with the employee manually.`,
           credentials: {
             email: formData.company_email,
             password: generatedPassword
@@ -618,12 +699,14 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
                   <div>
                     <p className="text-xs text-slate-600 mb-1 font-semibold">Password:</p>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-slate-900 font-mono font-bold">
+                      {/* Always show password initially or allow toggle */}
+                      <p className="text-lg text-slate-900 font-mono font-bold tracking-wider">
                         {showPassword ? alertModal.credentials.password : '••••••••'}
                       </p>
                       <button
                         onClick={() => setShowPassword(!showPassword)}
                         className="p-1 hover:bg-slate-200 rounded transition-colors"
+                        title={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4 text-slate-500" /> : <Eye className="h-4 w-4 text-slate-500" />}
                       </button>
@@ -631,6 +714,23 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
                   </div>
                   <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
                     ⚠️ Copy these credentials now. The password will not be shown again.
+                  </div>
+
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={copyCredentials}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copy Credentials
+                    </button>
+                    <a
+                      href={`mailto:${alertModal.credentials.email}?subject=Your Login Credentials&body=Here are your login details required to access the employee portal:%0D%0A%0D%0AEmail: ${alertModal.credentials.email}%0D%0APassword: ${alertModal.credentials.password}%0D%0A%0D%0APlease login and change your password immediately.`}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                    >
+                      <Mail className="h-4 w-4" />
+                      Send via Email App
+                    </a>
                   </div>
                 </div>
               )}
@@ -1044,7 +1144,7 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
                     >
                       <option value="">Select Designation</option>
                       {designations.map(desig => (
-                        <option key={desig.id} value={desig.id}>{desig.title}</option>
+                        <option key={desig.id} value={desig.id}>{desig.name}</option>
                       ))}
                     </select>
                   </div>

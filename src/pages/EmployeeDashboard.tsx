@@ -39,14 +39,19 @@ export function EmployeeDashboard({ onNavigate }: EmployeeDashboardProps) {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       // Fetch today's attendance
-      const { data: todayData } = await supabase
+      const { data: todayData, error: todayError } = await supabase
         .from('attendance_records')
         .select('*')
         .eq('employee_id', profile.employee_id)
         .eq('date', today)
-        .single();
+        .maybeSingle();
 
-      setTodayAttendance(todayData);
+      // Only set if data exists, otherwise set to null
+      if (todayError && todayError.code !== 'PGRST116') {
+        // PGRST116 means no rows found, which is fine - just means no attendance today
+        console.error('Error fetching today attendance:', todayError);
+      }
+      setTodayAttendance(todayData || null);
 
       // Fetch last 7 days attendance
       const { data: recentData } = await supabase

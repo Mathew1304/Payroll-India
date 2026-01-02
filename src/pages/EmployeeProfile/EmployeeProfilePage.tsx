@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { User, Briefcase, DollarSign, FileText, Mail, Phone, MapPin, Calendar, Building, Download, Eye, Edit, Save, X, Lock, Camera, CheckCircle, AlertCircle, Clock, TrendingUp, Calendar as CalendarIcon, Award, Heart, GraduationCap, Briefcase as BriefcaseIcon, Languages, Shield, Link as LinkIcon, Users as UsersIcon, AlertTriangle, FileCheck, CreditCard, BookOpen, Home, Plane, Stethoscope, Car, Utensils } from 'lucide-react';
+import { User, Briefcase, DollarSign, FileText, Mail, Phone, MapPin, Calendar, Building, Download, Eye, Edit, Save, X, Lock, Camera, CheckCircle, AlertCircle, Clock, TrendingUp, Calendar as CalendarIcon, Award, Heart, GraduationCap, Briefcase as BriefcaseIcon, Languages, Shield, Link as LinkIcon, Users, Users as UsersIcon, AlertTriangle, FileCheck, CreditCard, BookOpen, Home, Plane, Stethoscope, Car, Utensils, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { PayrollHistoryTab } from '../../components/Payroll/PayrollHistoryTab';
@@ -65,7 +65,7 @@ export function EmployeeProfilePage() {
     newPassword: '',
     confirmPassword: ''
   });
-  const [activeTab, setActiveTab] = useState<'overview' | 'personal' | 'professional' | 'documents' | 'payroll'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'personal' | 'organization' | 'professional' | 'documents' | 'payroll'>('overview');
 
   const country = organization?.country || 'India';
 
@@ -370,7 +370,7 @@ export function EmployeeProfilePage() {
         // Country Specific Fields
         if (country === 'India') {
           updates.pan_number = editFormData.pan_number || null;
-          updates.pan_expiry = editFormData.pan_expiry || null;
+          // Note: PAN doesn't have expiry date - it's a lifetime identifier
           updates.aadhaar_number = editFormData.aadhaar_number || null;
           updates.uan_number = editFormData.uan_number || null;
           updates.esi_number = editFormData.esi_number || null;
@@ -718,15 +718,6 @@ export function EmployeeProfilePage() {
           </div>
         </div>
 
-        {employee && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <MiniStatCard icon={Clock} label="Present Days" value={attendanceStats.totalPresent} color="emerald" />
-            <MiniStatCard icon={CalendarIcon} label="Leaves Taken" value={leaveStats.totalTaken} color="blue" />
-            <MiniStatCard icon={TrendingUp} label="Late Arrivals" value={attendanceStats.totalLate} color="amber" />
-            <MiniStatCard icon={Award} label="Leave Balance" value={leaveStats.totalAvailable} color="violet" />
-          </div>
-        )}
-
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6">
             <div className="flex items-center gap-6">
@@ -763,7 +754,7 @@ export function EmployeeProfilePage() {
 
           <div className="border-b border-slate-200">
             <div className="flex gap-2 px-6 overflow-x-auto">
-              {(isAdmin ? ['overview', 'personal'] : ['overview', 'personal', 'professional', 'documents', 'payroll']).map((tab) => (
+              {(isAdmin ? ['overview', 'personal', 'organization'] : ['overview', 'personal', 'organization', 'professional', 'documents', 'payroll']).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab as any)}
@@ -858,6 +849,10 @@ export function EmployeeProfilePage() {
                     editFormData={editFormData}
                     handleEditChange={handleEditChange}
                   />
+                )}
+
+                {activeTab === 'organization' && (
+                  <OrganizationTab />
                 )}
 
                 {activeTab === 'professional' && (
@@ -2272,6 +2267,272 @@ function EditableField({ icon: Icon, label, value, onChange, type = 'text' }: { 
           onChange={(e) => onChange(e.target.value)}
           className="w-full px-3 py-2 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
         />
+      </div>
+    </div>
+  );
+}
+
+function OrganizationTab() {
+  const { organization } = useAuth();
+  const [orgData, setOrgData] = useState<any>(null);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    loadOrganizationData();
+  }, [organization?.id]);
+
+  const toggleDepartment = (deptId: string) => {
+    const newExpanded = new Set(expandedDepartments);
+    if (newExpanded.has(deptId)) {
+      newExpanded.delete(deptId);
+    } else {
+      newExpanded.add(deptId);
+    }
+    setExpandedDepartments(newExpanded);
+  };
+
+  const loadOrganizationData = async () => {
+    if (!organization?.id) return;
+
+    try {
+      // Load departments
+      const { data: deptData, error: deptError } = await supabase
+        .from('departments')
+        .select('id, name, code, description')
+        .eq('organization_id', organization.id)
+        .eq('is_active', true)
+        .order('name');
+
+      if (deptError) {
+        console.error('Error loading departments:', deptError);
+      }
+
+      // Load all employees (without nested joins)
+      const { data: empData, error: empError } = await supabase
+        .from('employees')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          employee_code,
+          department_id,
+          designation_id,
+          reporting_manager_id
+        `)
+        .eq('organization_id', organization.id)
+        .eq('is_active', true)
+        .order('first_name');
+
+      if (empError) {
+        console.error('Error loading employees:', empError);
+      }
+
+      // Fetch designations separately
+      let employeesWithDetails = empData || [];
+      if (empData && empData.length > 0) {
+        const designationIds = [...new Set(empData.map(e => e.designation_id).filter(Boolean))];
+        const { data: designationsData } = await supabase
+          .from('designations')
+          .select('id, name')
+          .in('id', designationIds);
+
+        const designationsMap = new Map(designationsData?.map(d => [d.id, d.name]));
+
+        employeesWithDetails = empData.map(emp => ({
+          ...emp,
+          designations: emp.designation_id ? { name: designationsMap.get(emp.designation_id) || 'N/A' } : null
+        }));
+      }
+
+      console.log('Organization Tab - Loaded Departments:', deptData);
+      console.log('Organization Tab - Loaded Employees:', employeesWithDetails);
+
+      setDepartments(deptData || []);
+      setEmployees(employeesWithDetails);
+      setOrgData(organization);
+    } catch (error) {
+      console.error('Error loading organization data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getEmployeesByDepartment = (deptId: string) => {
+    return employees.filter(emp => emp.department_id === deptId);
+  };
+
+  const getEmployeesWithoutDepartment = () => {
+    return employees.filter(emp => !emp.department_id);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Organization Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
+        <div className="flex items-center gap-3 mb-2">
+          <Building className="h-8 w-8" />
+          <h2 className="text-2xl font-bold">{orgData?.name}</h2>
+        </div>
+        <p className="text-blue-100">
+          {orgData?.country} • {employees.length} Employees • {departments.length} Departments
+        </p>
+      </div>
+
+      {/* Organization Tree */}
+      <div className="space-y-4">
+        {departments.map((dept) => {
+          const deptEmployees = getEmployeesByDepartment(dept.id);
+          const isExpanded = expandedDepartments.has(dept.id);
+          
+          return (
+            <div key={dept.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              {/* Department Header - Clickable */}
+              <button
+                onClick={() => toggleDepartment(dept.id)}
+                className="w-full bg-slate-50 px-6 py-4 border-b border-slate-200 hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Building className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="font-bold text-slate-900">{dept.name}</h3>
+                      {dept.code && (
+                        <p className="text-xs text-slate-500">Code: {dept.code}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 rounded-full">
+                      <Users className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-semibold text-blue-700">
+                        {deptEmployees.length}
+                      </span>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronUp className="h-5 w-5 text-slate-600" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-slate-600" />
+                    )}
+                  </div>
+                </div>
+                {dept.description && (
+                  <p className="text-sm text-slate-600 mt-2 text-left">{dept.description}</p>
+                )}
+              </button>
+
+              {/* Department Employees - Collapsible */}
+              {isExpanded && deptEmployees.length > 0 && (
+                <div className="p-6 bg-white">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {deptEmployees.map((emp) => (
+                      <div
+                        key={emp.id}
+                        className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all cursor-pointer"
+                      >
+                        <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                          {emp.first_name[0]}{emp.last_name[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-slate-900 text-sm truncate">
+                            {emp.first_name} {emp.last_name}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {emp.designations?.name || 'No designation'}
+                          </p>
+                          <p className="text-xs text-slate-400">{emp.employee_code}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Employees without department */}
+        {getEmployeesWithoutDepartment().length > 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <button
+              onClick={() => toggleDepartment('unassigned')}
+              className="w-full bg-amber-50 px-6 py-4 border-b border-amber-200 hover:bg-amber-100 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <Users className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-slate-900">Unassigned Employees</h3>
+                    <p className="text-xs text-slate-500">No department assigned</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 rounded-full">
+                    <Users className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-semibold text-amber-700">
+                      {getEmployeesWithoutDepartment().length}
+                    </span>
+                  </div>
+                  {expandedDepartments.has('unassigned') ? (
+                    <ChevronUp className="h-5 w-5 text-slate-600" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-slate-600" />
+                  )}
+                </div>
+              </div>
+            </button>
+
+            {expandedDepartments.has('unassigned') && (
+              <div className="p-6 bg-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {getEmployeesWithoutDepartment().map((emp) => (
+                    <div
+                      key={emp.id}
+                      className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition-all cursor-pointer"
+                    >
+                      <div className="h-10 w-10 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {emp.first_name[0]}{emp.last_name[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-900 text-sm truncate">
+                          {emp.first_name} {emp.last_name}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {emp.designations?.name || 'No designation'}
+                        </p>
+                        <p className="text-xs text-slate-400">{emp.employee_code}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {departments.length === 0 && employees.length === 0 && (
+          <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
+            <Building className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Organization Data</h3>
+            <p className="text-slate-600">
+              No departments or employees found in your organization.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

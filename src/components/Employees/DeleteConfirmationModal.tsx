@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, X, UserX, Trash2 } from 'lucide-react';
+import { AlertTriangle, X, UserX, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface DeleteConfirmationModalProps {
@@ -13,9 +13,16 @@ interface DeleteConfirmationModalProps {
   onSuccess: () => void;
 }
 
+interface AlertState {
+  type: 'success' | 'error';
+  title: string;
+  message: string;
+}
+
 export function DeleteConfirmationModal({ employee, onClose, onSuccess }: DeleteConfirmationModalProps) {
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState<'exit' | 'delete' | null>(null);
+  const [alert, setAlert] = useState<AlertState | null>(null);
 
   const handleMarkAsExited = async () => {
     setLoading(true);
@@ -32,11 +39,23 @@ export function DeleteConfirmationModal({ employee, onClose, onSuccess }: Delete
 
       if (error) throw error;
 
-      alert(`${employee.first_name} ${employee.last_name} has been marked as Exited. You can search for this employee in the future.`);
-      onSuccess();
+      setAlert({
+        type: 'success',
+        title: 'Employee Marked as Exited',
+        message: `${employee.first_name} ${employee.last_name} has been marked as Exited. You can search for this employee in the future.`
+      });
+      
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 2000);
     } catch (error: any) {
       console.error('Error marking employee as exited:', error);
-      alert(`Failed to mark employee as exited: ${error.message}`);
+      setAlert({
+        type: 'error',
+        title: 'Failed to Mark as Exited',
+        message: `Failed to mark employee as exited: ${error.message}`
+      });
     } finally {
       setLoading(false);
     }
@@ -45,22 +64,147 @@ export function DeleteConfirmationModal({ employee, onClose, onSuccess }: Delete
   const handlePermanentDelete = async () => {
     setLoading(true);
     try {
+      // First, handle foreign key references by setting them to NULL or deleting related records
+      
+      // 1. Update tasks where employee is assigned_to or assigned_by
+      const { error: tasksError } = await supabase
+        .from('tasks')
+        .update({ 
+          assigned_to: null,
+          assigned_by: null 
+        })
+        .or(`assigned_to.eq.${employee.id},assigned_by.eq.${employee.id}`);
+
+      if (tasksError) {
+        console.warn('Warning: Could not update tasks:', tasksError);
+        // Continue anyway - some tasks might not exist
+      }
+
+      // 2. Update expenses where employee is approved_by
+      const { error: expensesError } = await supabase
+        .from('expenses')
+        .update({ approved_by: null })
+        .eq('approved_by', employee.id);
+
+      if (expensesError) {
+        console.warn('Warning: Could not update expenses:', expensesError);
+      }
+
+      // 3. Update tickets where employee is assigned_to
+      const { error: ticketsError } = await supabase
+        .from('tickets')
+        .update({ assigned_to: null })
+        .eq('assigned_to', employee.id);
+
+      if (ticketsError) {
+        console.warn('Warning: Could not update tickets:', ticketsError);
+      }
+
+      // 4. Update employees where this employee is reporting_manager_id
+      const { error: reportingError } = await supabase
+        .from('employees')
+        .update({ reporting_manager_id: null })
+        .eq('reporting_manager_id', employee.id);
+
+      if (reportingError) {
+        console.warn('Warning: Could not update reporting managers:', reportingError);
+      }
+
+      // Now delete the employee
       const { error } = await supabase
         .from('employees')
         .delete()
         .eq('id', employee.id);
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's a foreign key constraint error
+        if (error.code === '23503') {
+          const constraintMatch = error.message.match(/constraint "([^"]+)"/);
+          const constraintName = constraintMatch ? constraintMatch[1] : 'unknown';
+          
+          setAlert({
+            type: 'error',
+            title: 'Cannot Delete Employee',
+            message: `This employee cannot be deleted because they are referenced in other records (${constraintName}). Please mark them as "Exited" instead, which will preserve the data while removing them from active lists.`
+          });
+          return;
+        }
+        throw error;
+      }
 
-      alert(`${employee.first_name} ${employee.last_name} has been permanently deleted from the database.`);
-      onSuccess();
+      setAlert({
+        type: 'success',
+        title: 'Employee Deleted',
+        message: `${employee.first_name} ${employee.last_name} has been permanently deleted from the database.`
+      });
+      
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 2000);
     } catch (error: any) {
       console.error('Error deleting employee:', error);
-      alert(`Failed to delete employee: ${error.message}`);
+      setAlert({
+        type: 'error',
+        title: 'Failed to Delete Employee',
+        message: error.message || 'An unexpected error occurred while deleting the employee.'
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  // Show alert modal if there's an alert
+  if (alert) {
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">
+          <div className={`p-6 rounded-t-2xl ${
+            alert.type === 'success' 
+              ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' 
+              : 'bg-gradient-to-r from-red-500 to-red-600'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {alert.type === 'success' && <CheckCircle className="h-8 w-8 text-white" />}
+                {alert.type === 'error' && <AlertCircle className="h-8 w-8 text-white" />}
+                <h3 className="text-xl font-bold text-white">{alert.title}</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setAlert(null);
+                  if (alert.type === 'success') {
+                    onClose();
+                  }
+                }}
+                className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5 text-white" />
+              </button>
+            </div>
+          </div>
+          <div className="p-6">
+            <p className="text-slate-700 text-lg">{alert.message}</p>
+            <button
+              onClick={() => {
+                setAlert(null);
+                if (alert.type === 'success') {
+                  onClose();
+                }
+              }}
+              className={`mt-6 w-full py-3 rounded-xl font-semibold text-white transition-all ${
+                alert.type === 'success' 
+                  ? 'bg-emerald-500 hover:bg-emerald-600' 
+                  : 'bg-red-500 hover:bg-red-600'
+              }`}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">

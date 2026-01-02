@@ -8,12 +8,14 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "find-console": "node scripts/find-console-usage.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
+    "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.12.1",
     "i18next": "^25.7.1",
     "i18next-browser-languagedetector": "^8.2.0",

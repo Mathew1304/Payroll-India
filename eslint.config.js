@@ -23,6 +23,15 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      // Security: Prevent console usage to avoid exposing sensitive data
+      'no-console': [
+        'warn',
+        {
+          allow: [] // No console methods allowed - use secureLog instead
+        }
+      ],
+      // Warn about debugger statements
+      'no-debugger': 'warn',
     },
   }
 );

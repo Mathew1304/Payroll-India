@@ -2,45 +2,104 @@ import { useState, useEffect } from 'react';
 import { FileText, Eye, Download, Calendar, AlertCircle, TrendingUp, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { format } from 'date-fns';
 
 interface PayrollHistoryTabProps {
     employeeId: string;
 }
 
 export function PayrollHistoryTab({ employeeId }: PayrollHistoryTabProps) {
-    const { organization } = useAuth();
+    const { organization, profile } = useAuth();
     const [payrollRecords, setPayrollRecords] = useState<any[]>([]);
     const [filteredRecords, setFilteredRecords] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedMonth, setSelectedMonth] = useState<number | ''>('');
     const [selectedYear, setSelectedYear] = useState<number | ''>('');
     const [selectedPayslip, setSelectedPayslip] = useState<any>(null);
+    const [localOrgId, setLocalOrgId] = useState<string | null>(null);
+    const [localCountry, setLocalCountry] = useState<string | null>(null);
+
+    const effectiveOrgId = organization?.id || localOrgId;
+    const effectiveCountry = organization?.country || localCountry;
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const currency = organization?.country === 'India' ? 'INR' : 'QAR';
-    const currencySymbol = organization?.country === 'India' ? '₹' : 'QAR';
+    const currency = effectiveCountry === 'India' ? 'INR' : 'QAR';
+    const currencySymbol = effectiveCountry === 'India' ? '₹' : 'QAR';
 
     useEffect(() => {
-        loadPayrollRecords();
-    }, [employeeId]);
+        const recoverOrgData = async () => {
+            // If we already have org context, do nothing
+            if (organization?.id) return;
+
+            // If we already recovered, do nothing
+            if (localOrgId && localCountry) return;
+
+            // Need an employee_id to look up
+            const targetEmpId = employeeId || profile?.employee_id;
+            if (!targetEmpId) return;
+
+            try {
+                // 1. Get org ID from employee record
+                const { data: empData } = await supabase
+                    .from('employees')
+                    .select('organization_id')
+                    .eq('id', targetEmpId)
+                    .maybeSingle();
+
+                if (empData?.organization_id) {
+                    setLocalOrgId(empData.organization_id);
+
+                    // 2. Get country from organizations table
+                    const { data: orgData } = await supabase
+                        .from('organizations')
+                        .select('country')
+                        .eq('id', empData.organization_id)
+                        .maybeSingle();
+
+                    if (orgData?.country) {
+                        setLocalCountry(orgData.country);
+                    }
+                }
+            } catch (err) {
+                console.error("Error recovering org data:", err);
+            }
+        };
+
+        recoverOrgData();
+    }, [organization?.id, employeeId, profile?.employee_id, localOrgId, localCountry]);
+
+    useEffect(() => {
+        if (effectiveOrgId && effectiveCountry) {
+            loadPayrollRecords();
+        } else {
+            // Safety timeout to stop spinner if data never comes
+            const t = setTimeout(() => {
+                if (loading && !effectiveOrgId) setLoading(false);
+            }, 3000);
+            return () => clearTimeout(t);
+        }
+    }, [employeeId, effectiveOrgId, effectiveCountry]);
 
     useEffect(() => {
         filterRecords();
     }, [selectedMonth, selectedYear, payrollRecords]);
 
     const loadPayrollRecords = async () => {
-        if (!employeeId || !organization) return;
+        if (!employeeId || !effectiveOrgId) {
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
         try {
             // Determine table based on country
-            const tableName = organization.country === 'India' ? 'india_payroll_records' : 'qatar_payroll_records';
+            const tableName = effectiveCountry === 'India' ? 'india_payroll_records' : 'qatar_payroll_records';
 
             const { data, error } = await supabase
                 .from(tableName)
                 .select('*')
                 .eq('employee_id', employeeId)
-                .eq('organization_id', organization.id)
+                .eq('organization_id', effectiveOrgId)
                 .order('pay_period_year', { ascending: false })
                 .order('pay_period_month', { ascending: false });
 
@@ -81,55 +140,119 @@ export function PayrollHistoryTab({ employeeId }: PayrollHistoryTabProps) {
                 return;
             }
 
-            // Create proper PayslipData structure matching the interface
-            const payslipData = {
-                country: 'Qatar' as const,
-                currency: 'QAR' as const,
+            // Fetch designation separately if employee has designation_id
+            let designationTitle = 'N/A';
+            if (employee.designation_id) {
+                const { data: designation } = await supabase
+                    .from('designations')
+                    .select('title')
+                    .eq('id', employee.designation_id)
+                    .single();
+                
+                if (designation) {
+                    designationTitle = designation.title;
+                }
+            }
 
-                companyName: organization?.name || 'Company',
-                companyAddress: organization?.address || '',
-                establishmentId: '',
+            // Check if this is India or Qatar/Saudi
+            if (effectiveCountry === 'India') {
+                // Use new India PDF format
+                const { downloadPayslipPDF } = await import('../../utils/payslipPDFGenerator');
 
-                employeeName: `${employee.first_name} ${employee.last_name}`,
-                employeeCode: employee.employee_code || '',
-                employeeId: employee.id,
-                designation: employee.designation || '',
-                department: employee.department || '',
-                joiningDate: employee.date_of_joining || '',
-                iban: employee.iban_number || '',
+                // Prepare earnings array
+                const earnings = [];
+                if (record.basic_salary > 0) earnings.push({ name: 'Basic', amount: Number(record.basic_salary), ytd: Number(record.basic_salary) });
+                if (record.house_rent_allowance > 0) earnings.push({ name: 'House Rent Allowance', amount: Number(record.house_rent_allowance), ytd: Number(record.house_rent_allowance) });
+                if (record.conveyance_allowance > 0) earnings.push({ name: 'Fixed Allowance', amount: Number(record.conveyance_allowance), ytd: Number(record.conveyance_allowance) });
+                if (record.dearness_allowance > 0) earnings.push({ name: 'Dearness Allowance', amount: Number(record.dearness_allowance), ytd: Number(record.dearness_allowance) });
+                if (record.medical_allowance > 0) earnings.push({ name: 'Medical Allowance', amount: Number(record.medical_allowance), ytd: Number(record.medical_allowance) });
+                if (record.special_allowance > 0) earnings.push({ name: 'Special Allowance', amount: Number(record.special_allowance), ytd: Number(record.special_allowance) });
+                if (record.other_allowances > 0) earnings.push({ name: 'Other Allowances', amount: Number(record.other_allowances), ytd: Number(record.other_allowances) });
+                if (record.overtime_amount > 0) earnings.push({ name: 'Overtime', amount: Number(record.overtime_amount), ytd: Number(record.overtime_amount) });
 
-                payPeriod: `${monthNames[record.pay_period_month - 1]} ${record.pay_period_year}`,
-                paymentDate: record.payment_date || '',
-                workingDays: record.working_days || 26,
-                daysPresent: record.days_present || 26,
-                daysAbsent: record.days_absent || 0,
+                // Prepare deductions array
+                const deductions = [];
+                if (record.professional_tax > 0) deductions.push({ name: 'Professional Tax', amount: Number(record.professional_tax), ytd: Number(record.professional_tax) });
+                if (record.pf_employee > 0) deductions.push({ name: 'Provident Fund', amount: Number(record.pf_employee), ytd: Number(record.pf_employee) });
+                if (record.esi_employee > 0) deductions.push({ name: 'ESI', amount: Number(record.esi_employee), ytd: Number(record.esi_employee) });
+                if (record.tds > 0) deductions.push({ name: 'TDS', amount: Number(record.tds), ytd: Number(record.tds) });
+                if (record.absence_deduction > 0) deductions.push({ name: 'Absence Deduction', amount: Number(record.absence_deduction), ytd: Number(record.absence_deduction) });
+                if (record.loan_deduction > 0) deductions.push({ name: 'Loan Deduction', amount: Number(record.loan_deduction), ytd: Number(record.loan_deduction) });
+                if (record.advance_deduction > 0) deductions.push({ name: 'Advance Deduction', amount: Number(record.advance_deduction), ytd: Number(record.advance_deduction) });
+                if (record.penalty_deduction > 0) deductions.push({ name: 'Penalty', amount: Number(record.penalty_deduction), ytd: Number(record.penalty_deduction) });
 
-                basicSalary: Number(record.basic_salary) || 0,
-                housingAllowance: Number(record.housing_allowance) || 0,
-                foodAllowance: Number(record.food_allowance) || 0,
-                transportAllowance: Number(record.transport_allowance) || 0,
-                mobileAllowance: Number(record.mobile_allowance) || 0,
-                utilityAllowance: Number(record.utility_allowance) || 0,
-                otherAllowances: Number(record.other_allowances) || 0,
+                const lopDays = record.working_days - record.days_present;
 
-                overtimeHours: Number(record.overtime_hours) || 0,
-                overtimeAmount: Number(record.overtime_amount) || 0,
-                bonus: Number(record.bonus) || 0,
+                const payslipData = {
+                    companyName: organization?.name || 'Company',
+                    companyAddress: organization?.address || '',
+                    employeeName: `${employee.first_name} ${employee.last_name}`,
+                    employeeCode: employee.employee_code || '',
+                    designation: designationTitle,
+                    joiningDate: employee.date_of_joining ? format(new Date(employee.date_of_joining), 'dd/MM/yyyy') : 'N/A',
+                    payPeriod: `${monthNames[record.pay_period_month - 1]} ${record.pay_period_year}`,
+                    payDate: record.created_at ? format(new Date(record.created_at), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy'),
+                    paidDays: record.days_present || 0,
+                    lopDays: lopDays,
+                    earnings,
+                    deductions,
+                    grossEarnings: Number(record.gross_salary) || 0,
+                    totalDeductions: Number(record.total_deductions) || 0,
+                    netPay: Number(record.net_salary) || 0,
+                };
 
-                absenceDeduction: Number(record.absence_deduction) || 0,
-                loanDeduction: Number(record.loan_deduction) || 0,
-                advanceDeduction: Number(record.advance_deduction) || 0,
-                penaltyDeduction: Number(record.penalty_deduction) || 0,
-                otherDeductions: Number(record.other_deductions) || 0,
+                await downloadPayslipPDF(payslipData);
+            } else {
+                // Use old Qatar/Saudi format
+                const payslipData = {
+                    country: 'Qatar' as const,
+                    currency: 'QAR' as const,
 
-                grossSalary: Number(record.gross_salary) || 0,
-                totalEarnings: Number(record.gross_salary) || 0,
-                totalDeductions: Number(record.total_deductions) || 0,
-                netSalary: Number(record.net_salary) || 0,
-            };
+                    companyName: organization?.name || 'Company',
+                    companyAddress: organization?.address || '',
+                    establishmentId: '',
 
-            const { downloadPayslipHTML } = await import('../../utils/payslipGenerator');
-            downloadPayslipHTML(payslipData);
+                    employeeName: `${employee.first_name} ${employee.last_name}`,
+                    employeeCode: employee.employee_code || '',
+                    employeeId: employee.id,
+                    designation: employee.designation || '',
+                    department: employee.department || '',
+                    joiningDate: employee.date_of_joining || '',
+                    iban: employee.iban_number || '',
+
+                    payPeriod: `${monthNames[record.pay_period_month - 1]} ${record.pay_period_year}`,
+                    paymentDate: record.payment_date || '',
+                    workingDays: record.working_days || 26,
+                    daysPresent: record.days_present || 26,
+                    daysAbsent: record.days_absent || 0,
+
+                    basicSalary: Number(record.basic_salary) || 0,
+                    housingAllowance: Number(record.housing_allowance) || 0,
+                    foodAllowance: Number(record.food_allowance) || 0,
+                    transportAllowance: Number(record.transport_allowance) || 0,
+                    mobileAllowance: Number(record.mobile_allowance) || 0,
+                    utilityAllowance: Number(record.utility_allowance) || 0,
+                    otherAllowances: Number(record.other_allowances) || 0,
+
+                    overtimeHours: Number(record.overtime_hours) || 0,
+                    overtimeAmount: Number(record.overtime_amount) || 0,
+                    bonus: Number(record.bonus) || 0,
+
+                    absenceDeduction: Number(record.absence_deduction) || 0,
+                    loanDeduction: Number(record.loan_deduction) || 0,
+                    advanceDeduction: Number(record.advance_deduction) || 0,
+                    penaltyDeduction: Number(record.penalty_deduction) || 0,
+                    otherDeductions: Number(record.other_deductions) || 0,
+
+                    grossSalary: Number(record.gross_salary) || 0,
+                    totalEarnings: Number(record.gross_salary) || 0,
+                    totalDeductions: Number(record.total_deductions) || 0,
+                    netSalary: Number(record.net_salary) || 0,
+                };
+
+                const { downloadPayslipHTML } = await import('../../utils/payslipGenerator');
+                downloadPayslipHTML(payslipData);
+            }
         } catch (error) {
             console.error('Error downloading payslip:', error);
             alert('Failed to download payslip');

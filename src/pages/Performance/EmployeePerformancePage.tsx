@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Target, CheckCircle, AlertCircle, TrendingUp, Star, MoreVertical, MessageSquare } from 'lucide-react';
+import { Target, CheckCircle, AlertCircle, TrendingUp, Star, MoreVertical, MessageSquare, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { GoalDetailModal } from '../../components/Performance/GoalDetailModal';
 
+// ... interfaces remain same ...
 interface Goal {
     id: string;
     title: string;
@@ -24,11 +25,13 @@ interface Review {
     manager_assessment: string;
     strengths?: string;
     areas_of_improvement?: string;
-    reviewed_at: string;
+    reviewed_at: string | null;
+    reviewed_date: string | null;
+    reviewer_id: string | null;
     reviewer: {
         first_name: string;
         last_name: string;
-    };
+    } | null;
 }
 
 export function EmployeePerformancePage() {
@@ -44,6 +47,7 @@ export function EmployeePerformancePage() {
         avgProgress: 0,
         avgRating: 0
     });
+    const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
     useEffect(() => {
         if (!authLoading) {
@@ -55,6 +59,11 @@ export function EmployeePerformancePage() {
         }
     }, [profile?.employee_id, authLoading]);
 
+    const showNotification = (message: string, type: 'success' | 'error') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 3000);
+    };
+
     const loadData = async () => {
         setLoading(true);
         try {
@@ -64,6 +73,7 @@ export function EmployeePerformancePage() {
             ]);
         } catch (error) {
             console.error('Error loading performance data:', error);
+            showNotification('Failed to load performance data', 'error');
         } finally {
             setLoading(false);
         }
@@ -118,7 +128,7 @@ export function EmployeePerformancePage() {
           reviewer:employees!reviewer_id(first_name, last_name)
         `)
                 .eq('employee_id', profile.employee_id)
-                .order('reviewed_at', { ascending: false });
+                .order('created_at', { ascending: false });
 
             if (error) throw error;
 
@@ -161,9 +171,14 @@ export function EmployeePerformancePage() {
 
             // Reload data to update stats and goals list
             await loadData();
-        } catch (error) {
+            showNotification('Goal status updated successfully', 'success');
+        } catch (error: any) {
             console.error('Error updating goal status:', error);
-            alert('Failed to update goal status');
+            if (error.code === '42501' || error.message?.includes('row-level security')) {
+                showNotification('Permission denied: You cannot update this goal.', 'error');
+            } else {
+                showNotification('Failed to update goal status', 'error');
+            }
         }
     };
 
@@ -186,9 +201,14 @@ export function EmployeePerformancePage() {
 
             // Reload data to update stats and goals list
             await loadData();
-        } catch (error) {
+            showNotification('Progress updated successfully', 'success');
+        } catch (error: any) {
             console.error('Error updating progress:', error);
-            alert('Failed to update progress');
+            if (error.code === '42501' || error.message?.includes('row-level security')) {
+                showNotification('Permission denied: You cannot update this goal.', 'error');
+            } else {
+                showNotification('Failed to update progress', 'error');
+            }
         }
     };
 
@@ -201,7 +221,30 @@ export function EmployeePerformancePage() {
     }
 
     return (
-        <div className="space-y-6 animate-fadeIn">
+        <div className="space-y-6 animate-fadeIn relative">
+            {/* Notification Toast */}
+            {notification && (
+                <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-bounce-in">
+                    <div className={`flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl border ${notification.type === 'success'
+                            ? 'bg-white border-emerald-100 text-emerald-800'
+                            : 'bg-white border-red-100 text-red-800'
+                        }`}>
+                        {notification.type === 'success' ? (
+                            <CheckCircle className="h-6 w-6 text-emerald-500" />
+                        ) : (
+                            <AlertCircle className="h-6 w-6 text-red-500" />
+                        )}
+                        <p className="font-medium text-lg">{notification.message}</p>
+                        <button
+                            onClick={() => setNotification(null)}
+                            className="p-1 hover:bg-slate-100 rounded-full transition-colors ml-2"
+                        >
+                            <X className="h-5 w-5 text-slate-400" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div>
                 <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
@@ -296,13 +339,13 @@ export function EmployeePerformancePage() {
                                     <div>
                                         <p className="text-xs text-slate-500 mb-1">Start Date</p>
                                         <p className="text-sm font-medium text-slate-900">
-                                            {new Date(goal.start_date).toLocaleDateString('en-GB')}
+                                            {goal.start_date ? new Date(goal.start_date).toLocaleDateString('en-GB') : 'N/A'}
                                         </p>
                                     </div>
                                     <div>
                                         <p className="text-xs text-slate-500 mb-1">Target Date</p>
                                         <p className="text-sm font-medium text-slate-900">
-                                            {new Date(goal.end_date).toLocaleDateString('en-GB')}
+                                            {goal.end_date ? new Date(goal.end_date).toLocaleDateString('en-GB') : 'N/A'}
                                         </p>
                                     </div>
                                 </div>
@@ -370,11 +413,13 @@ export function EmployeePerformancePage() {
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex-1">
                                         <h3 className="text-xl font-bold text-slate-900 mb-2">
-                                            {new Date(review.review_period_start).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} -
-                                            {new Date(review.review_period_end).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                                            {review.review_period_start ? new Date(review.review_period_start).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : 'N/A'} -
+                                            {review.review_period_end ? new Date(review.review_period_end).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : 'N/A'}
                                         </h3>
                                         <p className="text-sm text-slate-500">
-                                            Reviewed by: {review.reviewer?.first_name} {review.reviewer?.last_name}
+                                            Reviewed by: {review.reviewer?.first_name && review.reviewer?.last_name 
+                                                ? `${review.reviewer.first_name} ${review.reviewer.last_name}` 
+                                                : 'Not specified'}
                                         </p>
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
@@ -430,11 +475,11 @@ export function EmployeePerformancePage() {
                                 {/* Footer */}
                                 <div className="mt-4 pt-4 border-t border-slate-200">
                                     <p className="text-xs text-slate-500">
-                                        Reviewed on: {new Date(review.reviewed_at).toLocaleDateString('en-GB', {
+                                        Reviewed on: {(review.reviewed_date || review.reviewed_at) ? new Date(review.reviewed_date || review.reviewed_at).toLocaleDateString('en-GB', {
                                             day: 'numeric',
                                             month: 'long',
                                             year: 'numeric'
-                                        })}
+                                        }) : 'Not yet reviewed'}
                                     </p>
                                 </div>
                             </div>

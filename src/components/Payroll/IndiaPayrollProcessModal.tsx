@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, AlertCircle, CheckCircle, Banknote, Users, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { notifyPayrollProcessed } from '../../utils/notificationService';
 import { calculateCompleteIndiaPayroll, IndiaSalaryComponents, OvertimeRecord, IndiaDeductions } from '../../utils/indiaPayrollCalculations';
 import {
     startOfMonth,
@@ -485,13 +486,31 @@ export function IndiaPayrollProcessModal({ month, year, onClose, onSuccess }: Pr
             });
 
             // 3. Perform bulk upsert
-            const { error: upsertError } = await (supabase
+            const { data: insertedRecords, error: upsertError } = await (supabase
                 .from('india_payroll_records') as any)
                 .upsert(upsertPayload, {
                     onConflict: 'id'
-                });
+                })
+                .select();
 
             if (upsertError) throw upsertError;
+
+            // 4. Send notifications to all employees
+            if (insertedRecords && organization?.id) {
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const monthName = monthNames[month - 1];
+                
+                for (const record of insertedRecords) {
+                    await notifyPayrollProcessed(
+                        record.employee_id,
+                        monthName,
+                        year,
+                        record.net_salary,
+                        organization.id,
+                        record.id
+                    );
+                }
+            }
 
             onSuccess();
         } catch (err: any) {

@@ -40,6 +40,9 @@ export function CheckInCard() {
     const [checkInMode, setCheckInMode] = useState<'location' | 'web'>('location');
     const [showEarlyCheckoutModal, setShowEarlyCheckoutModal] = useState(false);
     const [earlyCheckoutReason, setEarlyCheckoutReason] = useState('');
+    const [localOrgId, setLocalOrgId] = useState<string | null>(null);
+    const [locationTimeout, setLocationTimeout] = useState(false);
+    const effectiveOrgId = organization?.id || localOrgId;
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -47,21 +50,69 @@ export function CheckInCard() {
     }, []);
 
     useEffect(() => {
-        let watchId: number | null = null;
+        const recoverOrgId = async () => {
+            if (!organization?.id && profile?.employee_id && !localOrgId) {
+                try {
+                    const { data } = await supabase
+                        .from('employees')
+                        .select('organization_id')
+                        .eq('id', profile.employee_id)
+                        .maybeSingle();
 
-        if (organization?.id && profile?.employee_id) {
-            loadStatus();
-            if (checkInMode === 'location') {
-                watchId = watchLocation();
+                    if (data?.organization_id) {
+                        setLocalOrgId(data.organization_id);
+                    }
+                } catch (e) {
+                    console.error('Error recovering org ID:', e);
+                }
             }
-        }
+        };
+        recoverOrgId();
+    }, [organization?.id, profile?.employee_id, localOrgId]);
+
+    useEffect(() => {
+        let watchId: number | null = null;
+        let mounted = true;
+        let locationTimeoutId: NodeJS.Timeout | null = null;
+
+        const init = async () => {
+            if (profile?.employee_id) {
+                await loadStatus();
+                // Only watch location if we have an org ID (needed for checking nearest office)
+                if (effectiveOrgId && checkInMode === 'location') {
+                    watchId = watchLocation();
+                    // Set timeout for location detection
+                    locationTimeoutId = setTimeout(() => {
+                        if (mounted && !nearestOffice) {
+                            setLocationTimeout(true);
+                        }
+                    }, 10000); // 10 seconds timeout
+                } else if (!effectiveOrgId && checkInMode === 'location') {
+                    // No org ID available, show error
+                    setError('Organization information not available. Please try web check-in mode.');
+                }
+            } else if (!loading && !profile) {
+                // If auth is done but no profile, stop loading to show error
+                setLoading(false);
+            }
+        };
+
+        init();
+
+        // Safety timeout
+        const timeout = setTimeout(() => {
+            if (mounted && loading) setLoading(false);
+        }, 5000);
 
         return () => {
+            mounted = false;
+            clearTimeout(timeout);
+            if (locationTimeoutId) clearTimeout(locationTimeoutId);
             if (watchId !== null) {
                 navigator.geolocation.clearWatch(watchId);
             }
         };
-    }, [organization?.id, profile?.employee_id, checkInMode]);
+    }, [effectiveOrgId, profile?.employee_id, checkInMode, nearestOffice]);
 
     const loadStatus = async () => {
         if (!profile?.employee_id) {
@@ -141,13 +192,29 @@ export function CheckInCard() {
 
     const checkNearestOffice = async (lat: number, lng: number) => {
         try {
-            const { data: offices } = await supabase
+            console.log('Checking offices for Org ID:', effectiveOrgId);
+            if (!effectiveOrgId) {
+                console.warn('No organization ID available for checking nearest office');
+                return;
+            }
+
+            const { data: offices, error: officeError } = await supabase
                 .from('office_locations')
                 .select('*')
-                .eq('organization_id', organization!.id)
+                .eq('organization_id', effectiveOrgId)
                 .eq('is_active', true);
 
-            if (!offices?.length) return;
+            if (officeError) {
+                console.error('Error fetching office locations:', officeError);
+                setError('Unable to fetch office locations. Please try web check-in mode.');
+                return;
+            }
+
+            if (!offices?.length) {
+                console.warn('No active office locations found');
+                setError('No office locations configured. Please use web check-in mode.');
+                return;
+            }
 
             let minDistance = Infinity;
             let nearest = null;
@@ -162,8 +229,10 @@ export function CheckInCard() {
 
             setNearestOffice(nearest);
             setDistance(minDistance);
+            setLocationTimeout(false); // Clear timeout flag on success
         } catch (err) {
             console.error('Error checking offices:', err);
+            setError('Unable to determine office location. Please try web check-in mode.');
         }
     };
 
@@ -173,11 +242,25 @@ export function CheckInCard() {
             return;
         }
 
+        if (!effectiveOrgId) {
+            alert('Organization information missing. Please try again in a moment.');
+            return;
+        }
+
         if (checkInMode === 'location') {
             // Location-based check-in
             if (!location || !nearestOffice) {
-                alert('Waiting for location data...');
-                return;
+                // Try to check one last time if we have location but no nearest office yet
+                if (location && !nearestOffice && effectiveOrgId) {
+                    await checkNearestOffice(location.lat, location.lng);
+                    if (!nearestOffice) {
+                        alert('Getting office locations...');
+                        return;
+                    }
+                } else {
+                    alert('Waiting for location data...');
+                    return;
+                }
             }
 
             // Check if within radius
@@ -190,7 +273,7 @@ export function CheckInCard() {
             try {
                 const today = format(new Date(), 'yyyy-MM-dd');
                 const payload = {
-                    organization_id: organization!.id,
+                    organization_id: effectiveOrgId,
                     employee_id: profile.employee_id,
                     date: today,
                     check_in_time: new Date().toISOString(),
@@ -219,7 +302,7 @@ export function CheckInCard() {
             try {
                 const today = format(new Date(), 'yyyy-MM-dd');
                 const payload = {
-                    organization_id: organization!.id,
+                    organization_id: effectiveOrgId,
                     employee_id: profile.employee_id,
                     date: today,
                     check_in_time: new Date().toISOString(),
@@ -413,7 +496,7 @@ export function CheckInCard() {
                                 <div className={`p-2 rounded-full ${error ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
                                     {error ? <AlertTriangle className="h-5 w-5" /> : <Navigation className="h-5 w-5" />}
                                 </div>
-                                <div>
+                                <div className="flex-1">
                                     <h3 className="font-medium text-slate-900">
                                         {error ? 'Location Error' : (nearestOffice ? nearestOffice.name : 'Detecting Location...')}
                                     </h3>
@@ -425,7 +508,28 @@ export function CheckInCard() {
                                             }
                                         </p>
                                     )}
-                                    {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+                                    {error && (
+                                        <>
+                                            <p className="text-sm text-red-600 mt-1">{error}</p>
+                                            <button
+                                                onClick={() => setCheckInMode('web')}
+                                                className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium underline"
+                                            >
+                                                Switch to Web Check-in
+                                            </button>
+                                        </>
+                                    )}
+                                    {!error && locationTimeout && !nearestOffice && (
+                                        <div className="mt-2 text-sm text-orange-600">
+                                            <p>Location detection is taking longer than expected.</p>
+                                            <button
+                                                onClick={() => setCheckInMode('web')}
+                                                className="mt-1 text-xs text-blue-600 hover:text-blue-700 font-medium underline"
+                                            >
+                                                Try Web Check-in instead
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

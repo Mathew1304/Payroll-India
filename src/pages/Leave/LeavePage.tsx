@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Calendar, Plus, X, Send, CheckCircle, AlertCircle, Clock, TrendingUp, FileText, Download, Eye, Check, XCircle, Sparkles, Info, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -106,12 +106,20 @@ function EmployeeLeavePage() {
   const loadLeaveTypes = async () => {
     if (!organization?.id) return;
     try {
-      const { data } = await supabase
+      console.log('Loading leave types for org:', organization.id);
+      const { data, error } = await supabase
         .from('leave_types')
         .select('*')
         .eq('organization_id', organization.id)
         .eq('is_active', true)
         .order('name');
+
+      if (error) {
+        console.error('Supabase error loading leave types:', error);
+      } else {
+        console.log('Leave types loaded:', data);
+      }
+
       setLeaveTypes(data || []);
     } catch (error) {
       console.error('Error loading leave types:', error);
@@ -122,14 +130,20 @@ function EmployeeLeavePage() {
     if (!profile?.employee_id) return;
     try {
       const currentYear = new Date().getFullYear();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('leave_balances')
         .select(`
-          *,
-          leave_types (*)
-        `)
+  *,
+  leave_types(*)
+    `)
         .eq('employee_id', profile.employee_id)
         .eq('year', currentYear);
+
+      if (error) {
+        console.error('Supabase error loading leave balances:', error);
+      } else {
+        console.log('Leave balances raw data:', data);
+      }
 
       const mappedBalances: LeaveBalance[] = (data || []).map((b: any) => ({
         id: b.id,
@@ -147,15 +161,32 @@ function EmployeeLeavePage() {
     }
   };
 
+  // Merge fetched leave types with those found in balances to ensure dropdown is populated
+  const uniqueLeaveTypes = useMemo(() => {
+    const types = [...leaveTypes];
+    const typeIds = new Set(types.map(t => t.id));
+
+    leaveBalances.forEach(balance => {
+      // Ensure leave_types exists and is not already in the list
+      // Also ensure it has a valid id to avoid crashes
+      if (balance.leave_types && balance.leave_types.id && !typeIds.has(balance.leave_types.id)) {
+        types.push(balance.leave_types);
+        typeIds.add(balance.leave_types.id);
+      }
+    });
+
+    return types.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [leaveTypes, leaveBalances]);
+
   const loadLeaveApplications = async () => {
     if (!profile?.employee_id) return;
     try {
       const { data } = await supabase
         .from('leave_applications')
         .select(`
-          *,
-          leave_types (*)
-        `)
+  *,
+  leave_types(*)
+    `)
         .eq('employee_id', profile.employee_id)
         .order('created_at', { ascending: false })
         .limit(20);
@@ -171,10 +202,10 @@ function EmployeeLeavePage() {
       const { data } = await supabase
         .from('leave_applications')
         .select(`
-          *,
-          leave_types (*),
-          employees (first_name, last_name, employee_code)
-        `)
+  *,
+  leave_types(*),
+  employees(first_name, last_name, employee_code)
+    `)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
       setPendingApplications(data || []);
@@ -209,7 +240,7 @@ function EmployeeLeavePage() {
     const days = calculateDays();
     const balance = leaveBalances.find(b => b.leave_type_id === formData.leave_type_id);
     if (balance && days > balance.available_leaves) {
-      return `Insufficient leave balance. Available: ${balance.available_leaves} days`;
+      return `Insufficient leave balance.Available: ${balance.available_leaves} days`;
     }
 
     return null;
@@ -228,6 +259,40 @@ function EmployeeLeavePage() {
 
     if (!profile?.employee_id) return;
 
+    let orgId = organization?.id || profile?.organization_id;
+
+    // Debug log
+    console.log('Initial Org Check:', { contextOrgId: organization?.id, profileOrgId: profile?.organization_id, orgId });
+
+    // Fallback: Fetch from employees table if missing
+    if (!orgId && profile.employee_id) {
+      try {
+        const { data: empData, error: empError } = await supabase
+          .from('employees')
+          .select('organization_id')
+          .eq('id', profile.employee_id)
+          .single();
+
+        if (empData) {
+          orgId = empData.organization_id;
+          console.log('Fetched Org ID from employees table:', orgId);
+        } else if (empError) {
+          console.error('Error fetching org ID from employee:', empError);
+        }
+      } catch (err) {
+        console.error('Exception fetching org ID:', err);
+      }
+    }
+
+    if (!orgId) {
+      setAlertModal({
+        type: 'error',
+        title: 'Error',
+        message: 'Organization information is missing. Please contact support.'
+      });
+      return;
+    }
+
     try {
       const days = calculateDays();
 
@@ -235,7 +300,7 @@ function EmployeeLeavePage() {
       const { error: insertError } = await supabase
         .from('leave_applications')
         .insert({
-          organization_id: organization?.id,
+          organization_id: orgId,
           employee_id: profile.employee_id,
           leave_type_id: formData.leave_type_id,
           start_date: formData.from_date,
@@ -371,7 +436,7 @@ function EmployeeLeavePage() {
     const Icon = badge.icon;
 
     return (
-      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border-2 ${badge.color}`}>
+      <span className={`inline - flex items - center gap - 1 px - 3 py - 1 rounded - full text - xs font - bold border - 2 ${badge.color} `}>
         <Icon className="h-3 w-3" />
         {status.toUpperCase()}
       </span>
@@ -394,11 +459,11 @@ function EmployeeLeavePage() {
       {alertModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-scaleIn">
-            <div className={`p-6 rounded-t-2xl ${alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
+            <div className={`p - 6 rounded - t - 2xl ${alertModal.type === 'success' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
               alertModal.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600' :
                 alertModal.type === 'warning' ? 'bg-gradient-to-r from-amber-500 to-amber-600' :
                   'bg-gradient-to-r from-blue-500 to-blue-600'
-              }`}>
+              } `}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {alertModal.type === 'success' && <CheckCircle className="h-8 w-8 text-white" />}
@@ -419,11 +484,11 @@ function EmployeeLeavePage() {
               <p className="text-slate-700 text-lg">{alertModal.message}</p>
               <button
                 onClick={() => setAlertModal(null)}
-                className={`mt-6 w-full py-3 rounded-xl font-semibold text-white transition-all ${alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
+                className={`mt - 6 w - full py - 3 rounded - xl font - semibold text - white transition - all ${alertModal.type === 'success' ? 'bg-emerald-500 hover:bg-emerald-600' :
                   alertModal.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
                     alertModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' :
                       'bg-blue-500 hover:bg-blue-600'
-                  }`}>
+                  } `}>
                 OK
               </button>
             </div>
@@ -460,7 +525,7 @@ function EmployeeLeavePage() {
                   className="w-full px-4 py-3 border-2 border-theme-border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-theme-bg-primary text-theme-text-primary"
                 >
                   <option value="">Select leave type</option>
-                  {leaveTypes.map(type => {
+                  {uniqueLeaveTypes.map(type => {
                     const balance = leaveBalances.find(b => b.leave_type_id === type.id);
                     return (
                       <option key={type.id} value={type.id}>
@@ -669,21 +734,23 @@ function EmployeeLeavePage() {
 
 function LeaveBalanceCard({ balance }: { balance: LeaveBalance }) {
   const percentage = (balance.available_leaves / balance.total_quota) * 100;
-  const colorGradient = balance.leave_types.color || 'blue';
+  const leaveType = balance.leave_types || { name: 'Unknown', code: 'N/A', color: 'blue' };
+  const colorGradient = leaveType.color || 'blue';
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 hover:shadow-xl transition-all hover:scale-105">
       <div className="flex items-center gap-3 mb-4">
-        <div className={`p-3 rounded-xl bg-gradient-to-br ${colorGradient === 'blue' ? 'from-blue-500 to-blue-600' :
+        <div className={`p - 3 rounded - xl bg - gradient - to - br ${colorGradient === 'blue' ? 'from-blue-500 to-blue-600' :
           colorGradient === 'red' ? 'from-red-500 to-red-600' :
             colorGradient === 'green' ? 'from-emerald-500 to-emerald-600' :
               colorGradient === 'purple' ? 'from-violet-500 to-violet-600' :
-                'from-blue-500 to-blue-600'}`}>
+                'from-blue-500 to-blue-600'
+          } `}>
           <Calendar className="h-6 w-6 text-white" />
         </div>
         <div>
-          <h3 className="font-bold text-slate-900">{balance.leave_types.name}</h3>
-          <p className="text-xs text-slate-500">{balance.leave_types.code}</p>
+          <h3 className="font-bold text-slate-900">{leaveType.name}</h3>
+          <p className="text-xs text-slate-500">{leaveType.code}</p>
         </div>
       </div>
       <div className="space-y-3">
@@ -703,12 +770,13 @@ function LeaveBalanceCard({ balance }: { balance: LeaveBalance }) {
         </div>
         <div className="w-full bg-slate-200 rounded-full h-3">
           <div
-            className={`h-3 rounded-full bg-gradient-to-r ${colorGradient === 'blue' ? 'from-blue-500 to-blue-600' :
+            className={`h - 3 rounded - full bg - gradient - to - r ${colorGradient === 'blue' ? 'from-blue-500 to-blue-600' :
               colorGradient === 'red' ? 'from-red-500 to-red-600' :
                 colorGradient === 'green' ? 'from-emerald-500 to-emerald-600' :
                   colorGradient === 'purple' ? 'from-violet-500 to-violet-600' :
-                    'from-blue-500 to-blue-600'}`}
-            style={{ width: `${percentage}%` }}
+                    'from-blue-500 to-blue-600'
+              } `}
+            style={{ width: `${percentage}% ` }}
           ></div>
         </div>
       </div>
@@ -727,7 +795,7 @@ function LeaveApplicationCard({ application }: { application: LeaveApplication }
     const Icon = badge.icon;
 
     return (
-      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border-2 ${badge.color}`}>
+      <span className={`inline - flex items - center gap - 1 px - 3 py - 1 rounded - full text - xs font - bold border - 2 ${badge.color} `}>
         <Icon className="h-3 w-3" />
         {status.toUpperCase()}
       </span>
