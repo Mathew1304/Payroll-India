@@ -395,18 +395,35 @@ export function AddEmployeeModal({ onClose, onSuccess, departments, designations
 
         if (functionError) {
           console.error('Edge Function error:', functionError);
+          
+          let errorMessage = functionError.message;
+          
+          // Try to extract detailed error from the response if available
+          if (functionError instanceof Error && 'context' in functionError) {
+            try {
+              const context = (functionError as any).context;
+              if (context && context.body) {
+                const body = typeof context.body === 'string' ? JSON.parse(context.body) : context.body;
+                if (body && body.error) {
+                  errorMessage = body.error;
+                }
+              }
+            } catch (e) {
+              console.error('Failed to parse error body:', e);
+            }
+          }
 
           if (functionError.status === 401 || (functionError as any)?.message?.includes('JWT')) {
             setAlertModal({
               type: 'error',
               title: 'Authentication Error',
-              message: 'Your session token is being rejected by the server (Invalid JWT). This usually requires a hard refresh (Ctrl+F5) or logging out and back in. If the issue persists, the project URL/Key might be mismatched.'
+              message: 'Your session token is being rejected by the server (Invalid JWT). This usually requires a hard refresh (Ctrl+F5) or logging out and back in.'
             });
           } else {
             setAlertModal({
               type: 'error',
               title: 'Login Creation Failed',
-              message: `The employee record was created, but login setup failed: ${functionError.message}`
+              message: `The employee record was created, but login setup failed: ${errorMessage}. This often happens if a user with this email already exists in the system.`
             });
           }
           setLoading(false);

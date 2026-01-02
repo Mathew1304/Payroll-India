@@ -139,7 +139,7 @@ export function LoginPage({ onSwitchToRegister }: LoginPageProps) {
         </div>
 
         <p className="text-center text-sm text-slate-600 mt-8">
-          Qatar Compliant HRMS & Payroll System
+          
         </p>
       </div>
     </div>

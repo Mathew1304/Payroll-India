@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
-import { Banknote, Plus, Download, FileText, Clock, Calculator, TrendingUp, Users, Calendar, CheckCircle, AlertCircle, X, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings } from 'lucide-react';
+import { Banknote, Plus, Download, FileText, Clock, Calculator, TrendingUp, Users, Calendar, CheckCircle, AlertCircle, X, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings, Pencil } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { downloadPayslipHTML, printPayslip } from '../../utils/payslipGenerator';
@@ -1368,6 +1368,7 @@ function PayrollRecordsTab({ records, onRefresh, selectedMonth, selectedYear, or
 function SalaryComponentsTab({ components, allEmployees, onRefresh, showNotification }: any) {
     const [showAddModal, setShowAddModal] = useState(false);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+    const [editingSalaryComponent, setEditingSalaryComponent] = useState<SalaryComponent | null>(null);
 
     const getEmployeeSalaryComponent = (employeeId: string) => {
         return components.find((c: SalaryComponent) => c.employee_id === employeeId);
@@ -1423,17 +1424,30 @@ function SalaryComponentsTab({ components, allEmployees, onRefresh, showNotifica
                                         </div>
                                         <p className="text-xs text-slate-600 mt-0.5">{employee.employee_code} • PAN: {employee.pan_number || 'N/A'}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] text-slate-500 font-medium uppercase">Total Monthly Salary</p>
-                                        <p className="text-lg font-bold text-emerald-600">
-                                            ₹{(Number(salaryComp.basic_salary) +
-                                                Number(salaryComp.dearness_allowance) +
-                                                Number(salaryComp.house_rent_allowance) +
-                                                Number(salaryComp.conveyance_allowance) +
-                                                Number(salaryComp.medical_allowance) +
-                                                Number(salaryComp.special_allowance) +
-                                                Number(salaryComp.other_allowances)).toLocaleString('en-IN')}
-                                        </p>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-right">
+                                            <p className="text-[10px] text-slate-500 font-medium uppercase">Total Monthly Salary</p>
+                                            <p className="text-lg font-bold text-emerald-600">
+                                                ₹{(Number(salaryComp.basic_salary) +
+                                                    Number(salaryComp.dearness_allowance) +
+                                                    Number(salaryComp.house_rent_allowance) +
+                                                    Number(salaryComp.conveyance_allowance) +
+                                                    Number(salaryComp.medical_allowance) +
+                                                    Number(salaryComp.special_allowance) +
+                                                    Number(salaryComp.other_allowances)).toLocaleString('en-IN')}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setEditingSalaryComponent(salaryComp);
+                                                setShowAddModal(true);
+                                            }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                            title="Edit Salary Component"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                            Edit
+                                        </button>
                                     </div>
                                 </div>
 
@@ -1507,13 +1521,16 @@ function SalaryComponentsTab({ components, allEmployees, onRefresh, showNotifica
             {showAddModal && (
                 <AddSalaryComponentModal
                     preSelectedEmployeeId={selectedEmployeeId}
+                    editingSalaryComponent={editingSalaryComponent}
                     onClose={() => {
                         setShowAddModal(false);
                         setSelectedEmployeeId(null);
+                        setEditingSalaryComponent(null);
                     }}
                     onSuccess={() => {
                         setShowAddModal(false);
                         setSelectedEmployeeId(null);
+                        setEditingSalaryComponent(null);
                         onRefresh();
                     }}
                     showNotification={showNotification}
@@ -1966,7 +1983,7 @@ function WPSTab({ organizationId, payrollRecords, selectedMonth, selectedYear, s
 
 
 
-function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, showNotification }: any) {
+function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, editingSalaryComponent, showNotification }: any) {
     const { organization } = useAuth();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -1974,17 +1991,29 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
     const [formData, setFormData] = useState({
         employee_id: preSelectedEmployeeId || '',
         basic_salary: '',
-        housing_allowance: '',
-        food_allowance: '',
-        transport_allowance: '',
-        mobile_allowance: '',
-        utility_allowance: '',
+        dearness_allowance: '',
+        house_rent_allowance: '',
+        conveyance_allowance: '',
+        medical_allowance: '',
+        special_allowance: '',
         other_allowances: ''
     });
 
     useEffect(() => {
         loadEmployees();
-    }, []);
+        if (editingSalaryComponent) {
+            setFormData({
+                employee_id: editingSalaryComponent.employee_id,
+                basic_salary: editingSalaryComponent.basic_salary?.toString() || '',
+                dearness_allowance: editingSalaryComponent.dearness_allowance?.toString() || '',
+                house_rent_allowance: editingSalaryComponent.house_rent_allowance?.toString() || '',
+                conveyance_allowance: editingSalaryComponent.conveyance_allowance?.toString() || '',
+                medical_allowance: editingSalaryComponent.medical_allowance?.toString() || '',
+                special_allowance: editingSalaryComponent.special_allowance?.toString() || '',
+                other_allowances: editingSalaryComponent.other_allowances?.toString() || ''
+            });
+        }
+    }, [editingSalaryComponent]);
 
     const loadEmployees = async () => {
         if (!organization?.id) {
@@ -2011,6 +2040,16 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
         if (data) setEmployees(data);
     };
 
+    const handleInputChange = (field: string, value: string) => {
+        // Prevent negative values by blocking minus sign
+        if (value.includes('-')) {
+            return;
+        }
+        // Only allow numbers and decimal point
+        const numericValue = value.replace(/[^0-9.]/g, '');
+        setFormData({ ...formData, [field]: numericValue });
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -2028,36 +2067,76 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
             return;
         }
 
-        try {
-            console.log('Submitting salary component:', {
-                organization_id: organization!.id,
-                employee_id: formData.employee_id,
-                basic_salary: parseFloat(formData.basic_salary)
-            });
+        // Validate all fields are non-negative
+        const fields = ['basic_salary', 'dearness_allowance', 'house_rent_allowance', 'conveyance_allowance', 'medical_allowance', 'special_allowance', 'other_allowances'];
+        for (const field of fields) {
+            const value = parseFloat(formData[field as keyof typeof formData] || '0');
+            if (value < 0) {
+                setError(`${field.replace(/_/g, ' ')} cannot be negative`);
+                setLoading(false);
+                return;
+            }
+        }
 
-            const { data, error: insertError } = await supabase
-                .from('india_salary_components')
-                .insert({
+        try {
+            const salaryData = {
+                basic_salary: parseFloat(formData.basic_salary),
+                dearness_allowance: parseFloat(formData.dearness_allowance) || 0,
+                house_rent_allowance: parseFloat(formData.house_rent_allowance) || 0,
+                conveyance_allowance: parseFloat(formData.conveyance_allowance) || 0,
+                medical_allowance: parseFloat(formData.medical_allowance) || 0,
+                special_allowance: parseFloat(formData.special_allowance) || 0,
+                other_allowances: parseFloat(formData.other_allowances) || 0,
+                is_active: true
+            };
+
+            if (editingSalaryComponent) {
+                // Update existing salary component
+                console.log('Updating salary component:', {
+                    id: editingSalaryComponent.id,
+                    employee_id: formData.employee_id,
+                    ...salaryData
+                });
+
+                const { data, error: updateError } = await supabase
+                    .from('india_salary_components')
+                    .update(salaryData)
+                    .eq('id', editingSalaryComponent.id)
+                    .eq('employee_id', formData.employee_id)
+                    .select();
+
+                if (updateError) {
+                    console.error('Update error:', updateError);
+                    throw updateError;
+                }
+
+                console.log('Successfully updated salary component:', data);
+                showNotification('success', 'Success', 'Salary component updated successfully!');
+            } else {
+                // Insert new salary component
+                console.log('Submitting salary component:', {
                     organization_id: organization!.id,
                     employee_id: formData.employee_id,
-                    basic_salary: parseFloat(formData.basic_salary),
-                    dearness_allowance: parseFloat(formData.dearness_allowance) || 0,
-                    house_rent_allowance: parseFloat(formData.house_rent_allowance) || 0,
-                    conveyance_allowance: parseFloat(formData.conveyance_allowance) || 0,
-                    medical_allowance: parseFloat(formData.medical_allowance) || 0,
-                    special_allowance: parseFloat(formData.special_allowance) || 0,
-                    other_allowances: parseFloat(formData.other_allowances) || 0,
-                    is_active: true
-                })
-                .select();
+                    ...salaryData
+                });
 
-            if (insertError) {
-                console.error('Insert error:', insertError);
-                throw insertError;
+                const { data, error: insertError } = await supabase
+                    .from('india_salary_components')
+                    .insert({
+                        organization_id: organization!.id,
+                        employee_id: formData.employee_id,
+                        ...salaryData
+                    })
+                    .select();
+
+                if (insertError) {
+                    console.error('Insert error:', insertError);
+                    throw insertError;
+                }
+
+                console.log('Successfully inserted salary component:', data);
+                showNotification('success', 'Success', 'Salary component saved successfully!');
             }
-
-            console.log('Successfully inserted salary component:', data);
-            showNotification('success', 'Success', 'Salary component saved successfully!');
             onSuccess();
         } catch (err: any) {
             console.error('Error saving salary component:', err);
@@ -2069,19 +2148,19 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
 
     const totalSalary =
         (parseFloat(formData.basic_salary) || 0) +
-        (parseFloat(formData.housing_allowance) || 0) +
-        (parseFloat(formData.food_allowance) || 0) +
-        (parseFloat(formData.transport_allowance) || 0) +
-        (parseFloat(formData.mobile_allowance) || 0) +
-        (parseFloat(formData.utility_allowance) || 0) +
+        (parseFloat(formData.dearness_allowance) || 0) +
+        (parseFloat(formData.house_rent_allowance) || 0) +
+        (parseFloat(formData.conveyance_allowance) || 0) +
+        (parseFloat(formData.medical_allowance) || 0) +
+        (parseFloat(formData.special_allowance) || 0) +
         (parseFloat(formData.other_allowances) || 0);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 rounded-t-2xl sticky top-0">
-                    <h2 className="text-2xl font-bold text-white">Add Salary Component</h2>
-                    <p className="text-emerald-100 text-sm mt-1">Set up employee salary structure</p>
+                    <h2 className="text-2xl font-bold text-white">{editingSalaryComponent ? 'Edit Salary Component' : 'Add Salary Component'}</h2>
+                    <p className="text-emerald-100 text-sm mt-1">{editingSalaryComponent ? 'Update employee salary structure' : 'Set up employee salary structure'}</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -2100,6 +2179,7 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
                             value={formData.employee_id}
                             onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
                             className="input-modern"
+                            disabled={!!editingSalaryComponent}
                         >
                             <option value="">Select Employee</option>
                             {employees.map((emp) => (
@@ -2119,8 +2199,14 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
                                 type="number"
                                 required
                                 step="0.01"
+                                min="0"
                                 value={formData.basic_salary}
-                                onChange={(e) => setFormData({ ...formData, basic_salary: e.target.value })}
+                                onChange={(e) => handleInputChange('basic_salary', e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 className="input-modern"
                                 placeholder="30000"
                             />
@@ -2133,8 +2219,14 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
                             <input
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 value={formData.dearness_allowance}
-                                onChange={(e) => setFormData({ ...formData, dearness_allowance: e.target.value })}
+                                onChange={(e) => handleInputChange('dearness_allowance', e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 className="input-modern"
                                 placeholder="5000"
                             />
@@ -2147,8 +2239,14 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
                             <input
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 value={formData.house_rent_allowance}
-                                onChange={(e) => setFormData({ ...formData, house_rent_allowance: e.target.value })}
+                                onChange={(e) => handleInputChange('house_rent_allowance', e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 className="input-modern"
                                 placeholder="10000"
                             />
@@ -2161,8 +2259,14 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
                             <input
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 value={formData.conveyance_allowance}
-                                onChange={(e) => setFormData({ ...formData, conveyance_allowance: e.target.value })}
+                                onChange={(e) => handleInputChange('conveyance_allowance', e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 className="input-modern"
                                 placeholder="2000"
                             />
@@ -2175,8 +2279,14 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
                             <input
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 value={formData.medical_allowance}
-                                onChange={(e) => setFormData({ ...formData, medical_allowance: e.target.value })}
+                                onChange={(e) => handleInputChange('medical_allowance', e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 className="input-modern"
                                 placeholder="1250"
                             />
@@ -2189,8 +2299,14 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
                             <input
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 value={formData.special_allowance}
-                                onChange={(e) => setFormData({ ...formData, special_allowance: e.target.value })}
+                                onChange={(e) => handleInputChange('special_allowance', e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 className="input-modern"
                                 placeholder="3000"
                             />
@@ -2203,8 +2319,14 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
                             <input
                                 type="number"
                                 step="0.01"
+                                min="0"
                                 value={formData.other_allowances}
-                                onChange={(e) => setFormData({ ...formData, other_allowances: e.target.value })}
+                                onChange={(e) => handleInputChange('other_allowances', e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+                                        e.preventDefault();
+                                    }
+                                }}
                                 className="input-modern"
                                 placeholder="0"
                             />
@@ -2223,7 +2345,7 @@ function AddSalaryComponentModal({ onClose, onSuccess, preSelectedEmployeeId, sh
                             Cancel
                         </button>
                         <button type="submit" disabled={loading} className="btn-primary">
-                            {loading ? 'Saving...' : 'Save Salary Component'}
+                            {loading ? (editingSalaryComponent ? 'Updating...' : 'Saving...') : (editingSalaryComponent ? 'Update Salary Component' : 'Save Salary Component')}
                         </button>
                     </div>
                 </form>

@@ -34,21 +34,25 @@ import { WorkReportsPage } from './pages/WorkReports/WorkReportsPage';
 import { HelpPage } from './pages/Help/HelpPage';
 import { EmployeeDashboard } from './pages/EmployeeDashboard';
 import { ChangePasswordPage } from './pages/Auth/ChangePasswordPage';
+import { ResetPasswordPage } from './pages/Auth/ResetPasswordPage';
 import { MyPayrollPage } from './pages/Payroll/MyPayrollPage';
 
 function AppContent() {
   const { user, loading, profile } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
-  const [authMode, setAuthMode] = useState<'landing' | 'login' | 'register' | 'employee-register' | 'onboarding'>('landing');
+  const [authMode, setAuthMode] = useState<'landing' | 'login' | 'register' | 'employee-register' | 'onboarding' | 'reset-password'>('landing');
 
   useEffect(() => {
     const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
 
     if (path === '/onboarding' || params.get('token')) {
       setAuthMode('onboarding');
     } else if (path === '/employee-register' || params.get('code')) {
       setAuthMode('employee-register');
+    } else if (path === '/auth/reset-password' || hash.includes('type=recovery') || params.get('type') === 'recovery') {
+      setAuthMode('reset-password');
     }
   }, []);
 
@@ -97,6 +101,10 @@ function AppContent() {
 
     if (authMode === 'employee-register') {
       return <EmployeeRegisterPage />;
+    }
+
+    if (authMode === 'reset-password') {
+      return <ResetPasswordPage />;
     }
 
     if (authMode === 'landing') {

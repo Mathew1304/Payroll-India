@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
-import { Banknote, Plus, Download, FileText, Clock, Calculator, TrendingUp, Users, Calendar, CheckCircle, AlertCircle, X, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Banknote, Plus, Download, FileText, Clock, Calculator, TrendingUp, Users, Calendar, CheckCircle, AlertCircle, X, Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { calculateCompletePayroll, calculateEOS, calculateYearsOfService } from '../../utils/qatarPayrollCalculations';
@@ -927,6 +927,7 @@ function PayrollRecordsTab({ records, onRefresh, selectedMonth, selectedYear, or
 function SalaryComponentsTab({ components, allEmployees, onRefresh, showNotification }: any) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [editingSalaryComponent, setEditingSalaryComponent] = useState<SalaryComponent | null>(null);
 
   const getEmployeeSalaryComponent = (employeeId: string) => {
     return components.find((c: SalaryComponent) => c.employee_id === employeeId);
@@ -982,17 +983,30 @@ function SalaryComponentsTab({ components, allEmployees, onRefresh, showNotifica
                     </div>
                     <p className="text-xs text-slate-600 mt-0.5">{employee.employee_code} • QID: {employee.qatar_id || 'N/A'}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-500 font-medium uppercase">Total Monthly Salary</p>
-                    <p className="text-lg font-bold text-emerald-600">
-                      {(Number(salaryComp.basic_salary) +
-                        Number(salaryComp.housing_allowance) +
-                        Number(salaryComp.food_allowance) +
-                        Number(salaryComp.transport_allowance) +
-                        Number(salaryComp.mobile_allowance) +
-                        Number(salaryComp.utility_allowance) +
-                        Number(salaryComp.other_allowances)).toLocaleString()} QAR
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <p className="text-[10px] text-slate-500 font-medium uppercase">Total Monthly Salary</p>
+                      <p className="text-lg font-bold text-emerald-600">
+                        {(Number(salaryComp.basic_salary) +
+                          Number(salaryComp.housing_allowance) +
+                          Number(salaryComp.food_allowance) +
+                          Number(salaryComp.transport_allowance) +
+                          Number(salaryComp.mobile_allowance) +
+                          Number(salaryComp.utility_allowance) +
+                          Number(salaryComp.other_allowances)).toLocaleString()} QAR
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEditingSalaryComponent(salaryComp);
+                        setShowAddModal(true);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      title="Edit Salary Component"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
                   </div>
                 </div>
 
@@ -1054,13 +1068,16 @@ function SalaryComponentsTab({ components, allEmployees, onRefresh, showNotifica
       {showAddModal && (
         <AddSalaryComponentModal
           preSelectedEmployeeId={selectedEmployeeId}
+          editingSalaryComponent={editingSalaryComponent}
           onClose={() => {
             setShowAddModal(false);
             setSelectedEmployeeId(null);
+            setEditingSalaryComponent(null);
           }}
           onSuccess={() => {
             setShowAddModal(false);
             setSelectedEmployeeId(null);
+            setEditingSalaryComponent(null);
             onRefresh();
           }}
           showNotification={showNotification}

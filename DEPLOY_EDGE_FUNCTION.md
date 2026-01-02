@@ -32,10 +32,12 @@ cd "c:\Users\Mathew Fedrick 13\Downloads\PayrollQatar"
 supabase link --project-ref xbqzohdjjppfgzxbjlsa
 ```
 
-**Step 4: Deploy the function**
+**Step 4: Deploy the function with JWT verification disabled**
 ```powershell
-supabase functions deploy create-employee-user
+supabase functions deploy create-employee-user --no-verify-jwt
 ```
+
+**Important:** The `--no-verify-jwt` flag is required because this function uses the service role key internally and doesn't need to verify the client's JWT token.
 
 **Step 5: Verify deployment**
 ```powershell
@@ -54,7 +56,12 @@ If CLI doesn't work, you can deploy via the dashboard:
 4. Click **"Deploy new function"** or find `create-employee-user`
 5. Copy the contents of `supabase/functions/create-employee-user/index.ts`
 6. Paste into the editor
-7. Click **"Deploy"**
+7. **IMPORTANT:** After deploying, go to the function settings and **disable JWT verification**:
+   - Click on the function name
+   - Go to **Settings** tab
+   - Find **"Verify JWT"** option
+   - **Disable** it (uncheck the box)
+   - Click **Save**
 
 ---
 
@@ -150,6 +157,17 @@ supabase login
 1. Wait 1-2 minutes for deployment to propagate
 2. Hard refresh browser (Ctrl+Shift+R)
 3. Check function logs in Supabase Dashboard → Edge Functions → Logs
+
+### Getting 401 Unauthorized error
+This means JWT verification is enabled. Fix it by:
+1. **Using CLI:** Redeploy with `--no-verify-jwt` flag:
+   ```powershell
+   supabase functions deploy create-employee-user --no-verify-jwt
+   ```
+2. **Using Dashboard:** 
+   - Go to Edge Functions → `create-employee-user` → Settings
+   - Disable "Verify JWT" option
+   - Save changes
 
 ---
 
